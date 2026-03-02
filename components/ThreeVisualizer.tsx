@@ -214,8 +214,6 @@ export default function ThreeVisualizer({
     let dragStartY = 0
     let dragStartFreq = freqRef.current
     let dragStartVol = volRef.current
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    let lastInteractionHint = ''
 
     const updateMouseWorld = (clientX: number, clientY: number) => {
       const rect = container.getBoundingClientRect()
@@ -250,7 +248,6 @@ export default function ThreeVisualizer({
           onVolRef.current(parseFloat(newVol.toFixed(2)))
         }
 
-        lastInteractionHint = `${freqRef.current} Hz`
       } else {
         container.style.cursor = 'grab'
       }
@@ -269,7 +266,6 @@ export default function ThreeVisualizer({
     const onMouseUp = () => {
       isDragging = false
       container.style.cursor = 'grab'
-      lastInteractionHint = ''
     }
 
     // Scroll: change frequency
@@ -281,7 +277,6 @@ export default function ThreeVisualizer({
       const newFreq = sliderToFreq(newSlider)
       freqRef.current = newFreq
       onFreqRef.current(newFreq)
-      lastInteractionHint = `${newFreq} Hz`
     }
 
     // Double click: burst ripple + particle explosion
