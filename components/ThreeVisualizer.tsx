@@ -214,6 +214,7 @@ export default function ThreeVisualizer({
     let dragStartY = 0
     let dragStartFreq = freqRef.current
     let dragStartVol = volRef.current
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     let lastInteractionHint = ''
 
     const updateMouseWorld = (clientX: number, clientY: number) => {
@@ -359,7 +360,7 @@ export default function ThreeVisualizer({
 
       // Sync material colors
       waveMat.color = color
-      sphereLayers.forEach((s, i) => {
+      sphereLayers.forEach((s) => {
         ;(s.material as THREE.MeshBasicMaterial).color.copy(color)
       })
 
@@ -393,13 +394,13 @@ export default function ThreeVisualizer({
         gPos.needsUpdate = true
 
         // Frequency bars
-        freqDomainBuf!.forEach((val, i) => {
-          if (i >= bars.length) return
+        freqDomainBuf!.forEach((val, _i) => {
+          if (_i >= bars.length) return
           const v = val / 255
-          bars[i].scale.y = 0.4 + v * 5
-          barMats[i].opacity = 0.15 + v * 0.85
+          bars[_i].scale.y = 0.4 + v * 5
+          barMats[_i].opacity = 0.15 + v * 0.85
           const h = 0.55 - v * 0.45
-          barMats[i].color.setHSL(h, 1, 0.55)
+          barMats[_i].color.setHSL(h, 1, 0.55)
         })
 
         // Central sphere pulse
@@ -429,12 +430,12 @@ export default function ThreeVisualizer({
         sphereLayers[2].scale.setScalar(idleScale * 1.45)
 
         // Idle bars
-        bars.forEach((bar, i) => {
-          const angle = (i / bars.length) * Math.PI * 2
+        bars.forEach((bar, _i) => {
+          const angle = (_i / bars.length) * Math.PI * 2
           const v = (Math.sin(angle * 3 + t * 1.5) + 1) / 2 * 0.2
           bar.scale.y = 0.2 + v
-          barMats[i].opacity = 0.1 + v * 0.5
-          barMats[i].color.setHSL(0.55, 1, 0.5)
+          barMats[_i].opacity = 0.1 + v * 0.5
+          barMats[_i].color.setHSL(0.55, 1, 0.5)
         })
       }
 
