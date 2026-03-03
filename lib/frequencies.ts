@@ -1,119 +1,167 @@
-export type WaveType = 'sine' | 'square' | 'sawtooth' | 'triangle'
+export type FrequencyColorTheme = 'amber' | 'red' | 'emerald' | 'blue' | 'violet' | 'purple'
 
-export interface FrequencyPreset {
+export type BinauralBand = 'delta' | 'theta' | 'alpha' | 'beta' | 'gamma'
+
+export interface SoliveFrequency {
+  hz: number
   name: string
-  frequency: number
-  wave: WaveType
+  tagline: string
   description: string
-  binauralBeat?: number // Hz beat frequency for binaural mode
+  effects: string[]
+  researchNote: string
+  color: FrequencyColorTheme
+  colorHex: string
+  cymatics: string
 }
 
-export interface FrequencyCategory {
-  id: string
+export interface BinauralPreset {
+  band: BinauralBand
+  hz: number
   label: string
-  color: string
-  presets: FrequencyPreset[]
+  state: string
+  carrierHz: number
 }
 
-export const FREQUENCY_CATEGORIES: FrequencyCategory[] = [
-  {
-    id: 'solfeggio',
-    label: 'Solfeggio',
-    color: '#00d4ff',
-    presets: [
-      { name: '174 Hz', frequency: 174, wave: 'sine', description: 'Foundation & Security — reduces pain, promotes safety' },
-      { name: '285 Hz', frequency: 285, wave: 'sine', description: 'Healing & Regeneration — heals tissue and organs' },
-      { name: '396 Hz', frequency: 396, wave: 'sine', description: 'Liberation — releases guilt and fear' },
-      { name: '417 Hz', frequency: 417, wave: 'sine', description: 'Change & Transformation — facilitates change' },
-      { name: '432 Hz', frequency: 432, wave: 'sine', description: 'Universal Harmony — Verdi\'s natural tuning' },
-      { name: '528 Hz', frequency: 528, wave: 'sine', description: 'Miracle Tone — DNA repair, love frequency' },
-      { name: '639 Hz', frequency: 639, wave: 'sine', description: 'Connection — enhances relationships' },
-      { name: '741 Hz', frequency: 741, wave: 'sine', description: 'Intuition — awakens inner knowing' },
-      { name: '852 Hz', frequency: 852, wave: 'sine', description: 'Spiritual Order — returns to spiritual balance' },
-      { name: '963 Hz', frequency: 963, wave: 'sine', description: 'Divine Connection — pineal gland activation' },
-    ],
+// ─── Full Solfeggio frequency library ─────────────────────────────────────
+export const FREQUENCIES: Record<number, SoliveFrequency> = {
+  174: {
+    hz: 174,
+    name: 'Foundation',
+    tagline: 'Natural Pain Relief',
+    description: 'The lowest Solfeggio tone. Acts as a natural anesthetic — deeply grounding, working directly on physical pain and muscle tension.',
+    effects: ['Physical pain relief', 'Muscle relaxation', 'Stress reduction', 'Grounding'],
+    researchNote: 'Associated with pain relief and sedation. Practitioners report significant reduction in lower back pain, migraines, and physical tension.',
+    color: 'amber',
+    colorHex: '#f59e0b',
+    cymatics: 'Simple, slow-pulsing oval forms — the pattern of deep earth vibration.',
   },
-  {
-    id: 'binaural',
-    label: 'Binaural Beats',
-    color: '#8b5cf6',
-    presets: [
-      { name: 'Delta Sleep', frequency: 200, wave: 'sine', binauralBeat: 2, description: 'Deep sleep, healing (0.5–4 Hz beat)' },
-      { name: 'Theta Dream', frequency: 200, wave: 'sine', binauralBeat: 6, description: 'REM sleep, meditation (4–8 Hz beat)' },
-      { name: 'Alpha Relax', frequency: 200, wave: 'sine', binauralBeat: 10, description: 'Relaxed focus, calm mind (8–14 Hz beat)' },
-      { name: 'Beta Focus', frequency: 200, wave: 'sine', binauralBeat: 18, description: 'Active thinking, concentration (14–30 Hz beat)' },
-      { name: 'Gamma Peak', frequency: 200, wave: 'sine', binauralBeat: 40, description: 'Peak performance, higher cognition (30–100 Hz beat)' },
-    ],
+  285: {
+    hz: 285,
+    name: 'Tissue Healer',
+    tagline: 'Cellular Regeneration',
+    description: "Targets the body's cellular intelligence. Heals wounds, restores organ vitality, and boosts the immune system from within.",
+    effects: ['Cellular repair', 'Immune boost', 'Energy restoration', 'Organ healing'],
+    researchNote: 'Cell biology studies show sound frequencies in this range influence cell proliferation and viability. Used in vibroacoustic healing protocols.',
+    color: 'amber',
+    colorHex: '#f59e0b',
+    cymatics: 'Soft expanding rings with two-fold symmetry — like a healing ripple in water.',
   },
-  {
-    id: 'focus',
-    label: 'Focus & Work',
-    color: '#f59e0b',
-    presets: [
-      { name: '40 Hz Gamma', frequency: 40, wave: 'sine', description: 'Cognitive enhancement, memory' },
-      { name: '14 Hz Beta', frequency: 14, wave: 'sine', description: 'Active concentration' },
-      { name: '10 Hz Alpha', frequency: 10, wave: 'sine', description: 'Flow state, creativity' },
-      { name: '528 Hz Focus', frequency: 528, wave: 'sine', description: 'Clarity and positive energy' },
-      { name: 'Brown Noise', frequency: 100, wave: 'sawtooth', description: 'Deep focus background' },
-    ],
+  396: {
+    hz: 396,
+    name: 'Liberator',
+    tagline: 'Release Fear & Grief',
+    description: 'Breaks through deep-seated fear, guilt, and grief. Grounds emotional charges that have been held in the body for years.',
+    effects: ['Fear release', 'Guilt dissolution', 'Grief processing', 'Emotional grounding'],
+    researchNote: 'The first of the original six Solfeggio tones (Ut). Used in sound therapy for trauma processing and emotional liberation.',
+    color: 'red',
+    colorHex: '#ef4444',
+    cymatics: 'Three-fold petal patterns — opening like a flower releasing tension.',
   },
-  {
-    id: 'sleep',
-    label: 'Sleep',
-    color: '#3b82f6',
-    presets: [
-      { name: 'Deep Sleep', frequency: 432, wave: 'sine', binauralBeat: 2, description: 'Delta wave induction for deep sleep' },
-      { name: 'Sleep Wave', frequency: 396, wave: 'sine', binauralBeat: 1, description: 'Slow delta for falling asleep fast' },
-      { name: '174 Hz Rest', frequency: 174, wave: 'sine', description: 'Pain relief & restful sleep' },
-      { name: 'Theta Bridge', frequency: 432, wave: 'sine', binauralBeat: 7, description: 'Hypnagogic state — between wake & sleep' },
-    ],
+  417: {
+    hz: 417,
+    name: 'Change Maker',
+    tagline: 'Undo Negative Patterns',
+    description: 'The frequency of transformation. Breaks free from stuck situations, clears cellular trauma, and makes space for positive change.',
+    effects: ['Pattern breaking', 'Trauma clearing', 'Adaptability', 'Fresh starts'],
+    researchNote: 'Second Solfeggio tone (Re). Used therapeutically for facilitating change and clearing residual emotional blocks.',
+    color: 'red',
+    colorHex: '#ef4444',
+    cymatics: 'Four-fold cross geometry — tension resolving into symmetry.',
   },
-  {
-    id: 'meditation',
-    label: 'Meditation',
-    color: '#ec4899',
-    presets: [
-      { name: 'Schumann 7.83', frequency: 7.83, wave: 'sine', description: 'Earth\'s resonance frequency' },
-      { name: '432 Pure', frequency: 432, wave: 'sine', description: 'Universal harmony tone' },
-      { name: 'Om 136.1 Hz', frequency: 136.1, wave: 'sine', description: 'Sanskrit OM frequency' },
-      { name: 'Cosmic 528', frequency: 528, wave: 'sine', description: 'Love frequency, transformation' },
-      { name: 'Zen Alpha', frequency: 432, wave: 'sine', binauralBeat: 8, description: 'Meditative alpha state' },
-    ],
+  432: {
+    hz: 432,
+    name: 'Earth Tone',
+    tagline: 'Natural Harmony & Sleep',
+    description: 'Tuned to the mathematical frequency of nature. More calming than standard 440 Hz — measurably reduces heart rate and induces deep sleep.',
+    effects: ['Heart rate reduction', 'Natural calm', 'Sleep induction', 'Emotional centering'],
+    researchNote: 'Double-blind studies show 432 Hz reduces mean heart rate by ~5 bpm vs 440 Hz, and significantly improves sleep quality scores.',
+    color: 'emerald',
+    colorHex: '#10b981',
+    cymatics: 'Mandala-like radial symmetry — the pattern water makes at this exact frequency.',
   },
-  {
-    id: 'healing',
-    label: 'Healing',
-    color: '#10b981',
-    presets: [
-      { name: '285 Tissue', frequency: 285, wave: 'sine', description: 'Tissue and cellular healing' },
-      { name: '528 DNA', frequency: 528, wave: 'sine', description: 'DNA repair frequency' },
-      { name: '396 Stress', frequency: 396, wave: 'sine', description: 'Releases stress and anxiety' },
-      { name: '174 Pain', frequency: 174, wave: 'sine', description: 'Natural anesthetic' },
-      { name: 'Heart 639', frequency: 639, wave: 'sine', description: 'Heart chakra healing' },
-    ],
+  528: {
+    hz: 528,
+    name: 'Miracle Tone',
+    tagline: 'Love, Calm & Transformation',
+    description: 'The most researched Solfeggio frequency. Reduces anxiety, activates the parasympathetic nervous system, and creates profound inner peace.',
+    effects: ['Anxiety reduction', 'Parasympathetic activation', 'Emotional clarity', 'Inner calm'],
+    researchNote: 'Clinical studies confirm 528 Hz significantly reduces anxiety, decreases cellular oxidative stress, and increases parasympathetic nervous system dominance.',
+    color: 'emerald',
+    colorHex: '#10b981',
+    cymatics: 'Six-pointed star geometry — the hexagonal pattern of transformation.',
   },
-]
-
-// Utility: convert slider (0–1000) to frequency on logarithmic scale (20–20000 Hz)
-export function sliderToFreq(val: number): number {
-  const min = Math.log10(20)
-  const max = Math.log10(20000)
-  return Math.round(Math.pow(10, min + (max - min) * val / 1000))
+  639: {
+    hz: 639,
+    name: 'Heart Connector',
+    tagline: 'Relationships & Connection',
+    description: 'The frequency of the heart. Rebuilds connection — with others, with yourself, with life. Used for conflict resolution and emotional intelligence.',
+    effects: ['Emotional connection', 'Conflict resolution', 'Communication', 'Social warmth'],
+    researchNote: 'Fourth Solfeggio tone (Fa). Used in sound therapy for rebuilding interpersonal trust and processing loneliness or disconnection.',
+    color: 'blue',
+    colorHex: '#3b82f6',
+    cymatics: 'Fluid wave patterns with flowing bilateral symmetry — the shape of connection.',
+  },
+  741: {
+    hz: 741,
+    name: 'Clarity Field',
+    tagline: 'Focus & Mental Detox',
+    description: 'Cleanses the mind of fog, noise, and confusion. Sharpens analytical thinking, boosts problem-solving, and energizes mental output.',
+    effects: ['Mental clarity', 'Focus enhancement', 'Problem-solving', 'Toxin clearing'],
+    researchNote: 'Fifth Solfeggio tone (Sol). Associated with electromagnetic detox. Used in focus-enhancement sound therapy protocols.',
+    color: 'violet',
+    colorHex: '#8b5cf6',
+    cymatics: 'Complex star polygon with multiple-fold symmetry — rapid, precise crystalline forms.',
+  },
+  852: {
+    hz: 852,
+    name: 'Inner Vision',
+    tagline: 'Intuition & Spiritual Insight',
+    description: 'Opens the inner eye. Cuts through surface noise to access deep intuition, inner truth, and spiritual awareness.',
+    effects: ['Intuitive awakening', 'Spiritual clarity', 'Inner truth', 'Third eye activation'],
+    researchNote: 'Sixth Solfeggio tone (La). Used in meditation traditions for heightening awareness and accessing intuitive intelligence.',
+    color: 'purple',
+    colorHex: '#a855f7',
+    cymatics: 'Intricate multi-petaled mandala — complexity becoming order.',
+  },
+  963: {
+    hz: 963,
+    name: 'Crown Frequency',
+    tagline: 'Unity & Transcendence',
+    description: "The highest Solfeggio tone — the 'God frequency'. Activates the pineal gland, connects to universal consciousness, and dissolves separation.",
+    effects: ['Deep meditation', 'Pineal activation', 'Unity consciousness', 'Pure awareness'],
+    researchNote: 'Extended Solfeggio tone (Si). Used in advanced meditation for accessing states of transcendence and spiritual unity.',
+    color: 'purple',
+    colorHex: '#a855f7',
+    cymatics: 'Perfect crystalline lattice — the highest geometric order visible in sound.',
+  },
 }
 
-// Utility: convert frequency to slider value
-export function freqToSlider(freq: number): number {
-  const min = Math.log10(20)
-  const max = Math.log10(20000)
-  return Math.round(((Math.log10(Math.max(20, freq)) - min) / (max - min)) * 1000)
+// ─── Binaural beat presets ─────────────────────────────────────────────────
+export const BINAURAL_PRESETS: Record<BinauralBand, BinauralPreset> = {
+  delta: { band: 'delta', hz: 2,  carrierHz: 200, label: 'Delta', state: 'Deep Sleep & Healing' },
+  theta: { band: 'theta', hz: 6,  carrierHz: 200, label: 'Theta', state: 'Deep Meditation & Emotional Processing' },
+  alpha: { band: 'alpha', hz: 9,  carrierHz: 200, label: 'Alpha', state: 'Calm Focus & Relaxation' },
+  beta:  { band: 'beta',  hz: 18, carrierHz: 200, label: 'Beta',  state: 'Alert Concentration' },
+  gamma: { band: 'gamma', hz: 40, carrierHz: 200, label: 'Gamma', state: 'Peak Cognition & High Performance' },
 }
 
-// Color based on frequency range
-export function freqToColor(freq: number): string {
-  if (freq < 100) return '#3b82f6'       // Deep blue — sub-bass
-  if (freq < 300) return '#8b5cf6'       // Purple — bass
-  if (freq < 800) return '#00d4ff'       // Cyan — lower mids
-  if (freq < 2000) return '#10b981'      // Green — mids
-  if (freq < 6000) return '#f59e0b'      // Amber — upper mids
-  return '#ef4444'                        // Red — highs
+export function getFrequency(hz: number): SoliveFrequency | undefined {
+  return FREQUENCIES[hz]
+}
+
+export function getColorThemeClass(color: FrequencyColorTheme): string {
+  const map: Record<FrequencyColorTheme, string> = {
+    amber: 'freq-amber', red: 'freq-red', emerald: 'freq-emerald',
+    blue: 'freq-blue', violet: 'freq-violet', purple: 'freq-purple',
+  }
+  return map[color]
+}
+
+// Cymatics complexity (1–5) for Three.js — physically accurate scaling
+export function getComplexityLevel(hz: number): number {
+  if (hz <= 285) return 1
+  if (hz <= 417) return 2
+  if (hz <= 528) return 3
+  if (hz <= 741) return 4
+  return 5
 }
