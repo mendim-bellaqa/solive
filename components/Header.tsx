@@ -86,11 +86,13 @@ export default function Header({ email, isPlaying, activeFrequency }: HeaderProp
 
       {/* User info */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <span style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
-          {email}
-        </span>
+        {email && (
+          <span style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
+            {email}
+          </span>
+        )}
         <button
-          onClick={handleLogout}
+          onClick={email ? handleLogout : () => router.push('/')}
           style={{
             padding: '6px 14px',
             background: 'rgba(255,255,255,0.05)',
