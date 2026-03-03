@@ -39,6 +39,15 @@ export default function FrequencyStudio({ user }: FrequencyStudioProps) {
     { id: 1, frequency: 432, wave: 'sine', volume: 0.8, active: true, label: 'Layer 1' },
   ])
   const [activeLayerId, setActiveLayerId] = useState(1)
+  const [isMobile, setIsMobile] = useState(false)
+  const [mobileTab, setMobileTab] = useState<'controls' | 'catalog' | 'layers'>('controls')
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   // ── Audio Refs ────────────────────────────────────────────
   const audioCtxRef = useRef<AudioContext | null>(null)
@@ -285,6 +294,297 @@ export default function FrequencyStudio({ user }: FrequencyStudioProps) {
 
   const accentColor = freqToColor(activeLayer.frequency)
 
+  // ── Shared sub-components ─────────────────────────────────
+  const LayersList = () => (
+    <>
+      {layers.map((layer) => {
+        const color = freqToColor(layer.frequency)
+        const isActive = layer.id === activeLayerId
+        return (
+          <div
+            key={layer.id}
+            onClick={() => setActiveLayerId(layer.id)}
+            style={{
+              padding: '10px 12px',
+              borderRadius: 8,
+              cursor: 'pointer',
+              border: `1px solid ${isActive ? color + '60' : 'rgba(255,255,255,0.07)'}`,
+              background: isActive ? `${color}12` : 'transparent',
+              transition: 'all 0.15s',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: isActive ? color : 'var(--text-primary)' }}>
+                {layer.label}
+              </span>
+              {layers.length > 1 && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); removeLayer(layer.id) }}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 18, padding: '0 2px' }}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+            <div style={{ marginTop: 4, fontSize: 12, color: 'var(--text-secondary)' }}>
+              {layer.frequency} Hz · {layer.wave}
+            </div>
+            {layer.binauralBeat && (
+              <div style={{ marginTop: 2, fontSize: 11, color: '#a78bfa' }}>
+                Binaural +{layer.binauralBeat} Hz
+              </div>
+            )}
+            <div style={{ marginTop: 6, height: 2, borderRadius: 2, background: 'rgba(255,255,255,0.1)', overflow: 'hidden' }}>
+              <div style={{ width: `${layer.volume * 100}%`, height: '100%', background: color, transition: 'width 0.1s' }} />
+            </div>
+          </div>
+        )
+      })}
+      {layers.length < 3 && (
+        <button
+          onClick={addLayer}
+          style={{
+            padding: '10px',
+            borderRadius: 8,
+            border: '1px dashed rgba(255,255,255,0.15)',
+            background: 'transparent',
+            color: 'var(--text-secondary)',
+            fontSize: 13,
+            cursor: 'pointer',
+            marginTop: 4,
+          }}
+        >
+          + Add Layer
+        </button>
+      )}
+    </>
+  )
+
+  const ControlsPanel = ({ compact }: { compact?: boolean }) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: compact ? 16 : 14 }}>
+      {/* Frequency */}
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+          <span style={{ fontSize: 11, color: 'var(--text-secondary)', letterSpacing: 1 }}>FREQUENCY</span>
+          <span style={{ fontSize: compact ? 20 : 18, fontWeight: 700, color: accentColor, fontVariantNumeric: 'tabular-nums' }}>
+            {activeLayer.frequency} Hz
+          </span>
+        </div>
+        <input
+          type="range" min={0} max={1000}
+          value={freqToSlider(activeLayer.frequency)}
+          onChange={(e) => handleFreqChange(Number(e.target.value))}
+        />
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3 }}>
+          <span style={{ fontSize: 10, color: 'var(--text-secondary)' }}>20 Hz</span>
+          <span style={{ fontSize: 10, color: 'var(--text-secondary)' }}>20,000 Hz</span>
+        </div>
+      </div>
+
+      {/* Waveform */}
+      <div>
+        <p style={{ fontSize: 11, color: 'var(--text-secondary)', letterSpacing: 1, marginBottom: 8 }}>WAVEFORM</p>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {WAVE_TYPES.map((w) => (
+            <button
+              key={w}
+              onClick={() => handleWaveChange(w)}
+              style={{
+                flex: 1,
+                padding: compact ? '8px 4px' : '5px 10px',
+                borderRadius: 6, fontSize: 12, cursor: 'pointer',
+                border: `1px solid ${activeLayer.wave === w ? accentColor : 'rgba(255,255,255,0.1)'}`,
+                background: activeLayer.wave === w ? `${accentColor}20` : 'transparent',
+                color: activeLayer.wave === w ? accentColor : 'var(--text-secondary)',
+                transition: 'all 0.15s',
+              }}
+            >
+              {WAVE_LABELS[w]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Volumes */}
+      <div style={{ display: 'flex', gap: 16 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+            <span style={{ fontSize: 11, color: 'var(--text-secondary)', letterSpacing: 1 }}>LAYER VOL</span>
+            <span style={{ fontSize: 12, color: 'var(--text-primary)' }}>{Math.round(activeLayer.volume * 100)}%</span>
+          </div>
+          <input type="range" min={0} max={1} step={0.01} value={activeLayer.volume}
+            onChange={(e) => handleVolumeChange(Number(e.target.value))} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+            <span style={{ fontSize: 11, color: 'var(--text-secondary)', letterSpacing: 1 }}>MASTER</span>
+            <span style={{ fontSize: 12, color: 'var(--text-primary)' }}>{Math.round(masterVolume * 100)}%</span>
+          </div>
+          <input type="range" min={0} max={1} step={0.01} value={masterVolume}
+            onChange={(e) => handleMasterVolume(Number(e.target.value))} />
+        </div>
+      </div>
+
+      {/* 8D */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 12,
+        padding: '10px 12px',
+        background: is8D ? 'rgba(236,72,153,0.08)' : 'rgba(255,255,255,0.02)',
+        border: `1px solid ${is8D ? 'rgba(236,72,153,0.25)' : 'rgba(255,255,255,0.06)'}`,
+        borderRadius: 10, transition: 'all 0.3s',
+      }}>
+        <button
+          onClick={() => {
+            const next = !is8D
+            setIs8D(next)
+            if (isPlaying) { handleStop(); setTimeout(handlePlay, 100) }
+          }}
+          style={{
+            padding: '7px 14px', borderRadius: 6, fontSize: 13, fontWeight: 600,
+            cursor: 'pointer', border: 'none', flexShrink: 0,
+            background: is8D ? 'linear-gradient(135deg, #ec4899, #8b5cf6)' : 'rgba(255,255,255,0.07)',
+            color: is8D ? 'white' : 'var(--text-secondary)', transition: 'all 0.2s',
+          }}
+        >
+          8D {is8D ? 'ON' : 'OFF'}
+        </button>
+        <div style={{ flex: 1, opacity: is8D ? 1 : 0.4, transition: 'opacity 0.3s' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+            <span style={{ fontSize: 11, color: 'var(--text-secondary)', letterSpacing: 1 }}>ROTATION</span>
+            <span style={{ fontSize: 12, color: '#f472b6' }}>{rotationSpeed.toFixed(1)}x</span>
+          </div>
+          <input type="range" min={0.1} max={3} step={0.1} value={rotationSpeed}
+            disabled={!is8D} onChange={(e) => setRotationSpeed(Number(e.target.value))} />
+        </div>
+      </div>
+    </div>
+  )
+
+  // ── Mobile Layout ─────────────────────────────────────────
+  if (isMobile) {
+    const TAB_ITEMS = [
+      { id: 'controls' as const, label: 'Controls', icon: '🎛' },
+      { id: 'catalog' as const, label: 'Catalog', icon: '🎵' },
+      { id: 'layers' as const, label: 'Layers', icon: '◧' },
+    ]
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: 'var(--bg-primary)', overflow: 'hidden' }}>
+        {/* Header */}
+        <Header email={user.email} isPlaying={isPlaying} activeFrequency={activeLayer.frequency} />
+
+        {/* 3D Visualizer — always visible, the hero */}
+        <div style={{ height: '38vh', flexShrink: 0, position: 'relative' }}>
+          <ThreeVisualizer
+            analyserRef={analyserRef}
+            isPlaying={isPlaying}
+            frequency={activeLayer.frequency}
+            volume={activeLayer.volume}
+            is8D={is8D}
+            rotationAngleRef={rotationAngleRef}
+            onFrequencyChange={(freq) => {
+              updateLayer(activeLayerId, { frequency: freq })
+              if (isPlaying) updateOscFrequency(activeLayerId, freq)
+            }}
+            onVolumeChange={(vol) => handleVolumeChange(vol)}
+          />
+        </div>
+
+        {/* Play bar */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+          padding: '10px 16px',
+          background: 'rgba(5,5,20,0.98)',
+          borderTop: '1px solid rgba(255,255,255,0.07)',
+          borderBottom: '1px solid rgba(255,255,255,0.07)',
+          flexShrink: 0,
+        }}>
+          <button
+            onClick={isPlaying ? handleStop : handlePlay}
+            className={isPlaying ? 'pulse-playing' : ''}
+            style={{
+              width: 56, height: 56, borderRadius: '50%', border: 'none', flexShrink: 0,
+              background: isPlaying
+                ? 'linear-gradient(135deg, #ef4444, #dc2626)'
+                : 'linear-gradient(135deg, #00d4ff, #8b5cf6)',
+              color: 'white', fontSize: 22, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            {isPlaying ? '◼' : '▶'}
+          </button>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+              <span style={{ fontSize: 11, color: 'var(--text-secondary)', letterSpacing: 1 }}>FREQUENCY</span>
+              <span style={{ fontSize: 20, fontWeight: 800, color: accentColor, fontVariantNumeric: 'tabular-nums' }}>
+                {activeLayer.frequency} Hz
+              </span>
+            </div>
+            <input
+              type="range" min={0} max={1000}
+              value={freqToSlider(activeLayer.frequency)}
+              onChange={(e) => handleFreqChange(Number(e.target.value))}
+            />
+          </div>
+        </div>
+
+        {/* Tab content */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px', paddingBottom: 4 }}>
+          {mobileTab === 'controls' && <ControlsPanel compact />}
+          {mobileTab === 'catalog' && (
+            <FrequencyCatalog onSelect={handlePresetSelect} activeFrequency={activeLayer.frequency} mobile />
+          )}
+          {mobileTab === 'layers' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <p style={{ fontSize: 10, color: 'var(--text-secondary)', letterSpacing: 1, marginBottom: 4 }}>SOUND LAYERS</p>
+              <LayersList />
+            </div>
+          )}
+        </div>
+
+        {/* Bottom tab bar */}
+        <div style={{
+          display: 'flex',
+          background: 'rgba(5,5,20,0.98)',
+          borderTop: '1px solid rgba(255,255,255,0.08)',
+          flexShrink: 0,
+          paddingBottom: 'env(safe-area-inset-bottom)',
+        }}>
+          {TAB_ITEMS.map((tab) => {
+            const active = mobileTab === tab.id
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setMobileTab(tab.id)}
+                style={{
+                  flex: 1,
+                  padding: '10px 4px 8px',
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 3,
+                  borderTop: `2px solid ${active ? '#00d4ff' : 'transparent'}`,
+                  transition: 'all 0.15s',
+                }}
+              >
+                <span style={{ fontSize: 18 }}>{tab.icon}</span>
+                <span style={{ fontSize: 11, fontWeight: 600, color: active ? '#00d4ff' : 'var(--text-secondary)' }}>
+                  {tab.label}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
+  // ── Desktop Layout ────────────────────────────────────────
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-primary)' }}>
       <Header email={user.email} isPlaying={isPlaying} activeFrequency={activeLayer.frequency} />
@@ -323,7 +623,6 @@ export default function FrequencyStudio({ user }: FrequencyStudioProps) {
           }}>
             {/* Play / Stop + Frequency display */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              {/* Play/Stop */}
               <button
                 onClick={isPlaying ? handleStop : handlePlay}
                 className={isPlaying ? 'pulse-playing' : ''}
@@ -339,8 +638,6 @@ export default function FrequencyStudio({ user }: FrequencyStudioProps) {
               >
                 {isPlaying ? '◼' : '▶'}
               </button>
-
-              {/* Frequency display */}
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                   <span style={{ fontSize: 11, color: 'var(--text-secondary)', letterSpacing: 1 }}>FREQUENCY</span>
@@ -349,8 +646,7 @@ export default function FrequencyStudio({ user }: FrequencyStudioProps) {
                   </span>
                 </div>
                 <input
-                  type="range"
-                  min={0} max={1000}
+                  type="range" min={0} max={1000}
                   value={freqToSlider(activeLayer.frequency)}
                   onChange={(e) => handleFreqChange(Number(e.target.value))}
                 />
@@ -361,206 +657,22 @@ export default function FrequencyStudio({ user }: FrequencyStudioProps) {
               </div>
             </div>
 
-            {/* Wave type + Volume */}
-            <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
-              {/* Wave type */}
-              <div>
-                <p style={{ fontSize: 11, color: 'var(--text-secondary)', letterSpacing: 1, marginBottom: 6 }}>WAVEFORM</p>
-                <div style={{ display: 'flex', gap: 4 }}>
-                  {WAVE_TYPES.map((w) => (
-                    <button
-                      key={w}
-                      onClick={() => handleWaveChange(w)}
-                      style={{
-                        padding: '5px 10px',
-                        borderRadius: 6, fontSize: 12, cursor: 'pointer',
-                        border: `1px solid ${activeLayer.wave === w ? accentColor : 'rgba(255,255,255,0.1)'}`,
-                        background: activeLayer.wave === w ? `${accentColor}20` : 'transparent',
-                        color: activeLayer.wave === w ? accentColor : 'var(--text-secondary)',
-                        transition: 'all 0.15s',
-                      }}
-                    >
-                      {WAVE_LABELS[w]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Layer volume */}
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <span style={{ fontSize: 11, color: 'var(--text-secondary)', letterSpacing: 1 }}>LAYER VOLUME</span>
-                  <span style={{ fontSize: 12, color: 'var(--text-primary)' }}>
-                    {Math.round(activeLayer.volume * 100)}%
-                  </span>
-                </div>
-                <input
-                  type="range" min={0} max={1} step={0.01}
-                  value={activeLayer.volume}
-                  onChange={(e) => handleVolumeChange(Number(e.target.value))}
-                />
-              </div>
-
-              {/* Master volume */}
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <span style={{ fontSize: 11, color: 'var(--text-secondary)', letterSpacing: 1 }}>MASTER VOL</span>
-                  <span style={{ fontSize: 12, color: 'var(--text-primary)' }}>
-                    {Math.round(masterVolume * 100)}%
-                  </span>
-                </div>
-                <input
-                  type="range" min={0} max={1} step={0.01}
-                  value={masterVolume}
-                  onChange={(e) => handleMasterVolume(Number(e.target.value))}
-                />
-              </div>
-            </div>
-
-            {/* 8D Controls */}
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 16,
-              padding: '10px 14px',
-              background: is8D ? 'rgba(236,72,153,0.08)' : 'rgba(255,255,255,0.02)',
-              border: `1px solid ${is8D ? 'rgba(236,72,153,0.25)' : 'rgba(255,255,255,0.06)'}`,
-              borderRadius: 10,
-              transition: 'all 0.3s',
-            }}>
-              {/* 8D Toggle */}
-              <button
-                onClick={() => {
-                  const next = !is8D
-                  setIs8D(next)
-                  if (isPlaying) {
-                    handleStop()
-                    setTimeout(handlePlay, 100)
-                  }
-                }}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: 6, fontSize: 13, fontWeight: 600,
-                  cursor: 'pointer', border: 'none', flexShrink: 0,
-                  background: is8D
-                    ? 'linear-gradient(135deg, #ec4899, #8b5cf6)'
-                    : 'rgba(255,255,255,0.07)',
-                  color: is8D ? 'white' : 'var(--text-secondary)',
-                  transition: 'all 0.2s',
-                }}
-              >
-                8D Audio {is8D ? 'ON' : 'OFF'}
-              </button>
-
-              {/* Rotation speed */}
-              <div style={{ flex: 1, opacity: is8D ? 1 : 0.4, transition: 'opacity 0.3s' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontSize: 11, color: 'var(--text-secondary)', letterSpacing: 1 }}>ROTATION SPEED</span>
-                  <span style={{ fontSize: 12, color: '#f472b6' }}>{rotationSpeed.toFixed(1)}x</span>
-                </div>
-                <input
-                  type="range" min={0.1} max={3} step={0.1}
-                  value={rotationSpeed}
-                  disabled={!is8D}
-                  onChange={(e) => setRotationSpeed(Number(e.target.value))}
-                />
-              </div>
-
-              <p style={{ fontSize: 11, color: 'var(--text-secondary)', maxWidth: 180 }}>
-                Use headphones for the full 8D spatial effect
-              </p>
-            </div>
+            <ControlsPanel />
           </div>
         </div>
 
         {/* Right: Layers panel */}
         <div style={{
-          width: 180,
-          flexShrink: 0,
+          width: 180, flexShrink: 0,
           borderLeft: '1px solid rgba(255,255,255,0.07)',
           background: 'rgba(255,255,255,0.02)',
-          display: 'flex',
-          flexDirection: 'column',
-          padding: 12,
-          gap: 8,
+          display: 'flex', flexDirection: 'column',
+          padding: 12, gap: 8,
         }}>
           <p style={{ fontSize: 10, color: 'var(--text-secondary)', letterSpacing: 1, marginBottom: 4 }}>
             SOUND LAYERS
           </p>
-
-          {layers.map((layer) => {
-            const color = freqToColor(layer.frequency)
-            const isActive = layer.id === activeLayerId
-            return (
-              <div
-                key={layer.id}
-                onClick={() => setActiveLayerId(layer.id)}
-                style={{
-                  padding: '10px 12px',
-                  borderRadius: 8,
-                  cursor: 'pointer',
-                  border: `1px solid ${isActive ? color + '60' : 'rgba(255,255,255,0.07)'}`,
-                  background: isActive ? `${color}12` : 'transparent',
-                  transition: 'all 0.15s',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: isActive ? color : 'var(--text-primary)' }}>
-                    {layer.label}
-                  </span>
-                  {layers.length > 1 && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); removeLayer(layer.id) }}
-                      style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 14, padding: 0 }}
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-                <div style={{ marginTop: 4, fontSize: 11, color: 'var(--text-secondary)' }}>
-                  {layer.frequency} Hz · {layer.wave}
-                </div>
-                {layer.binauralBeat && (
-                  <div style={{ marginTop: 2, fontSize: 10, color: '#a78bfa' }}>
-                    Binaural +{layer.binauralBeat} Hz
-                  </div>
-                )}
-                {/* Mini volume indicator */}
-                <div style={{
-                  marginTop: 6, height: 2, borderRadius: 2,
-                  background: 'rgba(255,255,255,0.1)',
-                  overflow: 'hidden',
-                }}>
-                  <div style={{ width: `${layer.volume * 100}%`, height: '100%', background: color, transition: 'width 0.1s' }} />
-                </div>
-              </div>
-            )
-          })}
-
-          {layers.length < 3 && (
-            <button
-              onClick={addLayer}
-              style={{
-                padding: '8px',
-                borderRadius: 8,
-                border: '1px dashed rgba(255,255,255,0.15)',
-                background: 'transparent',
-                color: 'var(--text-secondary)',
-                fontSize: 12,
-                cursor: 'pointer',
-                transition: 'all 0.15s',
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(0,212,255,0.3)'
-                e.currentTarget.style.color = 'var(--accent-cyan)'
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'
-                e.currentTarget.style.color = 'var(--text-secondary)'
-              }}
-            >
-              + Add Layer
-            </button>
-          )}
-
+          <LayersList />
           <div style={{ marginTop: 'auto', padding: '10px', background: 'rgba(255,255,255,0.02)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.05)' }}>
             <p style={{ fontSize: 10, color: 'var(--text-secondary)', letterSpacing: 1, marginBottom: 6 }}>ACTIVE FREQ</p>
             <p style={{ fontSize: 22, fontWeight: 800, color: accentColor }}>{activeLayer.frequency}</p>

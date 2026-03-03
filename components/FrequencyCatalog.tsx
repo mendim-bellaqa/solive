@@ -6,22 +6,23 @@ import { FREQUENCY_CATEGORIES, FrequencyPreset } from '@/lib/frequencies'
 interface FrequencyCatalogProps {
   onSelect: (preset: FrequencyPreset) => void
   activeFrequency: number
+  mobile?: boolean
 }
 
-export default function FrequencyCatalog({ onSelect, activeFrequency }: FrequencyCatalogProps) {
+export default function FrequencyCatalog({ onSelect, activeFrequency, mobile }: FrequencyCatalogProps) {
   const [activeCategory, setActiveCategory] = useState('solfeggio')
 
   const category = FREQUENCY_CATEGORIES.find((c) => c.id === activeCategory)!
 
   return (
     <div style={{
-      width: 240,
-      flexShrink: 0,
+      width: mobile ? '100%' : 240,
+      flexShrink: mobile ? undefined : 0,
       display: 'flex',
       flexDirection: 'column',
-      background: 'rgba(255,255,255,0.02)',
-      borderRight: '1px solid rgba(255,255,255,0.07)',
-      height: '100%',
+      background: mobile ? 'transparent' : 'rgba(255,255,255,0.02)',
+      borderRight: mobile ? 'none' : '1px solid rgba(255,255,255,0.07)',
+      height: mobile ? '100%' : '100%',
       overflow: 'hidden',
     }}>
       {/* Category tabs */}

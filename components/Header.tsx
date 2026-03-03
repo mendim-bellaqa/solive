@@ -24,12 +24,11 @@ export default function Header({ email, isPlaying, activeFrequency }: HeaderProp
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
-      padding: '12px 20px',
+      padding: '8px 16px',
       background: 'rgba(5, 5, 15, 0.9)',
       backdropFilter: 'blur(12px)',
       borderBottom: '1px solid rgba(255,255,255,0.07)',
-      position: 'sticky',
-      top: 0,
+      flexShrink: 0,
       zIndex: 100,
     }}>
       {/* Logo */}
@@ -92,27 +91,27 @@ export default function Header({ email, isPlaying, activeFrequency }: HeaderProp
           </span>
         )}
         <button
-          onClick={email ? handleLogout : () => router.push('/')}
+          onClick={email ? handleLogout : () => router.push('/auth/login')}
           style={{
             padding: '6px 14px',
-            background: 'rgba(255,255,255,0.05)',
-            border: '1px solid rgba(255,255,255,0.1)',
+            background: email ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg, #00d4ff22, #8b5cf622)',
+            border: email ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,212,255,0.3)',
             borderRadius: 6,
-            color: 'var(--text-secondary)',
+            color: email ? 'var(--text-secondary)' : '#00d4ff',
             fontSize: 13,
             cursor: 'pointer',
             transition: 'all 0.2s',
           }}
           onMouseOver={(e) => {
-            e.currentTarget.style.borderColor = 'rgba(239,68,68,0.4)'
-            e.currentTarget.style.color = '#f87171'
+            e.currentTarget.style.borderColor = email ? 'rgba(239,68,68,0.4)' : 'rgba(0,212,255,0.6)'
+            e.currentTarget.style.color = email ? '#f87171' : '#fff'
           }}
           onMouseOut={(e) => {
-            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
-            e.currentTarget.style.color = 'var(--text-secondary)'
+            e.currentTarget.style.borderColor = email ? 'rgba(255,255,255,0.1)' : 'rgba(0,212,255,0.3)'
+            e.currentTarget.style.color = email ? 'var(--text-secondary)' : '#00d4ff'
           }}
         >
-          Sign out
+          {email ? 'Sign out' : 'Sign in'}
         </button>
       </div>
     </header>
