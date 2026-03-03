@@ -1,47 +1,26 @@
-import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request })
+// Lightweight middleware — no Supabase SDK in Edge runtime
+// Auth is validated properly in each server page/route
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          )
-          supabaseResponse = NextResponse.next({ request })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          )
-        },
-      },
-    }
-  )
+  // Supabase stores session in cookies named: sb-<project-ref>-auth-token
+  const hasSession = request.cookies
+    .getAll()
+    .some((c) => c.name.startsWith('sb-') && c.name.endsWith('-auth-token'))
 
-  const { data: { user } } = await supabase.auth.getUser()
-
-  // Redirect unauthenticated users away from dashboard
-  if (!user && request.nextUrl.pathname.startsWith('/dashboard')) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/'
-    return NextResponse.redirect(url)
+  // Send unauthenticated users to login
+  if (!hasSession && pathname.startsWith('/dashboard')) {
+    return NextResponse.redirect(new URL('/', request.url))
   }
 
-  // Redirect authenticated users away from login page
-  if (user && request.nextUrl.pathname === '/') {
-    const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
-    return NextResponse.redirect(url)
+  // Send logged-in users straight to the studio
+  if (hasSession && pathname === '/') {
+    return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
-  return supabaseResponse
+  return NextResponse.next()
 }
 
 export const config = {
