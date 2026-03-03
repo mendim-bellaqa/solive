@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
-// Never prerender — this page needs live auth state
 export const dynamic = 'force-dynamic'
 
 export default function LoginPage() {
@@ -20,20 +19,39 @@ export default function LoginPage() {
     setLoading(true)
     setMessage(null)
 
-    // Create client here (inside handler) so it never runs during server prerender
     const supabase = createClient()
 
     if (mode === 'signup') {
-      const { error } = await supabase.auth.signUp({
+      // Sign up
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
       })
+
       if (error) {
         setMessage({ text: error.message, type: 'error' })
-      } else {
-        setMessage({ text: 'Check your email for a confirmation link!', type: 'success' })
+        setLoading(false)
+        return
       }
+
+      // If email confirmation is disabled, session is returned immediately
+      if (data.session) {
+        router.push('/dashboard')
+        router.refresh()
+        return
+      }
+
+      // Email confirmation required — auto-try sign in anyway
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+      if (!signInError) {
+        router.push('/dashboard')
+        router.refresh()
+        return
+      }
+
+      setMessage({ text: '✓ Account created! Check your email to confirm, then sign in.', type: 'success' })
+
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) {
@@ -49,58 +67,51 @@ export default function LoginPage() {
 
   return (
     <div
-      className="relative min-h-screen flex items-center justify-center bg-grid overflow-hidden"
+      className="relative min-h-screen flex items-center justify-center overflow-hidden bg-grid"
       style={{ background: 'var(--bg-primary)' }}
     >
       {/* Animated background orbs */}
-      <div className="orb w-96 h-96 top-[-5rem] left-[-5rem] opacity-30"
-        style={{ background: 'radial-gradient(circle, #8b5cf6, transparent)', animationDuration: '8s' }} />
-      <div className="orb w-80 h-80 bottom-[-3rem] right-[-3rem] opacity-20"
-        style={{ background: 'radial-gradient(circle, #00d4ff, transparent)', animationDuration: '12s', animationDelay: '-4s' }} />
-      <div className="orb w-64 h-64 top-1/2 left-1/4 opacity-10"
-        style={{ background: 'radial-gradient(circle, #ec4899, transparent)', animationDuration: '10s', animationDelay: '-2s' }} />
+      <div className="orb w-96 h-96 opacity-30"
+        style={{ background: 'radial-gradient(circle, #8b5cf6, transparent)', animationDuration: '8s', top: '-5rem', left: '-5rem' }} />
+      <div className="orb w-80 h-80 opacity-20"
+        style={{ background: 'radial-gradient(circle, #00d4ff, transparent)', animationDuration: '12s', animationDelay: '-4s', bottom: '-3rem', right: '-3rem' }} />
+      <div className="orb w-64 h-64 opacity-10"
+        style={{ background: 'radial-gradient(circle, #ec4899, transparent)', animationDuration: '10s', animationDelay: '-2s', top: '50%', left: '25%' }} />
 
-      {/* Login card */}
-      <div
-        className="glass relative z-10 w-full max-w-md mx-4 rounded-2xl p-8"
-        style={{ border: '1px solid rgba(0, 212, 255, 0.15)' }}
-      >
+      {/* Card */}
+      <div className="glass relative z-10 w-full max-w-md mx-4 rounded-2xl p-8"
+        style={{ border: '1px solid rgba(0,212,255,0.15)' }}>
+
         {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-3 mb-3">
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
             <div style={{
-              width: 40, height: 40,
+              width: 44, height: 44,
               background: 'linear-gradient(135deg, #00d4ff, #8b5cf6)',
-              borderRadius: 10,
+              borderRadius: 12,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 20
-            }}>
-              ◎
-            </div>
-            <h1 className="text-2xl font-bold text-glow"
-              style={{ color: 'var(--accent-cyan)' }}>
-              FreqLab
+              fontSize: 22, boxShadow: '0 0 20px rgba(0,212,255,0.3)',
+            }}>◎</div>
+            <h1 style={{ fontSize: 28, fontWeight: 800, color: '#00d4ff', textShadow: '0 0 30px rgba(0,212,255,0.5)', margin: 0 }}>
+              Solive
             </h1>
           </div>
-          <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 13, margin: 0 }}>
             3D Sound Frequency Studio
           </p>
         </div>
 
-        {/* Tab switcher */}
-        <div className="flex mb-6 rounded-lg overflow-hidden"
-          style={{ background: 'rgba(255,255,255,0.05)' }}>
+        {/* Tabs */}
+        <div style={{ display: 'flex', marginBottom: 24, borderRadius: 8, overflow: 'hidden', background: 'rgba(255,255,255,0.05)' }}>
           {(['login', 'signup'] as const).map((tab) => (
-            <button
-              key={tab}
+            <button key={tab}
               onClick={() => { setMode(tab); setMessage(null) }}
-              className="flex-1 py-2 text-sm font-medium transition-all duration-200"
               style={{
-                background: mode === tab ? 'linear-gradient(135deg, rgba(0,212,255,0.2), rgba(139,92,246,0.2))' : 'transparent',
-                color: mode === tab ? 'var(--accent-cyan)' : 'var(--text-secondary)',
-                border: 'none',
-                cursor: 'pointer',
-                borderBottom: mode === tab ? '1px solid var(--accent-cyan)' : '1px solid transparent',
+                flex: 1, padding: '10px', fontSize: 14, fontWeight: 500,
+                cursor: 'pointer', border: 'none', transition: 'all 0.2s',
+                background: mode === tab ? 'linear-gradient(135deg,rgba(0,212,255,0.2),rgba(139,92,246,0.2))' : 'transparent',
+                color: mode === tab ? '#00d4ff' : 'var(--text-secondary)',
+                borderBottom: mode === tab ? '2px solid #00d4ff' : '2px solid transparent',
               }}
             >
               {tab === 'login' ? 'Sign In' : 'Sign Up'}
@@ -109,106 +120,78 @@ export default function LoginPage() {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
-            <label style={{ color: 'var(--text-secondary)', fontSize: 12, marginBottom: 6, display: 'block' }}>
+            <label style={{ color: 'var(--text-secondary)', fontSize: 11, letterSpacing: 1, marginBottom: 6, display: 'block' }}>
               EMAIL
             </label>
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
+              type="email" value={email} required
               placeholder="you@example.com"
-              style={{
-                width: '100%',
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: 8,
-                padding: '10px 14px',
-                color: 'var(--text-primary)',
-                fontSize: 14,
-                outline: 'none',
-                transition: 'border-color 0.2s',
-              }}
-              onFocus={(e) => e.target.style.borderColor = 'var(--accent-cyan)'}
+              onChange={(e) => setEmail(e.target.value)}
+              onFocus={(e) => e.target.style.borderColor = '#00d4ff'}
               onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
+              style={{
+                width: '100%', padding: '11px 14px', fontSize: 14,
+                background: 'rgba(255,255,255,0.05)', color: 'var(--text-primary)',
+                border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, outline: 'none',
+                transition: 'border-color 0.2s', boxSizing: 'border-box',
+              }}
             />
           </div>
 
           <div>
-            <label style={{ color: 'var(--text-secondary)', fontSize: 12, marginBottom: 6, display: 'block' }}>
-              PASSWORD
+            <label style={{ color: 'var(--text-secondary)', fontSize: 11, letterSpacing: 1, marginBottom: 6, display: 'block' }}>
+              PASSWORD {mode === 'signup' && <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(min 6 characters)</span>}
             </label>
             <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
+              type="password" value={password} required minLength={6}
               placeholder="••••••••"
-              minLength={6}
-              style={{
-                width: '100%',
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: 8,
-                padding: '10px 14px',
-                color: 'var(--text-primary)',
-                fontSize: 14,
-                outline: 'none',
-                transition: 'border-color 0.2s',
-              }}
-              onFocus={(e) => e.target.style.borderColor = 'var(--accent-cyan)'}
+              onChange={(e) => setPassword(e.target.value)}
+              onFocus={(e) => e.target.style.borderColor = '#00d4ff'}
               onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
+              style={{
+                width: '100%', padding: '11px 14px', fontSize: 14,
+                background: 'rgba(255,255,255,0.05)', color: 'var(--text-primary)',
+                border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, outline: 'none',
+                transition: 'border-color 0.2s', boxSizing: 'border-box',
+              }}
             />
           </div>
 
-          {/* Message */}
           {message && (
             <div style={{
-              padding: '10px 14px',
-              borderRadius: 8,
-              fontSize: 13,
-              background: message.type === 'error'
-                ? 'rgba(239,68,68,0.1)'
-                : 'rgba(16,185,129,0.1)',
+              padding: '10px 14px', borderRadius: 8, fontSize: 13,
+              background: message.type === 'error' ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.1)',
               border: `1px solid ${message.type === 'error' ? 'rgba(239,68,68,0.3)' : 'rgba(16,185,129,0.3)'}`,
               color: message.type === 'error' ? '#f87171' : '#34d399',
+              lineHeight: 1.5,
             }}>
               {message.text}
             </div>
           )}
 
           <button
-            type="submit"
-            disabled={loading}
+            type="submit" disabled={loading}
             style={{
-              marginTop: 4,
-              padding: '12px',
-              background: loading
-                ? 'rgba(255,255,255,0.1)'
-                : 'linear-gradient(135deg, #00d4ff, #8b5cf6)',
-              color: 'white',
-              border: 'none',
-              borderRadius: 8,
-              fontSize: 15,
-              fontWeight: 600,
-              cursor: loading ? 'not-allowed' : 'pointer',
-              transition: 'opacity 0.2s',
-              opacity: loading ? 0.7 : 1,
+              marginTop: 4, padding: '13px', fontSize: 15, fontWeight: 700,
+              border: 'none', borderRadius: 8, cursor: loading ? 'not-allowed' : 'pointer',
+              background: loading ? 'rgba(255,255,255,0.1)' : 'linear-gradient(135deg,#00d4ff,#8b5cf6)',
+              color: 'white', opacity: loading ? 0.7 : 1, transition: 'opacity 0.2s, transform 0.1s',
+              letterSpacing: 0.5,
             }}
+            onMouseOver={(e) => { if (!loading) e.currentTarget.style.opacity = '0.9' }}
+            onMouseOut={(e) => { if (!loading) e.currentTarget.style.opacity = '1' }}
           >
-            {loading ? '...' : mode === 'login' ? 'Enter Studio' : 'Create Account'}
+            {loading ? 'Please wait...' : mode === 'login' ? 'Enter Studio →' : 'Create Free Account →'}
           </button>
         </form>
 
         <p style={{ textAlign: 'center', marginTop: 20, fontSize: 12, color: 'var(--text-secondary)' }}>
-          {mode === 'login'
-            ? "Don't have an account? "
-            : 'Already have an account? '}
+          {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
           <button
             onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setMessage(null) }}
-            style={{ color: 'var(--accent-cyan)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}
+            style={{ color: '#00d4ff', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
           >
             {mode === 'login' ? 'Sign up free' : 'Sign in'}
           </button>

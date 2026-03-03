@@ -45,7 +45,7 @@ export default function Header({ email, isPlaying, activeFrequency }: HeaderProp
           ◎
         </div>
         <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--accent-cyan)' }}>
-          FreqLab
+          Solive
         </span>
         <span style={{
           padding: '2px 8px',

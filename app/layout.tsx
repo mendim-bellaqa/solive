@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'FreqLab — 3D Sound Frequency Studio',
+  title: 'Solive — 3D Sound Frequency Studio',
   description: 'Create, explore and experience healing frequencies with 3D visualization and 8D spatial audio',
 }
 
