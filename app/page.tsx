@@ -19,50 +19,64 @@ export default function LoginPage() {
     setLoading(true)
     setMessage(null)
 
-    const supabase = createClient()
+    // Timeout safety — never hang forever
+    const timeout = setTimeout(() => {
+      setLoading(false)
+      setMessage({ text: 'Request timed out. Check your connection and try again.', type: 'error' })
+    }, 10000)
 
-    if (mode === 'signup') {
-      // Sign up
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-      })
+    try {
+      const supabase = createClient()
 
-      if (error) {
-        setMessage({ text: error.message, type: 'error' })
-        setLoading(false)
-        return
-      }
+      if (mode === 'signup') {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+        })
 
-      // If email confirmation is disabled, session is returned immediately
-      if (data.session) {
-        router.push('/dashboard')
-        router.refresh()
-        return
-      }
+        if (error) {
+          setMessage({ text: error.message, type: 'error' })
+          return
+        }
 
-      // Email confirmation required — auto-try sign in anyway
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
-      if (!signInError) {
-        router.push('/dashboard')
-        router.refresh()
-        return
-      }
+        // Email confirmation disabled → session returned immediately
+        if (data.session) {
+          clearTimeout(timeout)
+          router.push('/dashboard')
+          router.refresh()
+          return
+        }
 
-      setMessage({ text: '✓ Account created! Check your email to confirm, then sign in.', type: 'success' })
+        // Try signing in right away (works if email confirm is off)
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+        if (!signInError) {
+          clearTimeout(timeout)
+          router.push('/dashboard')
+          router.refresh()
+          return
+        }
 
-    } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) {
-        setMessage({ text: error.message, type: 'error' })
+        setMessage({ text: '✓ Account created! Check your email to confirm, then sign in below.', type: 'success' })
+
       } else {
-        router.push('/dashboard')
-        router.refresh()
+        const { error } = await supabase.auth.signInWithPassword({ email, password })
+        if (error) {
+          setMessage({ text: error.message, type: 'error' })
+        } else {
+          clearTimeout(timeout)
+          router.push('/dashboard')
+          router.refresh()
+          return
+        }
       }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Something went wrong. Please try again.'
+      setMessage({ text: msg, type: 'error' })
+    } finally {
+      clearTimeout(timeout)
+      setLoading(false)
     }
-
-    setLoading(false)
   }
 
   return (
