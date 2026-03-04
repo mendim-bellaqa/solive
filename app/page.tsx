@@ -1,5 +1,8 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import dynamic from 'next/dynamic'
+
+const OnboardingModal = dynamic(() => import('@/components/OnboardingModal'), { ssr: false })
 
 export default async function WelcomePage() {
   const supabase = createClient()
@@ -7,6 +10,7 @@ export default async function WelcomePage() {
 
   return (
     <main className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden">
+      <OnboardingModal />
       {/* Ambient background */}
       <div className="ambient-bg">
         <div className="ambient-orb" />

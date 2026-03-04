@@ -200,6 +200,8 @@ export default function SessionPage() {
 
   function beginSession() {
     if (!recommendation) return
+    // Persist answers so the studio can save the session to Supabase on completion
+    try { sessionStorage.setItem('solive_answers', JSON.stringify(answers)) } catch { /* private mode */ }
     router.push(`/studio?${recommendationToParams(recommendation)}`)
   }
 

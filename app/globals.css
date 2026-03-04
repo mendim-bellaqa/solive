@@ -273,3 +273,34 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
 @supports (padding: env(safe-area-inset-bottom)) {
   .safe-bottom { padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
 }
+
+/* ─── Skeleton loader ─── */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.4; }
+  50%       { opacity: 0.75; }
+}
+
+.skeleton {
+  background: rgba(255,255,255,0.07);
+  border-radius: 8px;
+  animation: skeleton-pulse 1.8s ease-in-out infinite;
+}
+
+/* ─── Slide-in for mobile bottom sheets ─── */
+@keyframes slide-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+/* ─── Focus ring ─── */
+button:focus-visible, a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* ─── Text selection ─── */
+::selection {
+  background: rgba(16, 185, 129, 0.3);
+  color: var(--text-primary);
+}

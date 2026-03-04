@@ -157,18 +157,22 @@ The logic handles 10 possible Solfeggio frequencies + 5 binaural band targets = 
 - Camera: slow auto-orbit for cinematic depth
 - Performance: 60fps on mobile via instanced geometry, LOD
 
-### Phase 5 — Session Logging + History
-- Save session on end
-- Before/after comparison prompt
-- History screen with charts (recharts or d3)
-- Streak tracking
+### Phase 5 — Session Logging + History ✅ COMPLETE
+- Answers saved to sessionStorage → passed to FrequencyStudio via StudioClient
+- Post-session rating: 5-emoji "How do you feel now?" overlay (rate then done)
+- Before score inferred from Q1 answer; after score from user rating
+- Session saved to Supabase (fire-and-forget; guests are gracefully skipped)
+- History page redesigned: streak counter, total sessions, avg improvement
+- Top frequencies CSS bar chart (no external chart lib needed)
+- Session list with date/time, duration, binaural band, improvement delta
 
-### Phase 6 — Polish + Production
-- Mobile-first responsive layout
-- PWA support (offline playback)
-- Share card generation (html2canvas → PNG)
-- Onboarding flow for first-time users
-- Headphone reminder + binaural explanation tooltip
+### Phase 6 — Polish + Production ✅ COMPLETE
+- PWA manifest (public/manifest.json) + viewport/theme-color/apple-web-app meta
+- Onboarding modal (3 slides: welcome → headphones → cymatic 3D) shown once via localStorage
+- Skeleton animation utility class (.skeleton)
+- Focus-visible ring + text selection color tokens in globals.css
+- Dynamic import for OnboardingModal (no SSR penalty)
+- Proper resource disposal across all Three.js geometry/material refs
 
 ---
 

@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { BinauralBand, BINAURAL_PRESETS, FREQUENCIES } from '@/lib/frequencies'
+import { createClient } from '@/lib/supabase/client'
+import type { QuestionnaireAnswers } from '@/lib/recommendation'
 import dynamic from 'next/dynamic'
 
 const ThreeVisualizer = dynamic(() => import('./ThreeVisualizer'), { ssr: false })
@@ -12,6 +14,7 @@ interface Props {
   binauralBand: BinauralBand
   duration: number        // minutes; 9999 = open
   secondaryHz?: number   // runner-up undertone layer
+  answers?: QuestionnaireAnswers
 }
 
 type PlayerState = 'idle' | 'playing' | 'paused' | 'done'
@@ -25,9 +28,44 @@ const BAND_META: Record<BinauralBand, { label: string; hz: string; state: string
   gamma: { label: 'Gamma',  hz: '35–45 Hz', state: 'Peak cognition & high performance',      symbol: 'γ' },
 }
 
-// Synthesize a gentle Tibetan bowl end-chime using Web Audio
+// Infer pre-session wellbeing score (1–5) from Q1 answer
+function inferBeforeScore(ans: QuestionnaireAnswers | undefined): number {
+  if (!ans) return 3
+  const map: Record<string, number> = {
+    anxious: 2, exhausted: 2, in_pain: 2,
+    unfocused: 3, disconnected: 2, sad_heavy: 2,
+    calm_seeking: 4,
+  }
+  return map[ans.currentFeeling] ?? 3
+}
+
+// Save session record to Supabase (fire-and-forget; guests are skipped)
+async function saveSession(
+  hz: number,
+  band: BinauralBand,
+  durationSecs: number,
+  ans: QuestionnaireAnswers | undefined,
+  beforeScore: number,
+  afterScore: number,
+) {
+  try {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    await supabase.from('sessions').insert({
+      user_id: user.id,
+      hz,
+      binaural_band: band,
+      duration_seconds: durationSecs,
+      answers: ans ?? null,
+      before_score: beforeScore,
+      after_score: afterScore,
+    })
+  } catch { /* non-critical — session logging never blocks UX */ }
+}
+
+// Synthesize a gentle Tibetan bowl end-chime
 function playEndChime(ctx: AudioContext, baseHz: number) {
-  // Bowl harmonics: fundamental + ~2.76x partial (characteristic of singing bowls)
   const partials = [
     { freq: baseHz,          gain: 0.3,  decay: 5.5 },
     { freq: baseHz * 2.756, gain: 0.15, decay: 3.8 },
@@ -37,7 +75,7 @@ function playEndChime(ctx: AudioContext, baseHz: number) {
     const osc = ctx.createOscillator()
     const env = ctx.createGain()
     osc.type = 'sine'
-    osc.frequency.value = Math.min(freq, 6000)  // cap for safety
+    osc.frequency.value = Math.min(freq, 6000)
     env.gain.setValueAtTime(0, ctx.currentTime)
     env.gain.linearRampToValueAtTime(gain, ctx.currentTime + 0.02)
     env.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + decay)
@@ -48,66 +86,71 @@ function playEndChime(ctx: AudioContext, baseHz: number) {
   })
 }
 
+// Post-session feeling options
+const RATING_OPTIONS = [
+  { score: 1, emoji: '😞', label: 'Worse' },
+  { score: 2, emoji: '😕', label: 'Bit worse' },
+  { score: 3, emoji: '😐', label: 'Same' },
+  { score: 4, emoji: '🙂', label: 'Better' },
+  { score: 5, emoji: '😊', label: 'Much better' },
+]
+
 // ─── Component ─────────────────────────────────────────────────────────────
-export default function FrequencyStudio({ hz, binauralBand: initialBand, duration, secondaryHz }: Props) {
+export default function FrequencyStudio({ hz, binauralBand: initialBand, duration, secondaryHz, answers }: Props) {
   const frequency = FREQUENCIES[hz]
 
-  // ── Persistent audio graph refs (survive pause/resume) ──────────────────
+  // ── Persistent audio graph refs ──────────────────────────────────────────
   const audioCtxRef       = useRef<AudioContext | null>(null)
   const analyserRef       = useRef<AnalyserNode | null>(null)
   const masterGainRef     = useRef<GainNode | null>(null)
-
-  // Solfeggio + secondary
   const oscBaseRef        = useRef<OscillatorNode | null>(null)
   const oscSecondaryRef   = useRef<OscillatorNode | null>(null)
-
-  // Binaural pair (live-updatable frequencies)
   const oscLeftRef        = useRef<OscillatorNode | null>(null)
   const oscRightRef       = useRef<OscillatorNode | null>(null)
-
-  // Schumann layer (7.83 Hz): binaural pair + LFO amplitude modulator
   const schumannLRef      = useRef<OscillatorNode | null>(null)
   const schumannRRef      = useRef<OscillatorNode | null>(null)
-  const schumannGainRef   = useRef<GainNode | null>(null)  // 0 = off, 0.12 = on
+  const schumannGainRef   = useRef<GainNode | null>(null)
   const schumannLFORef    = useRef<OscillatorNode | null>(null)
 
-  // UI state
-  const [playerState, setPlayerState]     = useState<PlayerState>('idle')
-  const [volume, setVolume]               = useState(0.65)
-  const [elapsed, setElapsed]             = useState(0)
-  const [activeBand, setActiveBand]       = useState<BinauralBand>(initialBand)
-  const [schumannOn, setSchumannOn]       = useState(false)
-  const [showInfo, setShowInfo]           = useState(false)
-  const [showAdjust, setShowAdjust]       = useState(false)
-  const [sessionEnded, setSessionEnded]   = useState(false)
+  // ── UI state ─────────────────────────────────────────────────────────────
+  const [playerState, setPlayerState]   = useState<PlayerState>('idle')
+  const [volume, setVolume]             = useState(0.65)
+  const [elapsed, setElapsed]           = useState(0)
+  const [activeBand, setActiveBand]     = useState<BinauralBand>(initialBand)
+  const [schumannOn, setSchumannOn]     = useState(false)
+  const [showInfo, setShowInfo]         = useState(false)
+  const [showAdjust, setShowAdjust]     = useState(false)
+  const [sessionEnded, setSessionEnded] = useState(false)
+  // Post-session rating state: null = not yet rated, number = rating given, -1 = skipped
+  const [afterScore, setAfterScore]     = useState<number | null>(null)
+  const [rated, setRated]               = useState(false)
 
   const timerRef      = useRef<ReturnType<typeof setInterval> | null>(null)
   const startTimeRef  = useRef<number>(0)
-  const audioReadyRef = useRef(false)  // true once graph is built
+  const audioReadyRef = useRef(false)
+  const elapsedAtEnd  = useRef(0)  // captures elapsed seconds at session end
 
   const totalSeconds = duration === 9999 ? Infinity : duration * 60
   const binaural = BINAURAL_PRESETS[activeBand]
 
-  // ── Build persistent audio graph (called once on first play) ─────────────
+  // ── Build persistent audio graph ─────────────────────────────────────────
   const initAudio = useCallback(() => {
-    if (audioReadyRef.current) return   // don't rebuild if already initialized
+    if (audioReadyRef.current) return
     const ctx = new AudioContext()
     audioCtxRef.current = ctx
     audioReadyRef.current = true
 
-    // Analyser for ThreeVisualizer
     const analyser = ctx.createAnalyser()
     analyser.fftSize = 2048
     analyserRef.current = analyser
 
-    // Master gain — controls volume + pause (0 = paused)
     const masterGain = ctx.createGain()
     masterGain.gain.value = 0
     masterGainRef.current = masterGain
     masterGain.connect(analyser)
     analyser.connect(ctx.destination)
 
-    // ── 1. Solfeggio base tone ──────────────────────────────────────────
+    // 1. Solfeggio base
     const base = ctx.createOscillator()
     base.type = 'sine'
     base.frequency.value = hz
@@ -118,7 +161,7 @@ export default function FrequencyStudio({ hz, binauralBand: initialBand, duratio
     oscBaseRef.current = base
     base.start()
 
-    // ── 2. Binaural beat pair (L + R channels via ChannelMerger) ────────
+    // 2. Binaural stereo pair
     const merger = ctx.createChannelMerger(2)
     merger.connect(masterGain)
 
@@ -145,7 +188,7 @@ export default function FrequencyStudio({ hz, binauralBand: initialBand, duratio
     oscRightRef.current = oscR
     oscR.start()
 
-    // ── 3. Secondary undertone (runner-up frequency) ─────────────────────
+    // 3. Secondary undertone (runner-up frequency)
     if (secondaryHz && secondaryHz !== hz) {
       const oscSec = ctx.createOscillator()
       oscSec.type = 'sine'
@@ -158,26 +201,18 @@ export default function FrequencyStudio({ hz, binauralBand: initialBand, duratio
       oscSecondaryRef.current = oscSec
     }
 
-    // ── 4. Schumann resonance layer (7.83 Hz) ───────────────────────────
-    //    Architecture: binaural Schumann (L=100 Hz, R=107.83 Hz)
-    //    with 7.83 Hz LFO amplitude modulation for the "Earth breathing" pulse
-    //
-    const schumannCarrier = 100
-    const schumannBeat    = 7.83
-
-    // The Schumann output gain node (default 0 = off, turned on by toggle)
+    // 4. Schumann resonance layer (7.83 Hz binaural + LFO pulse)
     const schumannGain = ctx.createGain()
     schumannGain.gain.value = 0
     schumannGainRef.current = schumannGain
     schumannGain.connect(masterGain)
 
-    // Schumann binaural merger
     const schumannMerger = ctx.createChannelMerger(2)
     schumannMerger.connect(schumannGain)
 
     const schumannL = ctx.createOscillator()
     schumannL.type = 'sine'
-    schumannL.frequency.value = schumannCarrier
+    schumannL.frequency.value = 100
     const sgL = ctx.createGain()
     sgL.gain.value = 0.5
     schumannL.connect(sgL)
@@ -187,7 +222,7 @@ export default function FrequencyStudio({ hz, binauralBand: initialBand, duratio
 
     const schumannR = ctx.createOscillator()
     schumannR.type = 'sine'
-    schumannR.frequency.value = schumannCarrier + schumannBeat
+    schumannR.frequency.value = 107.83
     const sgR = ctx.createGain()
     sgR.gain.value = 0.5
     schumannR.connect(sgR)
@@ -195,24 +230,22 @@ export default function FrequencyStudio({ hz, binauralBand: initialBand, duratio
     schumannRRef.current = schumannR
     schumannR.start()
 
-    // LFO at 7.83 Hz modulates schumannGain amplitude — creates the breathing pulse
     const lfo = ctx.createOscillator()
     lfo.type = 'sine'
     lfo.frequency.value = 7.83
     const lfoGain = ctx.createGain()
-    lfoGain.gain.value = 0.04  // modulation depth (keeps gain from going negative)
+    lfoGain.gain.value = 0.04
     lfo.connect(lfoGain)
-    lfoGain.connect(schumannGain.gain)  // LFO modulates the Schumann layer's gain
+    lfoGain.connect(schumannGain.gain)
     schumannLFORef.current = lfo
     lfo.start()
 
-    // ── Fade in ──────────────────────────────────────────────────────────
+    // Fade in
     masterGain.gain.setValueAtTime(0, ctx.currentTime)
     masterGain.gain.linearRampToValueAtTime(volume, ctx.currentTime + 1.8)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hz, secondaryHz, initialBand])
 
-  // ── Mute (pause) — oscillators keep running ──────────────────────────────
   const muteAudio = useCallback(() => {
     const ctx = audioCtxRef.current
     const gain = masterGainRef.current
@@ -220,19 +253,16 @@ export default function FrequencyStudio({ hz, binauralBand: initialBand, duratio
     gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.8)
   }, [])
 
-  // ── Unmute (resume) ──────────────────────────────────────────────────────
   const unmuteAudio = useCallback((toVolume: number) => {
     const ctx = audioCtxRef.current
     const gain = masterGainRef.current
     if (!ctx || !gain) return
-    // Resume suspended context (iOS Safari)
     if (ctx.state === 'suspended') ctx.resume()
     gain.gain.cancelScheduledValues(ctx.currentTime)
     gain.gain.setValueAtTime(gain.gain.value, ctx.currentTime)
     gain.gain.linearRampToValueAtTime(toVolume, ctx.currentTime + 1.2)
   }, [])
 
-  // ── Tear down audio graph ────────────────────────────────────────────────
   const closeAudio = useCallback((fade = true) => {
     const ctx = audioCtxRef.current
     const gain = masterGainRef.current
@@ -261,7 +291,7 @@ export default function FrequencyStudio({ hz, binauralBand: initialBand, duratio
     }
   }, [])
 
-  // ── Volume change — apply live ────────────────────────────────────────────
+  // Volume live change
   useEffect(() => {
     const ctx = audioCtxRef.current
     const gain = masterGainRef.current
@@ -269,18 +299,17 @@ export default function FrequencyStudio({ hz, binauralBand: initialBand, duratio
     gain.gain.linearRampToValueAtTime(volume, ctx.currentTime + 0.15)
   }, [volume, playerState])
 
-  // ── Live binaural band switching ─────────────────────────────────────────
+  // Live binaural band switch
   useEffect(() => {
     const ctx = audioCtxRef.current
     if (!ctx || !oscLeftRef.current || !oscRightRef.current) return
     const preset = BINAURAL_PRESETS[activeBand]
     const now = ctx.currentTime
-    // Smooth frequency ramp over 2 seconds
     oscLeftRef.current.frequency.linearRampToValueAtTime(preset.carrierHz, now + 2)
     oscRightRef.current.frequency.linearRampToValueAtTime(preset.carrierHz + preset.hz, now + 2)
   }, [activeBand])
 
-  // ── Live Schumann toggle ─────────────────────────────────────────────────
+  // Live Schumann toggle
   useEffect(() => {
     const ctx = audioCtxRef.current
     const gain = schumannGainRef.current
@@ -291,7 +320,7 @@ export default function FrequencyStudio({ hz, binauralBand: initialBand, duratio
     gain.gain.linearRampToValueAtTime(schumannOn ? 0.12 : 0, now + 1.5)
   }, [schumannOn])
 
-  // ── Session timer ────────────────────────────────────────────────────────
+  // Session timer
   useEffect(() => {
     if (playerState === 'playing') {
       startTimeRef.current = Date.now() - elapsed * 1000
@@ -299,7 +328,7 @@ export default function FrequencyStudio({ hz, binauralBand: initialBand, duratio
         const secs = Math.floor((Date.now() - startTimeRef.current) / 1000)
         setElapsed(secs)
         if (secs >= totalSeconds) {
-          // Gentle end chime before fading out
+          elapsedAtEnd.current = secs
           const ctx = audioCtxRef.current
           if (ctx) playEndChime(ctx, hz)
           setTimeout(() => {
@@ -317,36 +346,39 @@ export default function FrequencyStudio({ hz, binauralBand: initialBand, duratio
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playerState, totalSeconds])
 
-  // ── Cleanup on unmount ───────────────────────────────────────────────────
   useEffect(() => () => { closeAudio(false) }, [closeAudio])
 
   // ── Playback controls ────────────────────────────────────────────────────
-  function play() {
-    initAudio()
-    setPlayerState('playing')
-  }
-
-  function pause() {
-    muteAudio()
-    setPlayerState('paused')
-  }
-
-  function resume() {
-    unmuteAudio(volume)
-    setPlayerState('playing')
-  }
+  function play() { initAudio(); setPlayerState('playing') }
+  function pause() { muteAudio(); setPlayerState('paused') }
+  function resume() { unmuteAudio(volume); setPlayerState('playing') }
 
   function stop() {
     closeAudio(true)
     setPlayerState('idle')
     setElapsed(0)
+    setSessionEnded(false)
+    setRated(false)
+    setAfterScore(null)
   }
 
   function switchBand(band: BinauralBand) {
     setActiveBand(band)
-    // If not playing yet, changes will be picked up when play() is called
-    // If playing, the useEffect above handles the live ramp
     setShowAdjust(false)
+  }
+
+  // ── Post-session rating handler ───────────────────────────────────────────
+  function handleRate(score: number | null) {
+    const finalAfter = score ?? 3  // neutral if skipped
+    setAfterScore(finalAfter)
+    setRated(true)
+
+    const durationSecs = elapsedAtEnd.current || elapsed
+    const beforeScore  = inferBeforeScore(answers)
+    saveSession(hz, activeBand, durationSecs, answers, beforeScore, finalAfter)
+
+    // Clear session storage after save
+    try { sessionStorage.removeItem('solive_answers') } catch { /* ignore */ }
   }
 
   // ── Formatting ───────────────────────────────────────────────────────────
@@ -358,6 +390,7 @@ export default function FrequencyStudio({ hz, binauralBand: initialBand, duratio
   const timeLeft    = totalSeconds === Infinity ? null : Math.max(0, totalSeconds - elapsed)
   const progressPct = totalSeconds === Infinity ? 0 : Math.min(100, (elapsed / totalSeconds) * 100)
   const band        = BAND_META[activeBand]
+  const improvement = afterScore !== null ? afterScore - inferBeforeScore(answers) : 0
 
   if (!frequency) {
     return <div className="min-h-screen flex items-center justify-center" style={{ color: 'var(--text-muted)' }}>Frequency not found</div>
@@ -395,7 +428,7 @@ export default function FrequencyStudio({ hz, binauralBand: initialBand, duratio
           </div>
         </div>
 
-        {/* Top-right: layer badges + about */}
+        {/* Top-right: layer badges */}
         <div className="absolute top-4 right-4 z-10 flex flex-col items-end gap-1.5">
           <div className="glass px-2.5 py-1 rounded-lg text-xs" style={{ color: 'var(--text-secondary)' }}>
             {band.symbol} {band.label} · {binaural.hz} Hz
@@ -449,44 +482,121 @@ export default function FrequencyStudio({ hz, binauralBand: initialBand, duratio
           )}
         </AnimatePresence>
 
-        {/* Session ended overlay */}
+        {/* ── Session ended overlay (rating → completion) ─────────────── */}
         <AnimatePresence>
           {sessionEnded && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               className="absolute inset-0 z-20 flex items-center justify-center"
-              style={{ background: 'rgba(6,6,14,0.7)', backdropFilter: 'blur(8px)' }}
+              style={{ background: 'rgba(6,6,14,0.78)', backdropFilter: 'blur(10px)' }}
             >
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.2 }}
-                className="text-center px-8"
-              >
-                <div className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center"
-                     style={{ background: `${frequency.colorHex}25`,
-                              border: `1px solid ${frequency.colorHex}50` }}>
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
-                       style={{ color: frequency.colorHex }}>
-                    <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </div>
-                <h2 className="text-xl font-bold mb-1">Session Complete</h2>
-                <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)' }}>
-                  {fmt(elapsed)} of {frequency.name} · {band.label} binaural
-                </p>
-                <div className="flex flex-col gap-2 max-w-xs mx-auto">
-                  <a href="/session" className="btn-primary text-center w-full"
-                     style={{ background: frequency.colorHex }}>
-                    New Session
-                  </a>
-                  <button onClick={() => { setSessionEnded(false); stop() }}
-                          className="btn-ghost w-full text-sm">
-                    Close
-                  </button>
-                </div>
-              </motion.div>
+              <AnimatePresence mode="wait">
+                {!rated ? (
+                  /* ── Step 1: Rate your feeling ──────────────────────── */
+                  <motion.div
+                    key="rate"
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.9, opacity: 0 }}
+                    transition={{ duration: 0.25 }}
+                    className="text-center px-6 max-w-xs w-full"
+                  >
+                    {/* Completion badge */}
+                    <div className="w-14 h-14 rounded-full mx-auto mb-4 flex items-center justify-center"
+                         style={{ background: `${frequency.colorHex}22`, border: `1px solid ${frequency.colorHex}50` }}>
+                      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
+                           style={{ color: frequency.colorHex }}>
+                        <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </div>
+
+                    <h2 className="text-lg font-bold mb-0.5">Session Complete</h2>
+                    <p className="text-xs mb-6" style={{ color: 'var(--text-muted)' }}>
+                      {fmt(elapsed)} · {frequency.name} · {band.label}
+                    </p>
+
+                    <p className="text-sm font-medium mb-4" style={{ color: 'var(--text-secondary)' }}>
+                      How do you feel now?
+                    </p>
+
+                    <div className="flex justify-between gap-1.5 mb-5">
+                      {RATING_OPTIONS.map(({ score, emoji, label }) => (
+                        <motion.button
+                          key={score}
+                          onClick={() => handleRate(score)}
+                          whileHover={{ scale: 1.08 }}
+                          whileTap={{ scale: 0.95 }}
+                          className="flex flex-col items-center gap-1 py-2.5 rounded-xl flex-1 transition-all"
+                          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+                        >
+                          <span className="text-xl">{emoji}</span>
+                          <span className="text-xs leading-tight" style={{ color: 'var(--text-muted)' }}>{label}</span>
+                        </motion.button>
+                      ))}
+                    </div>
+
+                    <button
+                      onClick={() => handleRate(null)}
+                      className="text-xs transition-opacity hover:opacity-80"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
+                      Skip →
+                    </button>
+                  </motion.div>
+                ) : (
+                  /* ── Step 2: Done + improvement delta ───────────────── */
+                  <motion.div
+                    key="done"
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ duration: 0.3 }}
+                    className="text-center px-8 max-w-sm w-full"
+                  >
+                    {afterScore !== null && afterScore > 0 && (
+                      <div className="text-5xl mb-4">
+                        {improvement > 1 ? '🌟' : improvement === 1 ? '🙂' : improvement === 0 ? '🎵' : '💙'}
+                      </div>
+                    )}
+
+                    <h2 className="text-xl font-bold mb-1">
+                      {improvement > 0
+                        ? `Feeling ${improvement === 1 ? 'a bit' : improvement >= 3 ? 'much' : ''} better`
+                        : improvement < 0 ? 'That was hard — rest helps'
+                        : 'Session complete'}
+                    </h2>
+
+                    {afterScore !== null && afterScore > 0 && improvement !== 0 && (
+                      <div className="flex items-center justify-center gap-2 my-3">
+                        <span className="text-2xl font-bold tabular-nums"
+                              style={{ color: improvement > 0 ? '#10b981' : '#ef4444' }}>
+                          {improvement > 0 ? `+${improvement}` : improvement}
+                        </span>
+                        <span className="text-sm" style={{ color: 'var(--text-muted)' }}>wellbeing score</span>
+                      </div>
+                    )}
+
+                    <p className="text-sm mb-7" style={{ color: 'var(--text-secondary)' }}>
+                      {fmt(elapsed)} · {frequency.name} · {band.label} binaural
+                    </p>
+
+                    <div className="flex flex-col gap-2.5 max-w-xs mx-auto">
+                      <a href="/session" className="btn-primary text-center w-full"
+                         style={{ background: frequency.colorHex, color: '#000' }}>
+                        New Session
+                      </a>
+                      <a href="/history" className="btn-ghost text-center w-full text-sm">
+                        View History
+                      </a>
+                      <button onClick={() => { setSessionEnded(false); stop() }}
+                              className="text-xs py-1 transition-opacity hover:opacity-80"
+                              style={{ color: 'var(--text-muted)' }}>
+                        Close
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           )}
         </AnimatePresence>
@@ -544,7 +654,7 @@ export default function FrequencyStudio({ hz, binauralBand: initialBand, duratio
         {/* Playback row */}
         <div className="flex items-center justify-between">
 
-          {/* Left: Adjust button */}
+          {/* Adjust */}
           <button
             onClick={() => { setShowAdjust(v => !v); setShowInfo(false) }}
             className="flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all"
@@ -556,7 +666,7 @@ export default function FrequencyStudio({ hz, binauralBand: initialBand, duratio
             <span className="text-xs">Adjust</span>
           </button>
 
-          {/* Center: Stop + Play/Pause */}
+          {/* Stop + Play/Pause */}
           <div className="flex items-center gap-4">
             {(playerState === 'playing' || playerState === 'paused') && (
               <button onClick={stop}
@@ -591,7 +701,7 @@ export default function FrequencyStudio({ hz, binauralBand: initialBand, duratio
             </button>
           </div>
 
-          {/* Right: Headphones indicator */}
+          {/* Headphones indicator */}
           <div className="flex flex-col items-center gap-1 px-4 py-2"
                style={{ color: 'var(--text-muted)' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -608,45 +718,32 @@ export default function FrequencyStudio({ hz, binauralBand: initialBand, duratio
       <AnimatePresence>
         {showAdjust && (
           <>
-            {/* Backdrop */}
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="fixed inset-0 z-30"
               style={{ background: 'rgba(0,0,0,0.5)' }}
               onClick={() => setShowAdjust(false)}
             />
-
-            {/* Sheet */}
             <motion.div
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
+              initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
               className="fixed bottom-0 left-0 right-0 z-40 px-5 pt-5 pb-8 safe-bottom"
               style={{ background: '#0d0d1a', borderTop: '1px solid rgba(255,255,255,0.1)',
                        borderRadius: '24px 24px 0 0' }}
             >
-              {/* Handle */}
-              <div className="w-10 h-1 rounded-full mx-auto mb-5"
-                   style={{ background: 'rgba(255,255,255,0.15)' }} />
-
+              <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background: 'rgba(255,255,255,0.15)' }} />
               <h3 className="font-semibold mb-1 text-center">Adjust Session</h3>
               <p className="text-xs text-center mb-5" style={{ color: 'var(--text-muted)' }}>
                 Changes apply live — oscillators ramp smoothly
               </p>
 
-              {/* Binaural band selector */}
-              <p className="text-xs uppercase tracking-widest mb-3" style={{ color: 'var(--text-muted)' }}>
-                Binaural Band
-              </p>
+              <p className="text-xs uppercase tracking-widest mb-3" style={{ color: 'var(--text-muted)' }}>Binaural Band</p>
               <div className="space-y-2 mb-6">
-                {(Object.keys(BAND_META) as BinauralBand[]).map(band => {
-                  const m = BAND_META[band]
-                  const active = activeBand === band
+                {(Object.keys(BAND_META) as BinauralBand[]).map(b => {
+                  const m = BAND_META[b]
+                  const active = activeBand === b
                   return (
-                    <button key={band} onClick={() => switchBand(band)}
+                    <button key={b} onClick={() => switchBand(b)}
                             className="w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all"
                             style={{
                               background: active ? `${frequency.colorHex}18` : 'rgba(255,255,255,0.04)',
@@ -674,7 +771,7 @@ export default function FrequencyStudio({ hz, binauralBand: initialBand, duratio
                 })}
               </div>
 
-              {/* Schumann resonance toggle */}
+              {/* Schumann toggle */}
               <div className="flex items-start gap-4 px-4 py-4 rounded-xl"
                    style={{ background: schumannOn ? 'rgba(16,185,129,0.08)' : 'rgba(255,255,255,0.04)',
                             border: `1.5px solid ${schumannOn ? 'rgba(16,185,129,0.35)' : 'rgba(255,255,255,0.08)'}` }}>
@@ -682,15 +779,12 @@ export default function FrequencyStudio({ hz, binauralBand: initialBand, duratio
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-sm font-medium">Schumann Resonance</span>
                     <span className="text-xs px-2 py-0.5 rounded-full"
-                          style={{ background: 'rgba(16,185,129,0.15)', color: '#10b981' }}>
-                      7.83 Hz
-                    </span>
+                          style={{ background: 'rgba(16,185,129,0.15)', color: '#10b981' }}>7.83 Hz</span>
                   </div>
                   <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-                    {"Earth's natural electromagnetic frequency. Binaural beat + 7.83 Hz LFO amplitude modulation. Adds a grounding \u2018breathing\u2019 pulse to your session."}
+                    {"Earth's natural electromagnetic frequency. Binaural beat + 7.83 Hz LFO amplitude modulation. Adds a grounding \u2018breathing\u2019 pulse."}
                   </p>
                 </div>
-                {/* Toggle */}
                 <button
                   onClick={() => setSchumannOn(v => !v)}
                   className="flex-shrink-0 w-12 h-6 rounded-full transition-all relative mt-0.5"

@@ -1,8 +1,10 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import FrequencyStudio from '@/components/FrequencyStudio'
 import { BinauralBand, FREQUENCIES } from '@/lib/frequencies'
+import type { QuestionnaireAnswers } from '@/lib/recommendation'
 
 const VALID_BANDS: BinauralBand[] = ['delta', 'theta', 'alpha', 'beta', 'gamma']
 const VALID_HZ = [174, 285, 396, 417, 432, 528, 639, 741, 852, 963]
@@ -10,6 +12,14 @@ const VALID_HZ = [174, 285, 396, 417, 432, 528, 639, 741, 852, 963]
 export default function StudioClient() {
   const params = useSearchParams()
   const router = useRouter()
+  const [answers, setAnswers] = useState<QuestionnaireAnswers | undefined>(undefined)
+
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('solive_answers')
+      if (saved) setAnswers(JSON.parse(saved))
+    } catch { /* private browsing */ }
+  }, [])
 
   const hzRaw = Number(params.get('hz'))
   const bandRaw = params.get('binaural') as BinauralBand
@@ -38,6 +48,7 @@ export default function StudioClient() {
       binauralBand={binauralBand}
       duration={duration}
       secondaryHz={secondaryHz}
+      answers={answers}
     />
   )
 }
