@@ -67,6 +67,15 @@ const Q5_SCORES: Record<string, Partial<Record<number, number>>> = {
   energy_boost:      { 741: 4, 285: 3 },
 }
 
+// ─── Pain location scoring ─────────────────────────────────────────────────
+const Q6_PAIN_LOCATION_SCORES: Record<string, Partial<Record<number, number>>> = {
+  head:           { 528: 3, 285: 2, 174: 2 },  // headache / migraine
+  neck_shoulders: { 174: 4, 528: 2, 285: 2 },  // tension
+  back:           { 174: 5, 285: 3 },           // back pain — 174 Hz is the primary pain-relief frequency
+  full_body:      { 285: 4, 174: 4 },           // widespread aching
+  chest:          { 528: 4, 396: 3, 174: 1 },  // tightness / emotional-physical
+}
+
 // ─── Binaural band mapping per winning frequency ───────────────────────────
 const FREQ_TO_BINAURAL: Record<number, BinauralBand> = {
   174: 'delta',
@@ -119,9 +128,18 @@ export function recommend(answers: QuestionnaireAnswers): FrequencyRecommendatio
   const q5 = Q5_SCORES[answers.primaryNeed] ?? {}
   Object.entries(q5).forEach(([hz, pts]) => { scores[Number(hz)] = (scores[Number(hz)] ?? 0) + pts! })
 
-  // Pain boost
-  if (answers.currentFeeling === 'in_pain' && answers.painIntensity === 'severe') {
-    scores[174] = (scores[174] ?? 0) + 4
+  // Apply Q6 pain location (conditional)
+  if (answers.painLocation) {
+    const q6 = Q6_PAIN_LOCATION_SCORES[answers.painLocation] ?? {}
+    Object.entries(q6).forEach(([hz, pts]) => { scores[Number(hz)] = (scores[Number(hz)] ?? 0) + pts! })
+  }
+
+  // Apply Q6b pain intensity boost
+  if (answers.painIntensity === 'severe') {
+    scores[174] = (scores[174] ?? 0) + 5
+    scores[285] = (scores[285] ?? 0) + 2
+  } else if (answers.painIntensity === 'moderate') {
+    scores[174] = (scores[174] ?? 0) + 2
   }
 
   // Find winning frequency
@@ -143,11 +161,17 @@ export function recommend(answers: QuestionnaireAnswers): FrequencyRecommendatio
 }
 
 // Serialize recommendation to URL params
+// Also passes the runner-up secondary frequency as a subtle undertone layer
 export function recommendationToParams(rec: FrequencyRecommendation): string {
+  const sorted = Object.entries(rec.scoreBreakdown)
+    .sort(([, a], [, b]) => b - a)
+  const secondHz = sorted[1]?.[0]
+
   const params = new URLSearchParams({
     hz: String(rec.frequency.hz),
     binaural: rec.binauralBand,
     duration: String(rec.sessionDuration),
+    ...(secondHz ? { secondary: secondHz } : {}),
   })
   return params.toString()
 }

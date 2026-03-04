@@ -14,10 +14,12 @@ export default function StudioClient() {
   const hzRaw = Number(params.get('hz'))
   const bandRaw = params.get('binaural') as BinauralBand
   const durationRaw = Number(params.get('duration'))
+  const secondaryRaw = Number(params.get('secondary'))
 
   const hz = VALID_HZ.includes(hzRaw) ? hzRaw : 528
   const binauralBand: BinauralBand = VALID_BANDS.includes(bandRaw) ? bandRaw : 'alpha'
   const duration = [15, 30, 45, 9999].includes(durationRaw) ? durationRaw : 30
+  const secondaryHz = VALID_HZ.includes(secondaryRaw) && secondaryRaw !== hz ? secondaryRaw : undefined
 
   if (!FREQUENCIES[hz]) {
     return (
@@ -30,5 +32,12 @@ export default function StudioClient() {
     )
   }
 
-  return <FrequencyStudio hz={hz} binauralBand={binauralBand} duration={duration} />
+  return (
+    <FrequencyStudio
+      hz={hz}
+      binauralBand={binauralBand}
+      duration={duration}
+      secondaryHz={secondaryHz}
+    />
+  )
 }

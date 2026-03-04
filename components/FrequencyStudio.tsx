@@ -9,12 +9,13 @@ const ThreeVisualizer = dynamic(() => import('./ThreeVisualizer'), { ssr: false 
 interface Props {
   hz: number
   binauralBand: BinauralBand
-  duration: number  // minutes; 9999 = open
+  duration: number        // minutes; 9999 = open
+  secondaryHz?: number   // optional undertone layer (runner-up frequency)
 }
 
 type PlayerState = 'idle' | 'playing' | 'paused' | 'done'
 
-export default function FrequencyStudio({ hz, binauralBand, duration }: Props) {
+export default function FrequencyStudio({ hz, binauralBand, duration, secondaryHz }: Props) {
   const frequency = FREQUENCIES[hz]
   const binaural = BINAURAL_PRESETS[binauralBand]
 
@@ -25,6 +26,7 @@ export default function FrequencyStudio({ hz, binauralBand, duration }: Props) {
   const oscBaseRef = useRef<OscillatorNode | null>(null)
   const oscLeftRef = useRef<OscillatorNode | null>(null)
   const oscRightRef = useRef<OscillatorNode | null>(null)
+  const oscSecondaryRef = useRef<OscillatorNode | null>(null)  // runner-up undertone
 
   const [playerState, setPlayerState] = useState<PlayerState>('idle')
   const [volume, setVolume] = useState(0.6)
@@ -87,6 +89,19 @@ export default function FrequencyStudio({ hz, binauralBand, duration }: Props) {
     masterGain.connect(analyser)
     analyser.connect(ctx.destination)
 
+    // Secondary undertone layer (runner-up frequency, very low gain)
+    if (secondaryHz && secondaryHz !== hz) {
+      const oscSec = ctx.createOscillator()
+      oscSec.type = 'sine'
+      oscSec.frequency.value = secondaryHz
+      const secGain = ctx.createGain()
+      secGain.gain.value = 0.08   // subtle undertone
+      oscSec.connect(secGain)
+      secGain.connect(masterGain)
+      oscSec.start()
+      oscSecondaryRef.current = oscSec
+    }
+
     // Fade in over 1.5s
     masterGain.gain.setValueAtTime(0, ctx.currentTime)
     masterGain.gain.linearRampToValueAtTime(volume, ctx.currentTime + 1.5)
@@ -94,7 +109,7 @@ export default function FrequencyStudio({ hz, binauralBand, duration }: Props) {
     base.start()
     oscL.start()
     oscR.start()
-  }, [hz, binaural, volume])
+  }, [hz, secondaryHz, binaural, volume])
 
   const stopAudio = useCallback((fade = true) => {
     const ctx = audioCtxRef.current
@@ -105,6 +120,7 @@ export default function FrequencyStudio({ hz, binauralBand, duration }: Props) {
       oscBaseRef.current?.stop()
       oscLeftRef.current?.stop()
       oscRightRef.current?.stop()
+      oscSecondaryRef.current?.stop()
       ctx.close()
       audioCtxRef.current = null
     }
@@ -200,11 +216,16 @@ export default function FrequencyStudio({ hz, binauralBand, duration }: Props) {
           </div>
         </div>
 
-        {/* Top-right: binaural + info */}
+        {/* Top-right: binaural + secondary + info */}
         <div className="absolute top-4 right-4 z-10 flex flex-col items-end gap-2">
           <div className="glass px-3 py-1.5 rounded-lg text-xs" style={{ color: 'var(--text-secondary)' }}>
             {BAND_LABEL[binauralBand]} · {binaural.hz} Hz beat
           </div>
+          {secondaryHz && FREQUENCIES[secondaryHz] && (
+            <div className="glass px-3 py-1.5 rounded-lg text-xs" style={{ color: 'var(--text-muted)' }}>
+              +{secondaryHz} Hz undertone
+            </div>
+          )}
           <button onClick={() => setShowInfo(v => !v)}
                   className="glass px-3 py-1.5 rounded-lg text-xs transition-opacity hover:opacity-80"
                   style={{ color: 'var(--text-muted)' }}>
