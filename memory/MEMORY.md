@@ -4,64 +4,60 @@
 - Next.js 14 app (App Router) + Supabase auth + Three.js
 - Name: Solive
 - Purpose: Personalized healing frequency studio — questionnaire → AI frequency prescription → 3D cymatic visualization
+- **STATUS: ALL 6 PHASES COMPLETE**
 
-## App Flow (Phase 1 — COMPLETE)
-- `/` → Welcome screen (app/page.tsx)
+## App Flow
+- `/` → Welcome screen (OnboardingModal on first visit)
 - `/session` → 6-question tap-card questionnaire → prescription card → `/studio?hz=...`
 - `/studio` → Full studio: 3D cymatic Three.js viz + audio engine (FrequencyStudio + ThreeVisualizer)
-- `/history` → Session log (requires Supabase sessions table)
+- `/history` → Session log (streak, freq chart, improvement delta) — requires Supabase sessions table
 - `/dashboard` → redirects to `/`
 - `/auth/login` → login + register
-- `/auth/callback` → Supabase code exchange
 
 ## Key Files
-- `app/page.tsx` — Welcome screen (dark, animated, CTA to /session)
-- `app/session/page.tsx` — Full questionnaire client component (framer-motion)
-- `app/studio/page.tsx` + `app/studio/StudioClient.tsx` — Studio page (reads URL params)
-- `app/history/page.tsx` — Session history (Supabase)
-- `components/FrequencyStudio.tsx` — Audio engine (WebAudio API, binaural + Solfeggio)
-- `components/ThreeVisualizer.tsx` — Cymatic 3D viz (Three.js, Chladni standing wave equations)
+- `app/page.tsx` — Welcome screen (dark, animated, OnboardingModal)
+- `app/session/page.tsx` — Questionnaire (framer-motion), saves answers to sessionStorage
+- `app/studio/page.tsx` + `app/studio/StudioClient.tsx` — Studio page (reads URL params + sessionStorage answers)
+- `app/history/page.tsx` — Session history (streak, freq chart, session list)
+- `components/FrequencyStudio.tsx` — Audio engine + post-session rating + Supabase save
+- `components/ThreeVisualizer.tsx` — Cymatic 3D viz (Three.js, dual Chladni standing waves, LOD)
+- `components/OnboardingModal.tsx` — 3-slide first-time intro (localStorage flag)
 - `lib/frequencies.ts` — Full 10 Solfeggio frequency data library
 - `lib/recommendation.ts` — Weighted scoring engine (answers → frequency)
-- `supabase/sessions_table.sql` — Sessions table SQL (run in Supabase dashboard)
 - `lib/supabase/client.ts` — Browser Supabase client
 - `lib/supabase/server.ts` — Server Supabase client
+- `supabase/sessions_table.sql` — Sessions table SQL
+- `public/manifest.json` — PWA manifest
 - `middleware.ts` — Passthrough (auth is optional)
 
-## Frequency Library (lib/frequencies.ts)
-All 10 Solfeggio frequencies: 174, 285, 396, 417, 432, 528, 639, 741, 852, 963 Hz
-Each has: hz, name, tagline, description, effects[], researchNote, color, colorHex, cymatics
-
-## Recommendation Engine (lib/recommendation.ts)
-- 5 questions: currentFeeling, bodyState, mindState, sleepQuality, primaryNeed + sessionDuration
-- Weighted scoring across all 10 frequencies
-- Returns: primary frequency + binaural band (delta/theta/alpha/beta/gamma)
-- Serialized to URL params: /studio?hz=528&binaural=alpha&duration=30
-
 ## Audio Engine (FrequencyStudio.tsx)
-- WebAudio API: base Solfeggio tone + stereo binaural beat (L = carrier, R = carrier + beat Hz)
-- Fade in/out on play/stop
-- Volume control + session timer with progress bar
+- Persistent audio graph (oscillators survive pause via masterGain muting)
+- Solfeggio base + binaural stereo pair + secondary undertone + Schumann layer (7.83 Hz)
+- End chime: Tibetan bowl synthesis (3 partials, exponential decay)
+- Live binaural band switching (linearRampToValueAtTime over 2s)
+- Post-session rating: 5-emoji overlay → Supabase save (before inferred from Q1, after from rating)
 
-## 3D Visualizer (ThreeVisualizer.tsx)
-- Three.js: cymatic sphere mesh deformed by Chladni standing wave equations
-- n, m (nodal numbers) scale with frequency complexity level (1-5)
-- Audio-reactive: FFT amplitude drives vertex deformation magnitude
-- Waveform ring around sphere, particle field, cinematic camera orbit
-- Color hex from frequency library
+## 3D Visualizer (ThreeVisualizer.tsx) — Phase 4
+- Dual superimposed Chladni standing waves per frequency
+- LOD: 48/72/96 segments based on devicePixelRatio
+- isPlayingRef pattern (stale closure fix)
+- MeshStandardMaterial (PBR), AdditiveBlending on rings/particles
+- Two waveform rings (equatorial + meridional), two orbit rings
+- Audio-reactive particle breathing (expands with RMS energy)
+- Full GPU cleanup on unmount
 
-## Design System (globals.css)
-- `--bg-void: #06060e` — main background
-- Frequency color themes: freq-amber/red/emerald/blue/violet/purple
-- `--accent` / `--accent-glow` CSS vars override per frequency
-- Glass morphism: `.glass`, `.tap-card`, `.tap-card.selected`
-- Animations: `.fade-up`, `.pulse`, `.breathe`, `.spin-slow`
+## Session Logging (Phase 5)
+- Answers saved to sessionStorage in session/page.tsx → read by StudioClient → passed to FrequencyStudio
+- After session ends: 5-emoji rating → saveSession() → Supabase insert (guests silently skipped)
+- before_score inferred from Q1 answer (anxious/in_pain/sad → 2, unfocused/disconnected → 3, calm_seeking → 4)
+- after_score = user's 1-5 rating
+- History: streak counter, avg improvement, top freq CSS bar chart, session list with ±delta
 
-## Auth Flow (unchanged)
-- Supabase email+password
-- Guests can do sessions without login (history not saved)
-- `/auth/login` → login + register forms
-- `/auth/callback` → code exchange → /
+## PWA + Polish (Phase 6)
+- public/manifest.json — standalone PWA
+- layout.tsx — Viewport export, theme-color #06060e, apple-web-app
+- OnboardingModal — 3 slides shown once (localStorage key: solive_onboarded_v1)
+- globals.css — .skeleton class, focus-visible ring, ::selection color
 
 ## Supabase sessions table
 - Run `supabase/sessions_table.sql` in Supabase SQL editor
@@ -72,9 +68,4 @@ Each has: hz, name, tagline, description, effects[], researchNote, color, colorH
 2. Supabase Dashboard → Auth → URL Configuration:
    - Site URL: `https://your-domain.vercel.app`
    - Redirect URLs: add `https://your-domain.vercel.app/auth/callback`
-
-## Packages
-- framer-motion (questionnaire animations)
-- three + @types/three
-- @supabase/ssr + @supabase/supabase-js
-- next 14, tailwind 3
+3. Run sessions_table.sql in Supabase SQL editor
