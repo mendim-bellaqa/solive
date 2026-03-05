@@ -9,37 +9,51 @@ interface Props {
   isPlaying: boolean
   analyserRef: React.MutableRefObject<AnalyserNode | null>
   colorHex: string
+  focusMode?: boolean
+  onDrag?: (dx: number, dy: number) => void
 }
 
-function hexToThree(hex: string): THREE.Color {
-  return new THREE.Color(hex)
-}
-
-// Per-frequency cymatic params — dual superimposed standing waves (physically inspired)
-// n/m = primary nodal numbers, n2/m2 = secondary wave layer for complexity
-// twist drives phase rotation over time; speed scales animation rate per band
-function getCymaticParams(hz: number) {
+// Lissajous parameters per complexity level
+// x(t) = sin(a·t + δ)  y(t) = sin(b·t)  z(t) = sin(c·t + δ·0.4)
+// a:b ratio determines the figure topology, matching frequency relationship
+function getLissajousParams(hz: number) {
   const level = getComplexityLevel(hz)
-  const configs: Record<number, { n: number; m: number; n2: number; m2: number; twist: number; speed: number }> = {
-    1: { n: 2, m: 2, n2: 1, m2: 3, twist: 0,    speed: 0.60 }, // 174–285 Hz: simple bilateral oval
-    2: { n: 3, m: 2, n2: 2, m2: 4, twist: 0.08, speed: 0.70 }, // 396–417 Hz: three-petal
-    3: { n: 4, m: 3, n2: 3, m2: 5, twist: 0.12, speed: 0.80 }, // 432–528 Hz: six-fold mandala
-    4: { n: 6, m: 4, n2: 4, m2: 7, twist: 0.18, speed: 0.90 }, // 741 Hz: complex star
-    5: { n: 8, m: 6, n2: 5, m2: 9, twist: 0.22, speed: 1.00 }, // 852–963 Hz: crystalline lattice
+  const configs: Record<number, { a: number; b: number; c: number; loops: number; phaseSpeed: number }> = {
+    1: { a: 1, b: 2, c: 1, loops: 2,  phaseSpeed: 0.25 }, // 174–285 Hz: figure-8, simple
+    2: { a: 2, b: 3, c: 2, loops: 3,  phaseSpeed: 0.30 }, // 396–417 Hz: trefoil knot
+    3: { a: 3, b: 4, c: 3, loops: 4,  phaseSpeed: 0.38 }, // 432–528 Hz: 4-lobe mandala
+    4: { a: 4, b: 5, c: 3, loops: 5,  phaseSpeed: 0.46 }, // 741 Hz:  star knot
+    5: { a: 5, b: 7, c: 4, loops: 7,  phaseSpeed: 0.55 }, // 852–963 Hz: crystalline
   }
   return configs[level]
 }
 
-export default function ThreeVisualizer({ hz, isPlaying, analyserRef, colorHex }: Props) {
-  const mountRef = useRef<HTMLDivElement>(null)
-  const frameRef = useRef<number>(0)
-  const timeRef = useRef<number>(0)
-  // Ref so the animation loop always reads the latest isPlaying without remounting
-  const isPlayingRef = useRef<boolean>(isPlaying)
+// Populate a Float32Array with Lissajous positions
+function computeLissajous(
+  buf: Float32Array,
+  n: number,
+  a: number, b: number, c: number,
+  loops: number,
+  phase: number,
+  scale: number,
+) {
+  const fullArc = Math.PI * 2 * loops
+  for (let i = 0; i < n; i++) {
+    const t = (i / n) * fullArc
+    buf[i * 3]     = Math.sin(a * t + phase)  * scale
+    buf[i * 3 + 1] = Math.sin(b * t)          * scale
+    buf[i * 3 + 2] = Math.sin(c * t + phase * 0.4) * scale * 0.65
+  }
+}
 
-  useEffect(() => {
-    isPlayingRef.current = isPlaying
-  }, [isPlaying])
+export default function ThreeVisualizer({ hz, isPlaying, analyserRef, colorHex, focusMode, onDrag }: Props) {
+  const mountRef     = useRef<HTMLDivElement>(null)
+  const frameRef     = useRef<number>(0)
+  const timeRef      = useRef<number>(0)
+  const isPlayingRef = useRef<boolean>(isPlaying)
+  const dragRef      = useRef<{ active: boolean; lastX: number; lastY: number }>({ active: false, lastX: 0, lastY: 0 })
+
+  useEffect(() => { isPlayingRef.current = isPlaying }, [isPlaying])
 
   useEffect(() => {
     if (!mountRef.current) return
@@ -47,142 +61,110 @@ export default function ThreeVisualizer({ hz, isPlaying, analyserRef, colorHex }
     const w = mount.clientWidth
     const h = mount.clientHeight
 
-    // LOD: fewer segments on low-DPR (mobile) devices to maintain 60 fps
-    const dpr = window.devicePixelRatio || 1
-    const segments = dpr >= 2 ? 96 : dpr >= 1.5 ? 72 : 48
-    const pCount = dpr >= 1.5 ? 800 : 500
+    const dpr      = window.devicePixelRatio || 1
+    const N        = dpr >= 1.5 ? 3000 : 2000   // Lissajous resolution
+    const pCount   = dpr >= 1.5 ? 600 : 400
+    const { a, b, c, loops, phaseSpeed } = getLissajousParams(hz)
 
     // ── Scene ─────────────────────────────────────────────────────────────
     const scene = new THREE.Scene()
     scene.background = new THREE.Color('#06060e')
-    scene.fog = new THREE.FogExp2('#06060e', 0.032)
+    scene.fog = new THREE.FogExp2('#06060e', 0.022)
 
     const camera = new THREE.PerspectiveCamera(52, w / h, 0.1, 100)
     camera.position.set(0, 0, 9)
 
-    const renderer = new THREE.WebGLRenderer({ antialias: dpr < 2, alpha: false })
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
     renderer.setSize(w, h)
     renderer.setPixelRatio(Math.min(dpr, 2))
     renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = 1.2
+    renderer.toneMappingExposure = 1.3
     mount.appendChild(renderer.domElement)
 
-    const color = hexToThree(colorHex)
-    const { n, m, n2, m2, twist, speed } = getCymaticParams(hz)
+    const color = new THREE.Color(colorHex)
 
-    // ── Cymatic wireframe sphere ──────────────────────────────────────────
-    const geoSphere = new THREE.SphereGeometry(3, segments, segments)
-    const posAttr = geoSphere.getAttribute('position')
-    const originalPositions = new Float32Array(posAttr.array.length)
-    originalPositions.set(posAttr.array as Float32Array)
+    // ── 3D Lissajous — inner bright line ─────────────────────────────────
+    const lissBuf  = new Float32Array(N * 3)
+    const lissGeo  = new THREE.BufferGeometry()
+    const lissAttr = new THREE.BufferAttribute(lissBuf, 3)
+    lissGeo.setAttribute('position', lissAttr)
 
-    const matWire = new THREE.MeshStandardMaterial({
+    const lissMat = new THREE.LineBasicMaterial({
       color,
-      emissive: color.clone().multiplyScalar(0.22),
-      wireframe: true,
       transparent: true,
-      opacity: 0.52,
-      metalness: 0.2,
-      roughness: 0.55,
-    })
-    const cymMesh = new THREE.Mesh(geoSphere, matWire)
-    scene.add(cymMesh)
-
-    // ── Translucent inner core ────────────────────────────────────────────
-    const geoCore = new THREE.SphereGeometry(2.88, Math.floor(segments / 2), Math.floor(segments / 2))
-    const matCore = new THREE.MeshStandardMaterial({
-      color,
-      emissive: color.clone().multiplyScalar(0.55),
-      transparent: true,
-      opacity: 0.10,
-      metalness: 0.4,
-      roughness: 0.5,
-    })
-    const coreMesh = new THREE.Mesh(geoCore, matCore)
-    scene.add(coreMesh)
-
-    // ── Equatorial glow ring ──────────────────────────────────────────────
-    const geoRing1 = new THREE.RingGeometry(3.68, 3.72, 128)
-    const matRing1 = new THREE.MeshBasicMaterial({
-      color,
-      side: THREE.DoubleSide,
-      transparent: true,
-      opacity: 0.28,
+      opacity: 0.92,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     })
-    const ring1 = new THREE.Mesh(geoRing1, matRing1)
-    ring1.rotation.x = Math.PI * 0.08
-    scene.add(ring1)
+    const lissLine = new THREE.LineLoop(lissGeo, lissMat)
+    scene.add(lissLine)
 
-    // Second tilted outer ring
-    const geoRing2 = new THREE.RingGeometry(4.15, 4.19, 128)
-    const matRing2 = new THREE.MeshBasicMaterial({
+    // ── Lissajous — glow layer 1 (slightly larger, lower opacity) ─────────
+    const glowBuf1  = new Float32Array(N * 3)
+    const glowGeo1  = new THREE.BufferGeometry()
+    const glowAttr1 = new THREE.BufferAttribute(glowBuf1, 3)
+    glowGeo1.setAttribute('position', glowAttr1)
+    const glowMat1 = new THREE.LineBasicMaterial({
       color,
-      side: THREE.DoubleSide,
       transparent: true,
-      opacity: 0.13,
+      opacity: 0.30,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     })
-    const ring2 = new THREE.Mesh(geoRing2, matRing2)
-    ring2.rotation.x = -Math.PI * 0.38
-    ring2.rotation.z = Math.PI * 0.14
-    scene.add(ring2)
+    const glowLine1 = new THREE.LineLoop(glowGeo1, glowMat1)
+    scene.add(glowLine1)
 
-    // ── Audio waveform ring — equatorial ──────────────────────────────────
-    const wavePoints = 256
-    const waveGeo1 = new THREE.BufferGeometry()
-    const wavePosArr1 = new Float32Array(wavePoints * 3)
-    waveGeo1.setAttribute('position', new THREE.BufferAttribute(wavePosArr1, 3))
-    const waveMat1 = new THREE.LineBasicMaterial({
+    // ── Lissajous — glow layer 2 (largest, faintest) ──────────────────────
+    const glowBuf2  = new Float32Array(N * 3)
+    const glowGeo2  = new THREE.BufferGeometry()
+    const glowAttr2 = new THREE.BufferAttribute(glowBuf2, 3)
+    glowGeo2.setAttribute('position', glowAttr2)
+    const glowMat2 = new THREE.LineBasicMaterial({
       color,
       transparent: true,
-      opacity: 0.88,
+      opacity: 0.12,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     })
-    const waveLine1 = new THREE.LineLoop(waveGeo1, waveMat1)
-    scene.add(waveLine1)
+    const glowLine2 = new THREE.LineLoop(glowGeo2, glowMat2)
+    scene.add(glowLine2)
 
-    // Audio waveform ring — meridional (rotated 90° around Y)
-    const waveGeo2 = new THREE.BufferGeometry()
-    const wavePosArr2 = new Float32Array(wavePoints * 3)
-    waveGeo2.setAttribute('position', new THREE.BufferAttribute(wavePosArr2, 3))
-    const waveMat2 = new THREE.LineBasicMaterial({
+    // ── Audio waveform ring ───────────────────────────────────────────────
+    const waveN   = 256
+    const waveGeo = new THREE.BufferGeometry()
+    const waveBuf = new Float32Array(waveN * 3)
+    waveGeo.setAttribute('position', new THREE.BufferAttribute(waveBuf, 3))
+    const waveMat = new THREE.LineBasicMaterial({
       color,
       transparent: true,
-      opacity: 0.38,
+      opacity: 0.55,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     })
-    const waveLine2 = new THREE.LineLoop(waveGeo2, waveMat2)
-    waveLine2.rotation.y = Math.PI * 0.5
-    scene.add(waveLine2)
+    const waveLine = new THREE.LineLoop(waveGeo, waveMat)
+    scene.add(waveLine)
 
     // ── Particle field ────────────────────────────────────────────────────
     const pGeo = new THREE.BufferGeometry()
-    const pPos = new Float32Array(pCount * 3)
+    const pBuf = new Float32Array(pCount * 3)
     const pBaseR = new Float32Array(pCount)
     const pTheta = new Float32Array(pCount)
-    const pPhi = new Float32Array(pCount)
+    const pPhi   = new Float32Array(pCount)
     for (let i = 0; i < pCount; i++) {
-      const r = 5.5 + Math.random() * 7
+      const r = 7 + Math.random() * 8
       const theta = Math.random() * Math.PI * 2
-      const phi = Math.acos(2 * Math.random() - 1)
-      pBaseR[i] = r
-      pTheta[i] = theta
-      pPhi[i] = phi
-      pPos[i * 3]     = r * Math.sin(phi) * Math.cos(theta)
-      pPos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta)
-      pPos[i * 3 + 2] = r * Math.cos(phi)
+      const phi   = Math.acos(2 * Math.random() - 1)
+      pBaseR[i] = r; pTheta[i] = theta; pPhi[i] = phi
+      pBuf[i * 3]     = r * Math.sin(phi) * Math.cos(theta)
+      pBuf[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta)
+      pBuf[i * 3 + 2] = r * Math.cos(phi)
     }
-    pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3))
+    pGeo.setAttribute('position', new THREE.BufferAttribute(pBuf, 3))
     const pMat = new THREE.PointsMaterial({
       color,
-      size: 0.07,
+      size: 0.05,
       transparent: true,
-      opacity: 0.50,
+      opacity: 0.45,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     })
@@ -190,31 +172,27 @@ export default function ThreeVisualizer({ hz, isPlaying, analyserRef, colorHex }
     scene.add(particles)
 
     // ── Lights ────────────────────────────────────────────────────────────
-    scene.add(new THREE.AmbientLight('#ffffff', 0.4))
-    const light1 = new THREE.PointLight(colorHex, 3.0, 22)
-    light1.position.set(0, 0, 5)
+    scene.add(new THREE.AmbientLight('#ffffff', 0.3))
+    const light1 = new THREE.PointLight(colorHex, 3.5, 20)
+    light1.position.set(0, 0, 4)
     scene.add(light1)
-    const light2 = new THREE.PointLight(colorHex, 1.8, 18)
-    light2.position.set(0, 5, -5)
+    const light2 = new THREE.PointLight(colorHex, 1.5, 15)
+    light2.position.set(3, 4, -5)
     scene.add(light2)
-    const light3 = new THREE.PointLight('#ffffff', 0.5, 15)
-    light3.position.set(-5, -3, 3)
-    scene.add(light3)
 
-    // ── FFT buffer (lazy-init on first audio data) ─────────────────────────
+    // ── FFT buffer ────────────────────────────────────────────────────────
     let dataArray: Uint8Array<ArrayBuffer> | null = null
 
     // ── Animation loop ────────────────────────────────────────────────────
     function animate() {
       frameRef.current = requestAnimationFrame(animate)
-      timeRef.current += 0.008 * speed
+      timeRef.current += 0.008
       const t = timeRef.current
       const playing = isPlayingRef.current
 
-      // Gather audio data
+      // Audio data
       let rms = 0
       let tdData: Uint8Array<ArrayBuffer> | null = null
-
       if (analyserRef.current) {
         if (!dataArray) {
           dataArray = new Uint8Array(analyserRef.current.frequencyBinCount) as Uint8Array<ArrayBuffer>
@@ -225,116 +203,77 @@ export default function ThreeVisualizer({ hz, isPlaying, analyserRef, colorHex }
           analyserRef.current.getByteTimeDomainData(td)
           tdData = td
           let sum = 0
-          for (let i = 0; i < td.length; i++) {
-            const v = (td[i] - 128) / 128
-            sum += v * v
-          }
+          for (let i = 0; i < td.length; i++) { const v = (td[i] - 128) / 128; sum += v * v }
           rms = Math.sqrt(sum / td.length)
         }
       }
 
-      // ── Cymatic vertex deformation (dual standing waves) ──────────────
-      const posA = cymMesh.geometry.getAttribute('position')
-      const count = posA.count
-      const audioMod = 1 + rms * 3.0
-      const breathe = Math.sin(t * 0.5) * 0.04
+      // ── Compute Lissajous positions ───────────────────────────────────
+      const phase = t * phaseSpeed
+      const scale = 2.8 * (1 + rms * 1.8)
 
-      for (let i = 0; i < count; i++) {
-        const ox = originalPositions[i * 3]
-        const oy = originalPositions[i * 3 + 1]
-        const oz = originalPositions[i * 3 + 2]
+      computeLissajous(lissBuf,  N, a, b, c, loops, phase,        scale)
+      computeLissajous(glowBuf1, N, a, b, c, loops, phase,        scale * 1.014)
+      computeLissajous(glowBuf2, N, a, b, c, loops, phase,        scale * 1.038)
 
-        const len = Math.sqrt(ox * ox + oy * oy + oz * oz)
-        const theta = Math.atan2(Math.sqrt(ox * ox + oz * oz), oy) // polar
-        const phi   = Math.atan2(oz, ox)                            // azimuthal
+      lissAttr.needsUpdate  = true
+      glowAttr1.needsUpdate = true
+      glowAttr2.needsUpdate = true
 
-        // Primary wave
-        const wave1 = Math.sin(n  * theta + twist * t)       * Math.cos(m  * phi + twist * t * 0.6)
-        // Secondary wave (subtly counter-rotating for organic motion)
-        const wave2 = Math.sin(n2 * theta - twist * t * 0.5) * Math.cos(m2 * phi - twist * t * 0.4)
-        const combined = (wave1 * 0.70 + wave2 * 0.30) * (0.16 + breathe) * audioMod
+      // Slow rotation around Y axis — cinematic orbit
+      lissLine.rotation.y  = t * 0.08
+      lissLine.rotation.x  = Math.sin(t * 0.055) * 0.18
+      glowLine1.rotation.y = lissLine.rotation.y
+      glowLine1.rotation.x = lissLine.rotation.x
+      glowLine2.rotation.y = lissLine.rotation.y
+      glowLine2.rotation.x = lissLine.rotation.x
 
-        const newLen = len + combined * len * 0.30
-
-        posA.setXYZ(i,
-          (ox / len) * newLen,
-          (oy / len) * newLen,
-          (oz / len) * newLen,
-        )
-      }
-      posA.needsUpdate = true
-      cymMesh.geometry.computeVertexNormals()
-
-      // ── Rotations ─────────────────────────────────────────────────────
-      cymMesh.rotation.y = t * 0.10
-      cymMesh.rotation.x = Math.sin(t * 0.06) * 0.12
-
-      coreMesh.rotation.y = -t * 0.07
-      coreMesh.rotation.x = Math.sin(t * 0.05) * 0.08
-
-      ring1.rotation.z = t * 0.04
-      ring1.rotation.x = Math.PI * 0.08 + Math.sin(t * 0.04) * 0.04
-
-      ring2.rotation.z = -t * 0.025
-      ring2.rotation.y = t * 0.015
-
-      particles.rotation.y = t * 0.012
-      particles.rotation.x = t * 0.007
-
-      // Audio-reactive particle "breathing" — expands with RMS energy
-      if (playing && rms > 0.04) {
-        const pPosAttr = particles.geometry.getAttribute('position') as THREE.BufferAttribute
-        const pArr = pPosAttr.array as Float32Array
-        const boost = 1 + rms * 0.45
-        for (let i = 0; i < pCount; i++) {
-          const r = pBaseR[i] * boost
-          const ph = pPhi[i] + t * 0.002
-          const th = pTheta[i] + t * 0.001
-          pArr[i * 3]     = r * Math.sin(ph) * Math.cos(th)
-          pArr[i * 3 + 1] = r * Math.sin(ph) * Math.sin(th)
-          pArr[i * 3 + 2] = r * Math.cos(ph)
-        }
-        pPosAttr.needsUpdate = true
-      }
-
-      // ── Waveform rings ────────────────────────────────────────────────
-      const waveRadius = 4.5
-      const wAttr1 = waveLine1.geometry.getAttribute('position') as THREE.BufferAttribute
-      const wAttr2 = waveLine2.geometry.getAttribute('position') as THREE.BufferAttribute
-
+      // ── Audio waveform ring ───────────────────────────────────────────
+      const wAttr = waveLine.geometry.getAttribute('position') as THREE.BufferAttribute
+      const waveR = 5.2
       if (tdData) {
-        for (let i = 0; i < wavePoints; i++) {
-          const angle = (i / wavePoints) * Math.PI * 2
-          const idx1 = Math.floor(i * tdData.length / wavePoints)
-          const amp1 = ((tdData[idx1] - 128) / 128) * 1.0
-          wAttr1.setXYZ(i, Math.cos(angle) * (waveRadius + amp1), Math.sin(angle) * (waveRadius + amp1), 0)
-
-          const idx2 = Math.floor(((i + Math.floor(wavePoints / 2)) % wavePoints) * tdData.length / wavePoints)
-          const amp2 = ((tdData[idx2] - 128) / 128) * 0.7
-          const r2 = waveRadius - 0.4 + amp2
-          wAttr2.setXYZ(i, Math.cos(angle) * r2, 0, Math.sin(angle) * r2)
+        for (let i = 0; i < waveN; i++) {
+          const angle = (i / waveN) * Math.PI * 2
+          const idx   = Math.floor(i * tdData.length / waveN)
+          const amp   = ((tdData[idx] - 128) / 128) * 0.9
+          wAttr.setXYZ(i, Math.cos(angle) * (waveR + amp), Math.sin(angle) * (waveR + amp), 0)
         }
       } else {
-        // Idle: nodal-count–aware sinusoidal animation
-        for (let i = 0; i < wavePoints; i++) {
-          const angle = (i / wavePoints) * Math.PI * 2
-          const idle1 = Math.sin(angle * (n + 1) + t * 1.2) * 0.05
-          wAttr1.setXYZ(i, Math.cos(angle) * (waveRadius + idle1), Math.sin(angle) * (waveRadius + idle1), 0)
-          const idle2 = Math.sin(angle * (m + 1) - t * 0.9) * 0.04
-          const r2 = waveRadius - 0.4 + idle2
-          wAttr2.setXYZ(i, Math.cos(angle) * r2, 0, Math.sin(angle) * r2)
+        // Idle: Lissajous-like idle wave using a/b nodal parameters
+        for (let i = 0; i < waveN; i++) {
+          const angle = (i / waveN) * Math.PI * 2
+          const idle  = Math.sin(angle * a + t * 1.1) * 0.06
+          wAttr.setXYZ(i, Math.cos(angle) * (waveR + idle), Math.sin(angle) * (waveR + idle), 0)
         }
       }
-      wAttr1.needsUpdate = true
-      wAttr2.needsUpdate = true
+      wAttr.needsUpdate = true
+
+      waveLine.rotation.z = t * 0.03
+      waveLine.rotation.y = Math.sin(t * 0.05) * 0.15
+
+      // ── Particles ────────────────────────────────────────────────────
+      particles.rotation.y = t * 0.010
+      particles.rotation.x = t * 0.006
+
+      if (playing && rms > 0.04) {
+        const pAttr = particles.geometry.getAttribute('position') as THREE.BufferAttribute
+        const pArr  = pAttr.array as Float32Array
+        const boost = 1 + rms * 0.5
+        for (let i = 0; i < pCount; i++) {
+          const r = pBaseR[i] * boost
+          pArr[i * 3]     = r * Math.sin(pPhi[i]) * Math.cos(pTheta[i])
+          pArr[i * 3 + 1] = r * Math.sin(pPhi[i]) * Math.sin(pTheta[i])
+          pArr[i * 3 + 2] = r * Math.cos(pPhi[i])
+        }
+        pAttr.needsUpdate = true
+      }
 
       // ── Light pulse ───────────────────────────────────────────────────
-      light1.intensity = 3.0 + rms * 5.0
-      light2.intensity = 1.8 + rms * 2.0
+      light1.intensity = 3.5 + rms * 6.0
 
-      // ── Camera gentle orbit ───────────────────────────────────────────
-      camera.position.x = Math.sin(t * 0.033) * 1.0
-      camera.position.y = Math.sin(t * 0.024) * 0.6
+      // ── Camera orbit ──────────────────────────────────────────────────
+      camera.position.x = Math.sin(t * 0.032) * 1.2
+      camera.position.y = Math.sin(t * 0.021) * 0.7
       camera.lookAt(0, 0, 0)
 
       renderer.render(scene, camera)
@@ -342,49 +281,64 @@ export default function ThreeVisualizer({ hz, isPlaying, analyserRef, colorHex }
 
     animate()
 
-    // ── Resize handler ────────────────────────────────────────────────────
+    // ── Resize ────────────────────────────────────────────────────────────
     function onResize() {
-      const nw = mount.clientWidth
-      const nh = mount.clientHeight
+      const nw = mount.clientWidth, nh = mount.clientHeight
       camera.aspect = nw / nh
       camera.updateProjectionMatrix()
       renderer.setSize(nw, nh)
     }
     window.addEventListener('resize', onResize)
 
-    // ── Cleanup — dispose all GPU resources ───────────────────────────────
+    // ── Cleanup ───────────────────────────────────────────────────────────
     return () => {
       window.removeEventListener('resize', onResize)
       cancelAnimationFrame(frameRef.current)
-
-      geoSphere.dispose()
-      geoCore.dispose()
-      geoRing1.dispose()
-      geoRing2.dispose()
-      waveGeo1.dispose()
-      waveGeo2.dispose()
-      pGeo.dispose()
-
-      matWire.dispose()
-      matCore.dispose()
-      matRing1.dispose()
-      matRing2.dispose()
-      waveMat1.dispose()
-      waveMat2.dispose()
-      pMat.dispose()
-
+      lissGeo.dispose(); glowGeo1.dispose(); glowGeo2.dispose()
+      waveGeo.dispose(); pGeo.dispose()
+      lissMat.dispose(); glowMat1.dispose(); glowMat2.dispose()
+      waveMat.dispose(); pMat.dispose()
       renderer.dispose()
-      if (mount.contains(renderer.domElement)) {
-        mount.removeChild(renderer.domElement)
-      }
+      if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hz, colorHex])
 
+  // ── Pointer event handlers for interactive drag ───────────────────────────
+  function onPointerDown(e: React.PointerEvent) {
+    if (!focusMode) return
+    dragRef.current = { active: true, lastX: e.clientX, lastY: e.clientY }
+    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+  }
+
+  function onPointerMove(e: React.PointerEvent) {
+    if (!focusMode || !dragRef.current.active) return
+    const dx = e.clientX - dragRef.current.lastX
+    const dy = e.clientY - dragRef.current.lastY
+    dragRef.current.lastX = e.clientX
+    dragRef.current.lastY = e.clientY
+    onDrag?.(dx, dy)
+  }
+
+  function onPointerUp(e: React.PointerEvent) {
+    dragRef.current.active = false
+    ;(e.target as HTMLElement).releasePointerCapture(e.pointerId)
+  }
+
   return (
     <div
       ref={mountRef}
-      style={{ width: '100%', height: '100%', display: 'block', background: '#06060e' }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      style={{
+        width: '100%',
+        height: '100%',
+        display: 'block',
+        background: '#06060e',
+        cursor: focusMode ? 'ew-resize' : 'default',
+        touchAction: focusMode ? 'none' : 'auto',
+      }}
     />
   )
 }

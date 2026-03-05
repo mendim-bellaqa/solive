@@ -121,9 +121,12 @@ export default function FrequencyStudio({ hz, binauralBand: initialBand, duratio
   const [showInfo, setShowInfo]         = useState(false)
   const [showAdjust, setShowAdjust]     = useState(false)
   const [sessionEnded, setSessionEnded] = useState(false)
-  // Post-session rating state: null = not yet rated, number = rating given, -1 = skipped
   const [afterScore, setAfterScore]     = useState<number | null>(null)
   const [rated, setRated]               = useState(false)
+  // Focus mode: enables live Hz fine-tuning by dragging the 3D visualization
+  const [focusMode, setFocusMode]       = useState(false)
+  const [liveHz, setLiveHz]             = useState(hz)
+  const liveHzRef                       = useRef(hz)
 
   const timerRef      = useRef<ReturnType<typeof setInterval> | null>(null)
   const startTimeRef  = useRef<number>(0)
@@ -367,6 +370,31 @@ export default function FrequencyStudio({ hz, binauralBand: initialBand, duratio
     setShowAdjust(false)
   }
 
+  // ── Focus mode: live Hz fine-tune via visualizer drag ─────────────────────
+  function handleVisualizerDrag(dx: number) {
+    const delta  = dx * 0.18                                  // 0.18 Hz per pixel
+    const newHz  = Math.max(hz - 30, Math.min(hz + 30, liveHzRef.current + delta))
+    liveHzRef.current = newHz
+    setLiveHz(newHz)
+    const osc = oscBaseRef.current
+    const ctx = audioCtxRef.current
+    if (osc && ctx) {
+      osc.frequency.setTargetAtTime(newHz, ctx.currentTime, 0.02)
+    }
+  }
+
+  function toggleFocusMode() {
+    if (focusMode) {
+      // Reset Hz back to nominal
+      liveHzRef.current = hz
+      setLiveHz(hz)
+      const osc = oscBaseRef.current
+      const ctx = audioCtxRef.current
+      if (osc && ctx) osc.frequency.linearRampToValueAtTime(hz, ctx.currentTime + 0.5)
+    }
+    setFocusMode(v => !v)
+  }
+
   // ── Post-session rating handler ───────────────────────────────────────────
   function handleRate(score: number | null) {
     const finalAfter = score ?? 3  // neutral if skipped
@@ -406,6 +434,8 @@ export default function FrequencyStudio({ hz, binauralBand: initialBand, duratio
           isPlaying={playerState === 'playing'}
           analyserRef={analyserRef}
           colorHex={frequency.colorHex}
+          focusMode={focusMode}
+          onDrag={handleVisualizerDrag}
         />
 
         {/* Top-left: nav + frequency badge */}
@@ -423,8 +453,14 @@ export default function FrequencyStudio({ hz, binauralBand: initialBand, duratio
               {frequency.name}
             </p>
             <p className="text-2xl font-bold" style={{ color: frequency.colorHex }}>
-              {hz}<span className="text-sm font-normal opacity-60 ml-0.5">Hz</span>
+              {focusMode ? Math.round(liveHz * 10) / 10 : hz}
+              <span className="text-sm font-normal opacity-60 ml-0.5">Hz</span>
             </p>
+            {focusMode && Math.abs(liveHz - hz) > 0.2 && (
+              <p className="text-xs opacity-60" style={{ color: frequency.colorHex }}>
+                {liveHz > hz ? `+${Math.round((liveHz - hz) * 10) / 10}` : Math.round((liveHz - hz) * 10) / 10} offset
+              </p>
+            )}
           </div>
         </div>
 
@@ -451,6 +487,31 @@ export default function FrequencyStudio({ hz, binauralBand: initialBand, duratio
             {showInfo ? 'Close' : 'About'}
           </button>
         </div>
+
+        {/* Focus mode drag hint */}
+        <AnimatePresence>
+          {focusMode && !sessionEnded && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 px-4 py-2 rounded-full"
+              style={{
+                background: `${frequency.colorHex}18`,
+                border: `1px solid ${frequency.colorHex}40`,
+                pointerEvents: 'none',
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
+                   style={{ color: frequency.colorHex }}>
+                <path d="M5 9l-3 3 3 3M19 9l3 3-3 3M9 5l3-3 3 3M9 19l3 3 3-3" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span className="text-xs font-medium" style={{ color: frequency.colorHex }}>
+                Drag left / right to fine-tune frequency
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* About overlay */}
         <AnimatePresence>
@@ -653,6 +714,22 @@ export default function FrequencyStudio({ hz, binauralBand: initialBand, duratio
 
         {/* Playback row */}
         <div className="flex items-center justify-between">
+
+          {/* Focus mode button */}
+          <button
+            onClick={toggleFocusMode}
+            className="flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all"
+            style={{
+              background: focusMode ? `${frequency.colorHex}20` : 'transparent',
+              color: focusMode ? frequency.colorHex : 'var(--text-muted)',
+              border: focusMode ? `1px solid ${frequency.colorHex}40` : '1px solid transparent',
+            }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12" strokeLinecap="round" />
+            </svg>
+            <span className="text-xs">Focus</span>
+          </button>
 
           {/* Adjust */}
           <button
