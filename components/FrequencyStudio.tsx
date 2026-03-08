@@ -105,6 +105,7 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
   const [liveHz, setLiveHz]               = useState(hz)
   const liveHzRef                         = useRef(hz)
   const [isFullscreen, setIsFullscreen]   = useState(false)
+  const [vizMode, setVizMode]             = useState<'lissajous' | 'waveform'>('lissajous')
   const containerRef                      = useRef<HTMLDivElement>(null)
 
   const timerRef     = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -398,8 +399,8 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
          style={{ height: isFullscreen ? '100dvh' : '100dvh', background:'var(--bg-void)' }}>
 
       {/* ── 3D Visualizer ─────────────────────────────────────────────── */}
-      <div className="relative overflow-hidden studio-visualizer"
-           style={{ flex: isFullscreen ? '1 1 0' : '1 1 0', minHeight: '38vh', maxHeight: isFullscreen ? '100%' : '58vh' }}>
+      <div className={`relative overflow-hidden studio-visualizer${isFullscreen ? ' viz-fullscreen' : ''}`}
+           style={{ flex: '1 1 0', minHeight: '38vh' }}>
         <ThreeVisualizer
           hz={hz}
           isPlaying={playerState === 'playing'}
@@ -407,6 +408,7 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
           colorHex={frequency.colorHex}
           focusMode={focusMode}
           onDrag={handleVisualizerDrag}
+          vizMode={vizMode}
         />
 
         {/* ── Top-left: nav + frequency live display ─────────────────── */}
@@ -476,6 +478,29 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
             </div>
           )}
 
+          {/* Viz mode toggle */}
+          <button onClick={() => setVizMode(v => v === 'lissajous' ? 'waveform' : 'lissajous')}
+                  className="glass px-2.5 py-1.5 rounded-xl text-xs hover:opacity-80 transition-opacity flex items-center gap-1.5"
+                  style={{ color: 'var(--text-muted)' }}
+                  title="Toggle visualization mode">
+            {vizMode === 'lissajous' ? (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M2 12 Q5 5 8 12 Q11 19 14 12 Q17 5 20 12 Q23 19 26 12" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                <span className="hidden sm:inline">Wave</span>
+              </>
+            ) : (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 3 C18 3 21 8 21 12 C21 16 18 21 12 21 C6 21 3 16 3 12 C3 8 6 3 12 3 Z" strokeLinecap="round"/>
+                  <path d="M8 12 Q10 7 12 12 Q14 17 16 12" strokeLinecap="round"/>
+                </svg>
+                <span className="hidden sm:inline">3D</span>
+              </>
+            )}
+          </button>
+
           {/* Fullscreen */}
           <button onClick={handleFullscreen}
                   className="glass px-2.5 py-1.5 rounded-xl text-xs hover:opacity-80 transition-opacity flex items-center gap-1.5"
@@ -490,13 +515,13 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
                 <path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3" strokeLinecap="round" />
               </svg>
             )}
-            <span className="hidden sm:inline">{isFullscreen ? 'Exit' : 'Fullscreen'}</span>
+            <span className="hidden sm:inline">{isFullscreen ? 'Exit' : 'Full'}</span>
           </button>
 
           <button onClick={() => { setShowInfo(v => !v); setShowAdjust(false) }}
                   className="glass px-2.5 py-1.5 rounded-xl text-xs hover:opacity-80 transition-opacity"
                   style={{ color: showInfo ? frequency.colorHex : 'var(--text-muted)' }}>
-            {showInfo ? 'Close' : 'About this tone'}
+            About
           </button>
         </div>
 
@@ -514,33 +539,6 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
               <span className="text-xs font-medium" style={{ color:frequency.colorHex }}>
                 Drag left / right to fine-tune frequency
               </span>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* About overlay */}
-        <AnimatePresence>
-          {showInfo && (
-            <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:10 }}
-              className="absolute inset-x-3 bottom-3 z-10 glass-card p-5 rounded-2xl">
-              <div className="shimmer-overlay" />
-              <div className="flex justify-between items-start mb-2 relative z-10">
-                <div>
-                  <h3 className="font-semibold">{frequency.name}</h3>
-                  <p className="text-xs" style={{ color:frequency.colorHex }}>{frequency.tagline}</p>
-                </div>
-                <button onClick={() => setShowInfo(false)} className="text-lg leading-none"
-                        style={{ color:'var(--text-muted)' }}>✕</button>
-              </div>
-              <p className="text-sm leading-relaxed mb-2 relative z-10" style={{ color:'var(--text-secondary)' }}>
-                {frequency.description}
-              </p>
-              <p className="text-xs leading-relaxed italic relative z-10" style={{ color:'var(--text-muted)' }}>
-                {frequency.researchNote}
-              </p>
-              <div className="mt-3 pt-3 text-xs relative z-10" style={{ borderTop:'1px solid var(--border)', color:'var(--text-muted)' }}>
-                Cymatics: {frequency.cymatics}
-              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -888,6 +886,41 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
                     transition={{ type:'spring', stiffness:400, damping:25 }}
                     className="absolute top-1 w-4 h-4 rounded-full" style={{ background:'#fff' }} />
                 </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── About This Tone bottom sheet ──────────────────────────────── */}
+      <AnimatePresence>
+        {showInfo && (
+          <>
+            <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
+              className="fixed inset-0 z-30" style={{ background:'rgba(0,0,0,0.55)' }}
+              onClick={() => setShowInfo(false)} />
+            <motion.div
+              initial={{ y:'100%' }} animate={{ y:0 }} exit={{ y:'100%' }}
+              transition={{ type:'spring', damping:30, stiffness:300 }}
+              className="fixed bottom-0 left-0 right-0 z-40 px-5 pt-5 pb-8 safe-bottom"
+              style={{ background:'#080813', borderTop:'1px solid rgba(255,255,255,0.1)', borderRadius:'24px 24px 0 0', maxHeight:'80vh', overflowY:'auto' }}>
+              <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background:'rgba(255,255,255,0.14)' }} />
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <h3 className="font-semibold text-base">{frequency.name}</h3>
+                  <p className="text-sm mt-0.5" style={{ color:frequency.colorHex }}>{frequency.tagline}</p>
+                </div>
+                <button onClick={() => setShowInfo(false)} className="text-xl leading-none p-1"
+                        style={{ color:'var(--text-muted)' }}>✕</button>
+              </div>
+              <p className="text-sm leading-relaxed mb-3" style={{ color:'var(--text-secondary)' }}>
+                {frequency.description}
+              </p>
+              <p className="text-xs leading-relaxed italic mb-4" style={{ color:'var(--text-muted)' }}>
+                {frequency.researchNote}
+              </p>
+              <div className="pt-3 text-xs" style={{ borderTop:'1px solid var(--border)', color:'var(--text-muted)' }}>
+                Cymatics: {frequency.cymatics}
               </div>
             </motion.div>
           </>
