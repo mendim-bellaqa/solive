@@ -396,11 +396,11 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
 
   return (
     <div ref={containerRef} className="flex flex-col overflow-hidden"
-         style={{ height: isFullscreen ? '100dvh' : '100dvh', background:'var(--bg-void)' }}>
+         style={{ height: '100dvh', background:'var(--bg-void)' }}>
 
       {/* ── 3D Visualizer ─────────────────────────────────────────────── */}
       <div className={`relative overflow-hidden studio-visualizer${isFullscreen ? ' viz-fullscreen' : ''}`}
-           style={{ flex: '1 1 0', minHeight: '38vh' }}>
+           style={{ flex: '1 1 0', minHeight: 0 }}>
         <ThreeVisualizer
           hz={hz}
           isPlaying={playerState === 'playing'}

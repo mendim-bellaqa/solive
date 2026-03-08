@@ -523,34 +523,21 @@ button:focus-visible, a:focus-visible {
 }
 
 /* ─── Responsive studio layout ─── */
+/* Visualizer fills all space above the controls panel — no dead space */
 .studio-visualizer {
-  max-height: 54vh;
-}
-
-@media (max-width: 640px) {
-  .studio-visualizer {
-    max-height: 42vh;
-    min-height: 34vh !important;
-  }
-}
-
-@media (max-height: 700px) and (orientation: portrait) {
-  .studio-visualizer {
-    max-height: 38vh;
-    min-height: 30vh !important;
-  }
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  max-height: none !important;
 }
 
 .viz-fullscreen {
-  max-height: 100dvh !important;
-  min-height: 0 !important;
   flex: 1 1 0 !important;
+  min-height: 0 !important;
+  max-height: 100dvh !important;
 }
 
 @media (orientation: landscape) and (max-height: 600px) {
   .studio-visualizer {
-    max-height: 100vh !important;
-    min-height: 100vh !important;
     flex: 1 1 0 !important;
   }
 }
