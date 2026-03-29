@@ -559,7 +559,7 @@ export default function SessionPage() {
                         .filter(x => x.f && x.score > 0)
                         .sort((a, b) => b.score - a.score)
                         .slice(0, 5)
-                        .map(({ hz, score, f }, i) => {
+                        .map(({ hz, score }, i) => {
                           const maxScore = Math.max(...Object.values(rec.scoreBreakdown))
                           const pct = (score / maxScore) * 100
                           return (

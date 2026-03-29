@@ -89,7 +89,7 @@ function WaveCanvas() {
         ctx.lineWidth = 1
         for (let x = 0; x <= W; x += 2) {
           const py = y * H + Math.sin(x * freq + t + phase) * H * amp
-          x === 0 ? ctx.moveTo(x, py) : ctx.lineTo(x, py)
+          if (x === 0) { ctx.moveTo(x, py) } else { ctx.lineTo(x, py) }
         }
         ctx.stroke()
       })
