@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { BinauralBand, BINAURAL_PRESETS, FREQUENCIES } from '@/lib/frequencies'
+import { BinauralBand, BINAURAL_PRESETS, FREQUENCIES, getOrCreateFrequency } from '@/lib/frequencies'
 import { createClient } from '@/lib/supabase/client'
 import type { QuestionnaireAnswers } from '@/lib/recommendation'
 import dynamic from 'next/dynamic'
@@ -77,7 +77,7 @@ const RATING_OPTIONS = [
 
 // ─── Component ──────────────────────────────────────────────────────────────
 export default function FrequencyStudio({ hz, binauralBand:initialBand, duration, secondaryHz, answers }: Props) {
-  const frequency = FREQUENCIES[hz]
+  const frequency = getOrCreateFrequency(hz)
 
   const audioCtxRef       = useRef<AudioContext | null>(null)
   const analyserRef       = useRef<AnalyserNode | null>(null)
@@ -108,10 +108,11 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
   const [vizMode, setVizMode]             = useState<'lissajous' | 'waveform'>('lissajous')
   const containerRef                      = useRef<HTMLDivElement>(null)
 
-  const timerRef     = useRef<ReturnType<typeof setInterval> | null>(null)
+  const timerRef     = useRef<number>(0)           // requestAnimationFrame id
   const startTimeRef = useRef<number>(0)
   const audioReadyRef= useRef(false)
   const elapsedAtEnd = useRef(0)
+  const lastTickRef  = useRef(0)                   // last elapsed value rendered
 
   const totalSeconds = duration === 9999 ? Infinity : duration * 60
   const binaural = BINAURAL_PRESETS[activeBand]
@@ -120,7 +121,12 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
   // ── Audio init ───────────────────────────────────────────────────────────
   const initAudio = useCallback(() => {
     if (audioReadyRef.current) return
-    const ctx = new AudioContext()
+    if (typeof AudioContext === 'undefined' && typeof (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext === 'undefined') {
+      console.warn('[Solive] Web Audio API not supported')
+      return
+    }
+    const AudioCtx = (window.AudioContext ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)!
+    const ctx = new AudioCtx()
     audioCtxRef.current = ctx
     audioReadyRef.current = true
 
@@ -225,11 +231,14 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
     } else { destroy() }
   }, [])
 
-  // Volume live change
+  // Volume live change — cancel any in-flight ramp first to prevent glitching
   useEffect(() => {
     const ctx = audioCtxRef.current, gain = masterGainRef.current
     if (!ctx || !gain || playerState !== 'playing') return
-    gain.gain.linearRampToValueAtTime(volume, ctx.currentTime + 0.15)
+    const now = ctx.currentTime
+    gain.gain.cancelScheduledValues(now)
+    gain.gain.setValueAtTime(gain.gain.value, now)
+    gain.gain.linearRampToValueAtTime(volume, now + 0.08)
   }, [volume, playerState])
 
   // Live binaural band switch
@@ -251,29 +260,35 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
     gain.gain.linearRampToValueAtTime(schumannOn ? 0.12 : 0, now + 1.5)
   }, [schumannOn])
 
-  // Session timer
+  // Session timer — RAF-based, only updates state when the second changes
   useEffect(() => {
-    if (playerState === 'playing') {
-      startTimeRef.current = Date.now() - elapsed * 1000
-      timerRef.current = setInterval(() => {
-        const secs = Math.floor((Date.now() - startTimeRef.current) / 1000)
+    if (playerState !== 'playing') {
+      cancelAnimationFrame(timerRef.current)
+      return
+    }
+    startTimeRef.current = Date.now() - elapsed * 1000
+
+    function tick() {
+      const secs = Math.floor((Date.now() - startTimeRef.current) / 1000)
+      if (secs !== lastTickRef.current) {
+        lastTickRef.current = secs
         setElapsed(secs)
         if (secs >= totalSeconds) {
           elapsedAtEnd.current = secs
           const ctx = audioCtxRef.current
-          if (ctx) playEndChime(ctx, hz)
+          if (ctx) { try { playEndChime(ctx, hz) } catch { /* ignore */ } }
           setTimeout(() => {
             closeAudio(true)
             setPlayerState('done')
             setSessionEnded(true)
           }, 800)
-          if (timerRef.current) clearInterval(timerRef.current)
+          return // stop loop
         }
-      }, 500)
-    } else {
-      if (timerRef.current) clearInterval(timerRef.current)
+      }
+      timerRef.current = requestAnimationFrame(tick)
     }
-    return () => { if (timerRef.current) clearInterval(timerRef.current) }
+    timerRef.current = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(timerRef.current)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playerState, totalSeconds])
 
@@ -318,7 +333,7 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
   useEffect(() => () => { closeAudio(false) }, [closeAudio])
 
   // ── Controls ─────────────────────────────────────────────────────────────
-  function play()   { initAudio(); setPlayerState('playing') }
+  function play()   { try { initAudio() } catch { /* unsupported */ }; setPlayerState('playing') }
   function pause()  { muteAudio(); setPlayerState('paused') }
   function resume() { unmuteAudio(volume); setPlayerState('playing') }
 
@@ -390,9 +405,8 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
   const improvement = afterScore !== null ? afterScore - inferBeforeScore(answers) : 0
   const currentDisplayHz = focusMode ? Math.round(liveHz * 10) / 10 : hz
 
-  if (!frequency) return (
-    <div className="min-h-screen flex items-center justify-center" style={{ color:'var(--text-muted)' }}>Frequency not found</div>
-  )
+  // getOrCreateFrequency always returns a value — this is just a safety net
+  if (!frequency) return null
 
   return (
     <div ref={containerRef} className="flex flex-col overflow-hidden"

@@ -165,3 +165,53 @@ export function getComplexityLevel(hz: number): number {
   if (hz <= 741) return 4
   return 5
 }
+
+// ─── Dynamic frequency for any custom Hz ──────────────────────────────────
+function _colorForHz(hz: number): FrequencyColorTheme {
+  if (hz < 300)  return 'amber'
+  if (hz < 450)  return 'red'
+  if (hz < 600)  return 'emerald'
+  if (hz < 700)  return 'blue'
+  if (hz < 850)  return 'violet'
+  return 'purple'
+}
+
+function _hexForHz(hz: number): string {
+  if (hz < 300)  return '#f59e0b'
+  if (hz < 450)  return '#ef4444'
+  if (hz < 600)  return '#10b981'
+  if (hz < 700)  return '#3b82f6'
+  if (hz < 850)  return '#8b5cf6'
+  return '#a855f7'
+}
+
+function _taglineForHz(hz: number): string {
+  if (hz < 100)   return 'Sub-bass resonance'
+  if (hz < 250)   return 'Deep grounding tone'
+  if (hz < 400)   return 'Healing earth frequency'
+  if (hz < 500)   return 'Natural harmonic'
+  if (hz < 650)   return 'Heart field resonance'
+  if (hz < 800)   return 'Clarity and focus tone'
+  if (hz < 1000)  return 'Upper harmonic series'
+  return 'High-frequency resonance'
+}
+
+/**
+ * Returns the known SoliveFrequency for a Solfeggio Hz, or generates
+ * a dynamic entry for any custom frequency. Never returns undefined.
+ */
+export function getOrCreateFrequency(hz: number): SoliveFrequency {
+  const known = FREQUENCIES[hz]
+  if (known) return known
+  return {
+    hz,
+    name: `${hz} Hz`,
+    tagline: _taglineForHz(hz),
+    description: `A custom ${hz} Hz tone. Explore the unique resonance properties of this frequency through 3D cymatics and binaural entrainment.`,
+    effects: ['Custom tuning', 'Resonance exploration', 'Personal frequency work'],
+    researchNote: 'User-defined frequency. Sound therapy benefits depend on the specific Hz and binaural pairing chosen.',
+    color: _colorForHz(hz),
+    colorHex: _hexForHz(hz),
+    cymatics: `Custom waveform pattern at ${hz} Hz.`,
+  }
+}
