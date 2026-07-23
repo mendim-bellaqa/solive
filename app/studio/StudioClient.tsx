@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import FrequencyStudio from '@/components/FrequencyStudio'
+import FrequencyStudio, { SceneMode } from '@/components/FrequencyStudio'
 import { BinauralBand } from '@/lib/frequencies'
 import type { QuestionnaireAnswers } from '@/lib/recommendation'
 
 const VALID_BANDS: BinauralBand[] = ['delta', 'theta', 'alpha', 'beta', 'gamma']
+const VALID_SCENES: SceneMode[] = ['brain', 'aura', 'frequency']
 
 /** Accept any Hz from 1 – 20 000. Falls back to 528 if out of range. */
 function sanitizeHz(raw: number): number {
@@ -30,9 +31,11 @@ export default function StudioClient() {
   const bandRaw     = params.get('binaural') as BinauralBand
   const durationRaw = Number(params.get('duration'))
   const secondaryRaw = Number(params.get('secondary'))
+  const vizRaw      = params.get('viz') as SceneMode
 
   const hz           = sanitizeHz(hzRaw)
   const binauralBand: BinauralBand = VALID_BANDS.includes(bandRaw) ? bandRaw : 'alpha'
+  const initialScene: SceneMode = VALID_SCENES.includes(vizRaw) ? vizRaw : 'frequency'
   const duration     = [15, 30, 45, 9999].includes(durationRaw) ? durationRaw : 30
   const secondaryHz  = sanitizeHz(secondaryRaw) !== 528 || secondaryRaw !== 528
     ? (secondaryRaw !== hz && secondaryRaw >= 1 && secondaryRaw <= 20000 ? secondaryRaw : undefined)
@@ -74,6 +77,7 @@ export default function StudioClient() {
       duration={duration}
       secondaryHz={secondaryHz}
       answers={answers}
+      initialScene={initialScene}
     />
   )
 }

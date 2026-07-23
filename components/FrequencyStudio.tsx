@@ -8,6 +8,10 @@ import type { QuestionnaireAnswers } from '@/lib/recommendation'
 import dynamic from 'next/dynamic'
 
 const ThreeVisualizer = dynamic(() => import('./ThreeVisualizer'), { ssr: false })
+const BioVisualizer = dynamic(() => import('./BioVisualizer'), { ssr: false })
+const BrainScanScene = dynamic(() => import('./BrainScanScene'), { ssr: false })
+
+export type SceneMode = 'brain' | 'aura' | 'frequency'
 
 interface Props {
   hz: number
@@ -15,6 +19,7 @@ interface Props {
   duration: number
   secondaryHz?: number
   answers?: QuestionnaireAnswers
+  initialScene?: SceneMode
 }
 
 type PlayerState = 'idle' | 'playing' | 'paused' | 'done'
@@ -76,7 +81,7 @@ const RATING_OPTIONS = [
 ]
 
 // ─── Component ──────────────────────────────────────────────────────────────
-export default function FrequencyStudio({ hz, binauralBand:initialBand, duration, secondaryHz, answers }: Props) {
+export default function FrequencyStudio({ hz, binauralBand:initialBand, duration, secondaryHz, answers, initialScene = 'frequency' }: Props) {
   const frequency = getOrCreateFrequency(hz)
 
   const audioCtxRef       = useRef<AudioContext | null>(null)
@@ -106,6 +111,7 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
   const liveHzRef                         = useRef(hz)
   const [isFullscreen, setIsFullscreen]   = useState(false)
   const [vizMode, setVizMode]             = useState<'lissajous' | 'waveform'>('lissajous')
+  const [sceneMode, setSceneMode]         = useState<SceneMode>(initialScene)
   const containerRef                      = useRef<HTMLDivElement>(null)
 
   const timerRef     = useRef<number>(0)           // requestAnimationFrame id
@@ -113,6 +119,8 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
   const audioReadyRef= useRef(false)
   const elapsedAtEnd = useRef(0)
   const lastTickRef  = useRef(0)                   // last elapsed value rendered
+  const barRef       = useRef<HTMLDivElement>(null)
+  const scrubbingRef = useRef(false)
 
   const totalSeconds = duration === 9999 ? Infinity : duration * 60
   const binaural = BINAURAL_PRESETS[activeBand]
@@ -292,6 +300,25 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playerState, totalSeconds])
 
+  // Manual time scrubbing — drag the progress bar to move through the session.
+  // Works while playing or paused; the brain-scan dissolve follows the scrubbed time.
+  const seekTo = useCallback((secs: number) => {
+    if (totalSeconds === Infinity) return
+    const clamped = Math.max(0, Math.min(totalSeconds, secs))
+    lastTickRef.current = Math.floor(clamped)
+    startTimeRef.current = Date.now() - clamped * 1000
+    setElapsed(clamped)
+    if (playerState === 'done' && clamped < totalSeconds) setSessionEnded(false)
+  }, [totalSeconds, playerState])
+
+  const seekFromClientX = useCallback((clientX: number) => {
+    const bar = barRef.current
+    if (!bar || totalSeconds === Infinity) return
+    const rect = bar.getBoundingClientRect()
+    const frac = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+    seekTo(frac * totalSeconds)
+  }, [seekTo, totalSeconds])
+
   // Keyboard shortcuts
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -415,15 +442,36 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
       {/* ── 3D Visualizer ─────────────────────────────────────────────── */}
       <div className={`relative overflow-hidden studio-visualizer${isFullscreen ? ' viz-fullscreen' : ''}`}
            style={{ flex: '1 1 0', minHeight: 0 }}>
-        <ThreeVisualizer
-          hz={hz}
-          isPlaying={playerState === 'playing'}
-          analyserRef={analyserRef}
-          colorHex={frequency.colorHex}
-          focusMode={focusMode}
-          onDrag={handleVisualizerDrag}
-          vizMode={vizMode}
-        />
+        {sceneMode === 'frequency' ? (
+          <ThreeVisualizer
+            hz={hz}
+            isPlaying={playerState === 'playing'}
+            analyserRef={analyserRef}
+            colorHex={frequency.colorHex}
+            focusMode={focusMode}
+            onDrag={handleVisualizerDrag}
+            vizMode={vizMode}
+          />
+        ) : sceneMode === 'brain' ? (
+          <BrainScanScene
+            isPlaying={playerState === 'playing'}
+            mode="session"
+            progress={
+              sessionEnded ? 1
+              : totalSeconds === Infinity ? Math.min(1, elapsed / 1800)
+              : Math.min(1, elapsed / totalSeconds)
+            }
+          />
+        ) : (
+          <BioVisualizer
+            mode={sceneMode}
+            hz={hz}
+            colorHex={frequency.colorHex}
+            isPlaying={playerState === 'playing'}
+            analyserRef={analyserRef}
+            quality="full"
+          />
+        )}
 
         {/* ── Top-left: nav + frequency live display ─────────────────── */}
         <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
@@ -492,28 +540,56 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
             </div>
           )}
 
-          {/* Viz mode toggle */}
-          <button onClick={() => setVizMode(v => v === 'lissajous' ? 'waveform' : 'lissajous')}
-                  className="glass px-2.5 py-1.5 rounded-xl text-xs hover:opacity-80 transition-opacity flex items-center gap-1.5"
-                  style={{ color: 'var(--text-muted)' }}
-                  title="Toggle visualization mode">
-            {vizMode === 'lissajous' ? (
-              <>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M2 12 Q5 5 8 12 Q11 19 14 12 Q17 5 20 12 Q23 19 26 12" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                <span className="hidden sm:inline">Wave</span>
-              </>
-            ) : (
-              <>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M12 3 C18 3 21 8 21 12 C21 16 18 21 12 21 C6 21 3 16 3 12 C3 8 6 3 12 3 Z" strokeLinecap="round"/>
-                  <path d="M8 12 Q10 7 12 12 Q14 17 16 12" strokeLinecap="round"/>
-                </svg>
-                <span className="hidden sm:inline">3D</span>
-              </>
-            )}
-          </button>
+          {/* Scene switcher — Brain / Aura / Frequency */}
+          <div className="glass rounded-xl flex items-center p-0.5 gap-0.5" style={{ border: '1px solid var(--border)' }}>
+            {([
+              { id: 'brain' as SceneMode, title: 'Brain',
+                icon: <path d="M9 4a3 3 0 0 0-3 3 3 3 0 0 0-1 5.8A3 3 0 0 0 7 18a2.5 2.5 0 0 0 5 .5V5a2 2 0 0 0-3-1ZM15 4a3 3 0 0 1 3 3 3 3 0 0 1 1 5.8A3 3 0 0 1 17 18a2.5 2.5 0 0 1-5 .5" strokeLinejoin="round"/> },
+              { id: 'aura' as SceneMode, title: 'Aura',
+                icon: <><circle cx="12" cy="6" r="2"/><path d="M12 8v7M12 15l-3 5M12 15l3 5M8 11h8" strokeLinecap="round"/><ellipse cx="12" cy="12" rx="9" ry="10"/></> },
+              { id: 'frequency' as SceneMode, title: 'Cymatics',
+                icon: <><path d="M12 3 C18 3 21 8 21 12 C21 16 18 21 12 21 C6 21 3 16 3 12 C3 8 6 3 12 3 Z"/><path d="M6 12 Q9 6 12 12 Q15 18 18 12" strokeLinecap="round"/></> },
+            ]).map(s => {
+              const active = sceneMode === s.id
+              return (
+                <button key={s.id} onClick={() => setSceneMode(s.id)} title={s.title}
+                  className="rounded-lg px-2 py-1.5 transition-all flex items-center justify-center"
+                  style={{
+                    background: active ? `${frequency.colorHex}22` : 'transparent',
+                    color: active ? frequency.colorHex : 'var(--text-muted)',
+                  }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                    {s.icon}
+                  </svg>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Viz mode toggle (cymatics only) */}
+          {sceneMode === 'frequency' && (
+            <button onClick={() => setVizMode(v => v === 'lissajous' ? 'waveform' : 'lissajous')}
+                    className="glass px-2.5 py-1.5 rounded-xl text-xs hover:opacity-80 transition-opacity flex items-center gap-1.5"
+                    style={{ color: 'var(--text-muted)' }}
+                    title="Toggle visualization mode">
+              {vizMode === 'lissajous' ? (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M2 12 Q5 5 8 12 Q11 19 14 12 Q17 5 20 12 Q23 19 26 12" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <span className="hidden sm:inline">Wave</span>
+                </>
+              ) : (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 3 C18 3 21 8 21 12 C21 16 18 21 12 21 C6 21 3 16 3 12 C3 8 6 3 12 3 Z" strokeLinecap="round"/>
+                    <path d="M8 12 Q10 7 12 12 Q14 17 16 12" strokeLinecap="round"/>
+                  </svg>
+                  <span className="hidden sm:inline">3D</span>
+                </>
+              )}
+            </button>
+          )}
 
           {/* Fullscreen */}
           <button onClick={handleFullscreen}
@@ -687,17 +763,56 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
         <div className="flex-shrink-0 px-4 pt-3 pb-4 safe-bottom relative"
              style={{ background:'rgba(5,5,12,0.96)', backdropFilter:'blur(24px)', borderTop:'1px solid var(--border)' }}>
 
-          {/* Session progress */}
+          {/* Session progress — draggable scrubber */}
           {totalSeconds !== Infinity && (
             <div className="mb-3">
               <div className="flex justify-between text-xs mb-1.5" style={{ color:'var(--text-muted)' }}>
-                <span>{fmt(elapsed)}</span>
-                <span style={{ color:frequency.colorHex }}>{timeLeft !== null ? `−${fmt(timeLeft)}` : ''}</span>
+                <span style={{ fontVariantNumeric:'tabular-nums' }}>{fmt(Math.round(elapsed))}</span>
+                <span style={{ color:frequency.colorHex, fontVariantNumeric:'tabular-nums' }}>{timeLeft !== null ? `−${fmt(Math.round(timeLeft))}` : ''}</span>
               </div>
-              <div className="progress-bar">
-                <div className="progress-fill"
-                     style={{ width:`${progressPct}%`, background:frequency.colorHex, boxShadow:`0 0 10px ${frequency.colorHex}70` }} />
+              <div
+                ref={barRef}
+                role="slider"
+                aria-label="Session time"
+                aria-valuemin={0}
+                aria-valuemax={Math.round(totalSeconds)}
+                aria-valuenow={Math.round(elapsed)}
+                tabIndex={0}
+                onPointerDown={e => {
+                  scrubbingRef.current = true
+                  ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+                  seekFromClientX(e.clientX)
+                }}
+                onPointerMove={e => { if (scrubbingRef.current) seekFromClientX(e.clientX) }}
+                onPointerUp={e => {
+                  scrubbingRef.current = false
+                  ;(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId)
+                }}
+                onKeyDown={e => {
+                  if (e.key === 'ArrowLeft')  { e.preventDefault(); seekTo(elapsed - (e.shiftKey ? 60 : 10)) }
+                  if (e.key === 'ArrowRight') { e.preventDefault(); seekTo(elapsed + (e.shiftKey ? 60 : 10)) }
+                }}
+                style={{ position:'relative', padding:'8px 0', cursor:'pointer', touchAction:'none' }}
+              >
+                <div className="progress-bar">
+                  <div className="progress-fill"
+                       style={{ width:`${progressPct}%`, background:frequency.colorHex, boxShadow:`0 0 10px ${frequency.colorHex}70` }} />
+                </div>
+                {/* Draggable knob */}
+                <div
+                  style={{
+                    position:'absolute', top:'50%', left:`${progressPct}%`,
+                    width:14, height:14, borderRadius:'50%',
+                    transform:'translate(-50%, -50%)',
+                    background:'#fff', border:`2px solid ${frequency.colorHex}`,
+                    boxShadow:`0 0 10px ${frequency.colorHex}, 0 2px 6px rgba(0,0,0,0.5)`,
+                    pointerEvents:'none',
+                  }}
+                />
               </div>
+              <p style={{ fontSize:'0.62rem', color:'var(--text-muted)', opacity:0.6, marginTop:2 }}>
+                Drag to move through the session
+              </p>
             </div>
           )}
 

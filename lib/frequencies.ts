@@ -134,6 +134,77 @@ export const FREQUENCIES: Record<number, SoliveFrequency> = {
     colorHex: '#a855f7',
     cymatics: 'Perfect crystalline lattice — the highest geometric order visible in sound.',
   },
+
+  // ─── Extended healing frequencies (non-Solfeggio, widely used) ────────────
+  7.83: {
+    hz: 7.83,
+    name: 'Schumann Resonance',
+    tagline: 'Earth Grounding',
+    description: "The Earth's own heartbeat — the resonant frequency of the planet's electromagnetic field. Re-syncs the nervous system to nature and restores deep grounding.",
+    effects: ['Grounding', 'Nervous system reset', 'Calm alertness', 'Circadian balance'],
+    researchNote: 'Measured in the Earth-ionosphere cavity at ~7.83 Hz. Research links exposure to reduced stress markers, improved sleep and autonomic balance.',
+    color: 'emerald',
+    colorHex: '#10b981',
+    cymatics: 'Slow, wide standing waves — the planetary pulse made visible.',
+  },
+  40: {
+    hz: 40,
+    name: 'Gamma Focus',
+    tagline: 'Memory & Cognition',
+    description: 'A gamma-band tone that entrains peak cognitive states. Sharpens focus, boosts memory recall, and synchronizes neural networks for high performance.',
+    effects: ['Focus', 'Memory recall', 'Mental sharpness', 'Neural synchrony'],
+    researchNote: 'MIT studies show 40 Hz light and sound stimulation drives gamma oscillations, clears amyloid plaques in models, and improves memory and cognition.',
+    color: 'violet',
+    colorHex: '#8b5cf6',
+    cymatics: 'Rapid fine lattices — the crystalline signature of gamma coherence.',
+  },
+  111: {
+    hz: 111,
+    name: 'Cell Regeneration',
+    tagline: 'Holy Frequency',
+    description: "Known as the 'holy frequency'. Triggers endorphin release and a deeply meditative, restorative state associated with cellular repair and renewal.",
+    effects: ['Cell regeneration', 'Endorphin release', 'Deep calm', 'Tissue repair'],
+    researchNote: 'Recorded in ancient stone chambers (Hypogeum, Malta). EEG studies show 111 Hz shifts brain activity toward calming, restorative states.',
+    color: 'blue',
+    colorHex: '#3b82f6',
+    cymatics: 'Nested hexagonal cells — the geometry of regeneration.',
+  },
+  136.1: {
+    hz: 136.1,
+    name: 'OM Resonance',
+    tagline: 'Heart & Earth Year',
+    description: "The frequency of the Earth's yearly orbit — the tone of 'OM'. Centers the heart, deepens meditation, and brings the body into natural harmony.",
+    effects: ['Heart centering', 'Meditative depth', 'Harmony', 'Relaxation'],
+    researchNote: "Calculated from the Earth's orbital year (Cousto). The tuning of Indian tanpura and the mantra OM — used for centuries in meditation.",
+    color: 'emerald',
+    colorHex: '#0ea5a4',
+    cymatics: 'Balanced radial mandala — the still-point of the breath.',
+  },
+  256: {
+    hz: 256,
+    name: 'Root Anchor',
+    tagline: 'Grounding & Stability',
+    description: 'Scientific middle C — a clean, stabilizing tone for the root. Anchors scattered energy, restores a sense of safety, and builds a solid base.',
+    effects: ['Grounding', 'Security', 'Stability', 'Base energy'],
+    researchNote: 'Scientific pitch (C = 256 Hz). Used in sound-healing to tune the root chakra and re-establish a stable physical baseline.',
+    color: 'amber',
+    colorHex: '#f59e0b',
+    cymatics: 'Four-square symmetry — the foundation stone of the harmonic series.',
+  },
+}
+
+// ─── Curated "15 best-known healing frequencies" (for the session picker) ──
+// Ordered from grounding → transcendence.
+export const HEALING_FREQUENCIES: number[] = [
+  7.83, 40, 111, 136.1, 174, 256, 285, 396, 417, 432, 528, 639, 741, 852, 963,
+]
+
+// Suggested binaural band pairing per healing frequency (used by the session picker)
+export const SUGGESTED_BAND: Record<number, BinauralBand> = {
+  7.83: 'theta', 40: 'gamma', 111: 'delta', 136.1: 'theta',
+  174: 'delta', 256: 'delta', 285: 'delta', 396: 'theta',
+  417: 'alpha', 432: 'delta', 528: 'alpha', 639: 'alpha',
+  741: 'beta', 852: 'theta', 963: 'theta',
 }
 
 // ─── Binaural beat presets ─────────────────────────────────────────────────

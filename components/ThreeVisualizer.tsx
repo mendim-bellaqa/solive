@@ -185,6 +185,15 @@ export default function ThreeVisualizer({ hz, isPlaying, analyserRef, colorHex, 
     renderer.domElement.style.transition = 'opacity 0.05s linear'
     mount.appendChild(renderer.domElement)
 
+    // ── Touchpad / wheel zoom (camera dolly) ────────────────────────────────
+    const minCamZ = camZ * 0.4, maxCamZ = camZ * 2.6
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      const factor = Math.exp(e.deltaY * 0.0015)
+      camera.position.z = Math.max(minCamZ, Math.min(maxCamZ, camera.position.z * factor))
+    }
+    mount.addEventListener('wheel', onWheel, { passive: false })
+
     const mainColor = new THREE.Color(colorHex)
     const spriteTexture = createCircleTexture()
 
@@ -455,6 +464,7 @@ export default function ThreeVisualizer({ hz, isPlaying, analyserRef, colorHex, 
 
     return () => {
       window.removeEventListener('resize', onResize)
+      mount.removeEventListener('wheel', onWheel)
       cancelAnimationFrame(frameRef.current)
       lissGeo.dispose(); lissMat.dispose()
       glowLayers.forEach(({ geo, mat }) => { geo.dispose(); mat.dispose() })

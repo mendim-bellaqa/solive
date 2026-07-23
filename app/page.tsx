@@ -255,6 +255,98 @@ function Divider() {
   )
 }
 
+// ─── Brain scan reveal — resting → activated, magical 10s crossfade ──────────
+function BrainScanReveal() {
+  const ref = useRef<HTMLDivElement>(null)
+  const inView = useInView(ref, { margin: '-80px' })
+
+  // Shared 10s loop timing (rest → fade to activated → hold → return)
+  const LOOP = 10
+  const anim = inView ? 'run' : 'pause'
+
+  return (
+    <div ref={ref} className="relative mx-auto w-full" style={{ maxWidth: 520 }}>
+      {/* Ambient glow behind the scan */}
+      <motion.div
+        aria-hidden
+        className="absolute -inset-10 pointer-events-none"
+        style={{
+          background: 'radial-gradient(circle at 50% 45%, rgba(255,90,40,0.16), rgba(90,232,220,0.05) 45%, transparent 70%)',
+          filter: 'blur(24px)',
+        }}
+        animate={anim === 'run' ? { opacity: [0.35, 0.35, 1, 1, 0.35], scale: [0.95, 0.95, 1.06, 1.06, 0.95] } : {}}
+        transition={{ duration: LOOP, times: [0, 0.12, 0.5, 0.82, 1], repeat: Infinity, ease: 'easeInOut' }}
+      />
+
+      {/* Scan frame */}
+      <div
+        className="relative overflow-hidden"
+        style={{
+          aspectRatio: '1 / 1',
+          borderRadius: 28,
+          border: '1px solid var(--border-mid)',
+          boxShadow: '0 40px 100px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08)',
+          background: 'radial-gradient(circle at 50% 45%, #0a1220, #05050c 75%)',
+        }}
+      >
+        {/* Base: resting brain (transparent PNG) */}
+        <div
+          aria-hidden
+          className="absolute inset-0"
+          style={{ backgroundImage: 'url(/images/brain-1.png)', backgroundSize: 'contain', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}
+        />
+
+        {/* Overlay: activated brain — fades in over the 10s cycle */}
+        <motion.div
+          aria-hidden
+          className="absolute inset-0"
+          style={{ backgroundImage: 'url(/images/brain-2.png)', backgroundSize: 'contain', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}
+          animate={anim === 'run' ? { opacity: [0, 0, 1, 1, 0], scale: [1.04, 1.04, 1, 1, 1.04] } : { opacity: 0 }}
+          transition={{ duration: LOOP, times: [0, 0.12, 0.5, 0.82, 1], repeat: Infinity, ease: 'easeInOut' }}
+        />
+
+        {/* Magical bloom flash at the peak of the transition */}
+        <motion.div
+          aria-hidden
+          className="absolute inset-0 pointer-events-none"
+          style={{ background: 'radial-gradient(circle at 50% 46%, rgba(255,120,60,0.5), rgba(255,220,120,0.2) 35%, transparent 60%)', mixBlendMode: 'screen' }}
+          animate={anim === 'run' ? { opacity: [0, 0, 0.85, 0.2, 0], scale: [0.85, 0.85, 1.15, 1.25, 1.35] } : { opacity: 0 }}
+          transition={{ duration: LOOP, times: [0, 0.28, 0.5, 0.68, 1], repeat: Infinity, ease: 'easeInOut' }}
+        />
+
+        {/* Diagonal light sweep */}
+        <motion.div
+          aria-hidden
+          className="absolute inset-0 pointer-events-none"
+          style={{ background: 'linear-gradient(115deg, transparent 40%, rgba(255,255,255,0.14) 50%, transparent 60%)' }}
+          animate={anim === 'run' ? { x: ['-120%', '-120%', '120%', '120%', '-120%'] } : {}}
+          transition={{ duration: LOOP, times: [0, 0.3, 0.55, 0.8, 1], repeat: Infinity, ease: 'easeInOut' }}
+        />
+
+        {/* State labels (crossfade with the images) */}
+        <motion.div
+          className="absolute left-4 bottom-4 z-10"
+          animate={anim === 'run' ? { opacity: [1, 1, 0, 0, 1] } : { opacity: 1 }}
+          transition={{ duration: LOOP, times: [0, 0.2, 0.42, 0.85, 1], repeat: Infinity, ease: 'easeInOut' }}
+        >
+          <span className="glass px-3 py-1.5 rounded-full" style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--t2)' }}>
+            Resting
+          </span>
+        </motion.div>
+        <motion.div
+          className="absolute left-4 bottom-4 z-10"
+          animate={anim === 'run' ? { opacity: [0, 0, 1, 1, 0] } : { opacity: 0 }}
+          transition={{ duration: LOOP, times: [0, 0.2, 0.5, 0.82, 1], repeat: Infinity, ease: 'easeInOut' }}
+        >
+          <span className="glass px-3 py-1.5 rounded-full" style={{ fontSize: '0.72rem', fontWeight: 700, color: '#ffb27a' }}>
+            Activated · 15 min later
+          </span>
+        </motion.div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 export default function HomePage() {
   const router = useRouter()
@@ -429,6 +521,38 @@ export default function HomePage() {
                 </div>
               </Reveal>
             ))}
+          </div>
+        </section>
+
+        <Divider />
+
+        {/* ══════════════════ BRAIN SCAN REVEAL ═════════════════════════════ */}
+        <section className="px-5 py-20 max-w-4xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <Reveal>
+              <div>
+                <p style={{ color: 'var(--t4)', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.1em', marginBottom: 12 }}>
+                  MEASURED ON A PET SCAN
+                </p>
+                <h2 style={{ fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', fontWeight: 900, letterSpacing: '-0.035em', lineHeight: 1.05, marginBottom: 16 }}>
+                  Watch your brain{' '}
+                  <span style={{ color: 'var(--t2)' }}>light up.</span>
+                </h2>
+                <p style={{ color: 'var(--t2)', fontSize: '0.95rem', maxWidth: '28rem', lineHeight: 1.6, marginBottom: 20 }}>
+                  This is cortical activity before a session and 15 minutes into one. As sound entrains
+                  your brainwaves, metabolic activity climbs — cool greens warm into reds.
+                </p>
+                <button onClick={() => router.push('/session')} className="pill-btn">
+                  Start a session
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                    <path d="M5 12h14M12 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            </Reveal>
+            <Reveal delay={0.15}>
+              <BrainScanReveal />
+            </Reveal>
           </div>
         </section>
 
