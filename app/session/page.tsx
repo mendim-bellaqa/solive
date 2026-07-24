@@ -89,6 +89,7 @@ export default function SessionPage() {
       <div className="sticky top-0 z-50" style={{
         background: 'rgba(7,7,15,0.80)', backdropFilter: 'blur(40px)',
         WebkitBackdropFilter: 'blur(40px)', borderBottom: '1px solid var(--border)',
+        paddingTop: 'env(safe-area-inset-top)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 18px', height: 54 }}>
           <button onClick={() => router.push('/')} style={{
@@ -279,7 +280,7 @@ export default function SessionPage() {
       {/* ── Sticky CTA ─────────────────────────────────────────────────────── */}
       <div style={{
         position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 60,
-        padding: '12px 16px 20px',
+        padding: '12px 16px calc(20px + env(safe-area-inset-bottom))',
         background: 'linear-gradient(0deg, rgba(7,7,15,0.98) 60%, transparent)',
       }}>
         <div style={{ maxWidth: 580, margin: '0 auto' }}>

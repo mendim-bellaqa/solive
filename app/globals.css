@@ -604,6 +604,17 @@ button { font-family: inherit; cursor: pointer; }
   transition: background 0.3s;
 }
 
+/* Installed PWA (home-screen / standalone): keep the header opaque & visible
+   even at the top, since the iOS status bar overlays it in this mode. */
+@media (display-mode: standalone) {
+  .site-header {
+    background: rgba(5,5,12,0.85) !important;
+    backdrop-filter: blur(24px) saturate(160%);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
+    border-bottom: 1px solid rgba(255,255,255,0.07) !important;
+  }
+}
+
 /* ══════════════════════════════════════════════════════════════════════════ */
 /*  PLAYER / STUDIO                                                           */
 /* ══════════════════════════════════════════════════════════════════════════ */

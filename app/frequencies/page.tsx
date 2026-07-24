@@ -89,7 +89,8 @@ export default function FrequenciesPage() {
         <div className="ambient-orb" /><div className="ambient-orb" /><div className="ambient-orb" />
       </div>
 
-      <main className="relative z-10 max-w-5xl mx-auto px-5 pt-28 pb-28">
+      <main className="relative z-10 max-w-5xl mx-auto px-5 pt-28 pb-28"
+            style={{ paddingTop: 'calc(env(safe-area-inset-top) + 7rem)' }}>
         {/* Title */}
         <motion.div
           initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}

@@ -72,7 +72,8 @@ export default async function HistoryPage() {
   const maxFreqCount = topFreqs[0]?.count || 1
 
   return (
-    <div className="min-h-screen px-5 py-8 max-w-2xl mx-auto">
+    <div className="min-h-screen px-5 py-8 max-w-2xl mx-auto"
+         style={{ paddingTop: 'calc(env(safe-area-inset-top) + 2rem)' }}>
 
       {/* ── Header ────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between mb-8">

@@ -117,7 +117,8 @@ export default function SciencePage() {
       <main className="relative z-10">
 
         {/* ══════════════ HERO ══════════════ */}
-        <section className="max-w-6xl mx-auto px-5 pt-32 pb-16">
+        <section className="max-w-6xl mx-auto px-5 pt-32 pb-16"
+                 style={{ paddingTop: 'calc(env(safe-area-inset-top) + 8rem)' }}>
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div>
               <motion.p

@@ -366,7 +366,8 @@ export default function HomePage() {
       <main className="relative z-10">
 
         {/* ══════════════════ HERO ══════════════════════════════════════════ */}
-        <section className="relative min-h-screen flex flex-col justify-center px-5 pt-28 pb-20 overflow-hidden">
+        <section className="relative min-h-screen flex flex-col justify-center px-5 pt-28 pb-20 overflow-hidden"
+                 style={{ paddingTop: 'calc(env(safe-area-inset-top) + 7rem)' }}>
           <WaveCanvas />
 
           <div className="relative z-10 max-w-3xl mx-auto w-full">

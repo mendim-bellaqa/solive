@@ -437,7 +437,12 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
 
   return (
     <div ref={containerRef} className="flex flex-col overflow-hidden"
-         style={{ height: '100dvh', paddingTop: isFullscreen ? 0 : 64, background:'var(--bg-void)' }}>
+         style={{
+           height: '100dvh',
+           paddingTop: isFullscreen ? 0 : 'calc(env(safe-area-inset-top) + 64px)',
+           paddingBottom: isFullscreen ? 0 : 'env(safe-area-inset-bottom)',
+           background:'var(--bg-void)',
+         }}>
 
       {/* ── 3D Visualizer ─────────────────────────────────────────────── */}
       <div className={`relative overflow-hidden studio-visualizer${isFullscreen ? ' viz-fullscreen' : ''}`}

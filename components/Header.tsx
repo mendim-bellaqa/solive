@@ -83,13 +83,17 @@ export default function Header() {
 
   return (
     <motion.header
-      className="fixed top-0 left-0 right-0 z-50"
+      className="site-header fixed top-0 left-0 right-0 z-50"
       style={{
         background: scrolled ? 'rgba(5,5,12,0.82)' : 'transparent',
         backdropFilter: scrolled ? 'blur(24px) saturate(160%)' : 'none',
         WebkitBackdropFilter: scrolled ? 'blur(24px) saturate(160%)' : 'none',
         borderBottom: scrolled ? '1px solid rgba(255,255,255,0.07)' : '1px solid transparent',
         transition: 'background 0.35s ease, border-color 0.35s ease',
+        // Drop the bar below the iOS notch / status bar in standalone (home-screen) mode
+        paddingTop: 'env(safe-area-inset-top)',
+        paddingLeft: 'env(safe-area-inset-left)',
+        paddingRight: 'env(safe-area-inset-right)',
       }}
     >
       <div className="max-w-7xl mx-auto px-5 sm:px-10 h-16 flex items-center justify-between">
