@@ -9,7 +9,7 @@ import dynamic from 'next/dynamic'
 
 const ThreeVisualizer = dynamic(() => import('./ThreeVisualizer'), { ssr: false })
 const BioVisualizer = dynamic(() => import('./BioVisualizer'), { ssr: false })
-const BrainScanScene = dynamic(() => import('./BrainScanScene'), { ssr: false })
+const NeuralBrain = dynamic(() => import('./NeuralBrain'), { ssr: false })
 
 export type SceneMode = 'brain' | 'aura' | 'frequency'
 
@@ -458,8 +458,9 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
             vizMode={vizMode}
           />
         ) : sceneMode === 'brain' ? (
-          <BrainScanScene
+          <NeuralBrain
             isPlaying={playerState === 'playing'}
+            analyserRef={analyserRef}
             mode="session"
             progress={
               sessionEnded ? 1

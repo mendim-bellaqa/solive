@@ -49,6 +49,8 @@
 html {
   height: 100%;
   overscroll-behavior: none;
+  overscroll-behavior-x: none;
+  overflow-x: hidden;            /* no horizontal scroll / dead space on mobile */
   -webkit-text-size-adjust: 100%;
 }
 
@@ -58,6 +60,9 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter',
                'Segoe UI', sans-serif;
   min-height: 100vh;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;             /* clip stray overflow without breaking sticky headers */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

@@ -10,7 +10,7 @@ import {
 
 const BioVisualizer = dynamic(() => import('@/components/BioVisualizer'), { ssr: false })
 const ThreeVisualizer = dynamic(() => import('@/components/ThreeVisualizer'), { ssr: false })
-const BrainScanScene = dynamic(() => import('@/components/BrainScanScene'), { ssr: false })
+const NeuralBrain = dynamic(() => import('@/components/NeuralBrain'), { ssr: false })
 
 // ─── Visualization modes ──────────────────────────────────────────────────────
 type VizMode = 'brain' | 'aura' | 'frequency'
@@ -127,7 +127,7 @@ export default function SessionPage() {
           {viz === 'frequency'
             ? <ThreeVisualizer hz={hz} isPlaying={false} analyserRef={{ current: null }} colorHex={color} vizMode="lissajous" />
             : viz === 'brain'
-            ? <BrainScanScene isPlaying mode="preview" />
+            ? <NeuralBrain isPlaying={false} mode="preview" />
             : <BioVisualizer mode={viz} hz={hz} colorHex={color} isPlaying={false} quality="preview" />
           }
           {/* Overlay labels */}
