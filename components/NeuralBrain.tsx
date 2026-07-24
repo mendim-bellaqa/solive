@@ -106,7 +106,7 @@ export default function NeuralBrain({ isPlaying, mode = 'session', progress = 0,
       const v = Math.acos(2 * Math.random() - 1)
       const fold = Math.sin(u * 7 + v * 3) * 0.5 + Math.sin(v * 9 + u * 2) * 0.5
       const rr = (1 + 0.07 * fold) * (0.9 + Math.random() * 0.1)
-      let x = hemi * HEMI + Math.sin(v) * Math.cos(u) * RX * rr
+      const x = hemi * HEMI + Math.sin(v) * Math.cos(u) * RX * rr
       let y = Math.cos(v) * RY * rr
       const z = Math.sin(v) * Math.sin(u) * RZ * rr
       if (y < -0.28) y = -0.28 + (y + 0.28) * 0.55   // flatten the underside
