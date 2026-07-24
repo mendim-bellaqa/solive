@@ -286,3 +286,86 @@ export function getOrCreateFrequency(hz: number): SoliveFrequency {
     cymatics: `Custom waveform pattern at ${hz} Hz.`,
   }
 }
+
+// ─── Frequency catalog (50+ curated tones for the browse page) ─────────────
+export interface CatalogEntry { hz: number; name: string; benefit: string; category: CategoryId }
+export type CategoryId = 'solfeggio' | 'brainwave' | 'planetary' | 'angel' | 'tuning' | 'rife'
+
+export const FREQ_CATEGORIES: { id: CategoryId; label: string; color: string; blurb: string }[] = [
+  { id: 'solfeggio', label: 'Solfeggio',  color: '#5CE8DC', blurb: 'The ancient six-tone healing scale, extended.' },
+  { id: 'brainwave', label: 'Brainwaves', color: '#4a90e8', blurb: 'Entrainment targets — delta to gamma states.' },
+  { id: 'planetary', label: 'Planetary',  color: '#8b5cf6', blurb: 'Cousto tones of the Earth, Sun, Moon & planets.' },
+  { id: 'angel',     label: 'Angel',      color: '#e8a020', blurb: 'Repeating-number frequencies for intention.' },
+  { id: 'tuning',    label: 'Tuning',     color: '#10b981', blurb: 'Natural concert & scientific reference pitches.' },
+  { id: 'rife',      label: 'Rife',       color: '#e0607a', blurb: 'Classic Rife wellness tones.' },
+]
+
+export const CATEGORY_COLOR: Record<CategoryId, string> =
+  Object.fromEntries(FREQ_CATEGORIES.map(c => [c.id, c.color])) as Record<CategoryId, string>
+
+export const FREQ_CATALOG: CatalogEntry[] = [
+  // Solfeggio
+  { hz: 174,   name: 'Foundation',   benefit: 'Eases pain and creates a sense of safety.',           category: 'solfeggio' },
+  { hz: 285,   name: 'Restore',      benefit: 'Supports tissue healing and cellular repair.',        category: 'solfeggio' },
+  { hz: 396,   name: 'Liberation',   benefit: 'Releases fear, guilt and limiting beliefs.',          category: 'solfeggio' },
+  { hz: 417,   name: 'Change',       benefit: 'Clears trauma and enables positive change.',          category: 'solfeggio' },
+  { hz: 528,   name: 'Miracle',      benefit: 'The love tone — repair, transformation, DNA.',        category: 'solfeggio' },
+  { hz: 639,   name: 'Connection',   benefit: 'Harmonizes relationships and communication.',         category: 'solfeggio' },
+  { hz: 741,   name: 'Awaken',       benefit: 'Detoxifies and sharpens problem-solving.',            category: 'solfeggio' },
+  { hz: 852,   name: 'Intuition',    benefit: 'Awakens intuition and inner clarity.',                category: 'solfeggio' },
+  { hz: 963,   name: 'Oneness',      benefit: 'Crown activation and pure awareness.',                category: 'solfeggio' },
+
+  // Brainwaves
+  { hz: 0.5,   name: 'Delta Void',    benefit: 'Profound stillness and detached bliss.',             category: 'brainwave' },
+  { hz: 1.5,   name: 'Delta Renewal', benefit: 'Whole-body regeneration and healing.',              category: 'brainwave' },
+  { hz: 2.5,   name: 'Delta Relief',  benefit: 'Eases pain and releases endorphins.',               category: 'brainwave' },
+  { hz: 3.5,   name: 'Delta Sleep',   benefit: 'Sinks you into deep, dreamless sleep.',             category: 'brainwave' },
+  { hz: 4,     name: 'Theta Gate',    benefit: 'The threshold of deep relaxation.',                 category: 'brainwave' },
+  { hz: 5,     name: 'Theta Insight', benefit: 'Intuition, imagery and inner insight.',             category: 'brainwave' },
+  { hz: 6,     name: 'Theta Release', benefit: 'Emotional processing and letting go.',              category: 'brainwave' },
+  { hz: 7,     name: 'Theta Depth',   benefit: 'Deep meditative, trance-like calm.',                category: 'brainwave' },
+  { hz: 7.83,  name: 'Schumann',      benefit: "The Earth's pulse — grounding and reset.",          category: 'brainwave' },
+  { hz: 8,     name: 'Alpha Calm',    benefit: 'Relaxed, present awareness.',                       category: 'brainwave' },
+  { hz: 10,    name: 'Alpha Ease',    benefit: 'Stress relief and a serotonin lift.',              category: 'brainwave' },
+  { hz: 12,    name: 'Alpha Focus',   benefit: 'Calm, centered concentration.',                     category: 'brainwave' },
+  { hz: 14,    name: 'Beta Alert',    benefit: 'Awake, engaged and alert.',                         category: 'brainwave' },
+  { hz: 20,    name: 'Beta Drive',    benefit: 'Sustained focus and concentration.',                category: 'brainwave' },
+  { hz: 30,    name: 'Beta Sharp',    benefit: 'Active, analytical thinking.',                      category: 'brainwave' },
+  { hz: 40,    name: 'Gamma Peak',    benefit: 'Memory, cognition and peak flow.',                  category: 'brainwave' },
+
+  // Planetary (Cousto)
+  { hz: 136.1, name: 'OM · Earth Year', benefit: 'The tone of OM — heart-centering calm.',          category: 'planetary' },
+  { hz: 194.18,name: 'Earth Day',      benefit: 'Grounding, vitality and drive.',                   category: 'planetary' },
+  { hz: 210.42,name: 'Moon',           benefit: 'Emotional flow, intuition and sleep.',             category: 'planetary' },
+  { hz: 126.22,name: 'Sun',            benefit: 'Warmth, confidence and vitality.',                 category: 'planetary' },
+  { hz: 141.27,name: 'Mercury',        benefit: 'Communication and mental agility.',                category: 'planetary' },
+  { hz: 221.23,name: 'Venus',          benefit: 'Love, beauty and harmony.',                        category: 'planetary' },
+  { hz: 144.72,name: 'Mars',           benefit: 'Energy, courage and willpower.',                   category: 'planetary' },
+  { hz: 183.58,name: 'Jupiter',        benefit: 'Growth, abundance and optimism.',                  category: 'planetary' },
+  { hz: 147.85,name: 'Saturn',         benefit: 'Discipline, structure and focus.',                 category: 'planetary' },
+  { hz: 207.36,name: 'Uranus',         benefit: 'Insight, originality and change.',                 category: 'planetary' },
+  { hz: 211.44,name: 'Neptune',        benefit: 'Dreams, imagination and the mystic.',              category: 'planetary' },
+  { hz: 140.25,name: 'Pluto',          benefit: 'Transformation and deep renewal.',                 category: 'planetary' },
+
+  // Angel numbers
+  { hz: 111,   name: 'Manifest',   benefit: 'Alignment and new beginnings.',                        category: 'angel' },
+  { hz: 222,   name: 'Balance',    benefit: 'Harmony, trust and equilibrium.',                      category: 'angel' },
+  { hz: 333,   name: 'Guidance',   benefit: 'Support, creativity and encouragement.',               category: 'angel' },
+  { hz: 444,   name: 'Protection', benefit: 'Stability and grounded reassurance.',                  category: 'angel' },
+  { hz: 555,   name: 'Shift',      benefit: 'Transition and positive momentum.',                    category: 'angel' },
+  { hz: 777,   name: 'Fortune',    benefit: 'Luck, flow and spiritual reward.',                     category: 'angel' },
+  { hz: 888,   name: 'Abundance',  benefit: 'Prosperity and infinite flow.',                        category: 'angel' },
+  { hz: 999,   name: 'Completion', benefit: 'Closure and readiness for the new.',                   category: 'angel' },
+
+  // Tuning & harmony
+  { hz: 432,   name: 'Natural A',     benefit: "Warm, natural concert tuning (Verdi's A).",         category: 'tuning' },
+  { hz: 256,   name: 'Scientific C',  benefit: 'A clean, grounding reference baseline.',            category: 'tuning' },
+  { hz: 128,   name: 'Deep C',        benefit: 'A low, stabilizing grounding tone.',                category: 'tuning' },
+  { hz: 288,   name: 'Sacral C#',     benefit: 'Creative, flowing energy.',                         category: 'tuning' },
+  { hz: 384,   name: 'Gravity G',     benefit: 'Balance and centered poise.',                       category: 'tuning' },
+
+  // Rife
+  { hz: 727,   name: 'Vitality',   benefit: 'Classic Rife tone for general vitality.',              category: 'rife' },
+  { hz: 787,   name: 'Immune',     benefit: 'Rife tone linked with immune support.',                category: 'rife' },
+  { hz: 880,   name: 'Relief',     benefit: 'Rife tone for soothing and relief.',                   category: 'rife' },
+]

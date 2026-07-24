@@ -7,8 +7,9 @@ import dynamic from 'next/dynamic'
 import {
   FREQUENCIES, HEALING_FREQUENCIES, SUGGESTED_BAND, getOrCreateFrequency,
 } from '@/lib/frequencies'
+import Header from '@/components/Header'
 
-const BioVisualizer = dynamic(() => import('@/components/BioVisualizer'), { ssr: false })
+const Biofield = dynamic(() => import('@/components/Biofield'), { ssr: false })
 const ThreeVisualizer = dynamic(() => import('@/components/ThreeVisualizer'), { ssr: false })
 const NeuralBrain = dynamic(() => import('@/components/NeuralBrain'), { ssr: false })
 
@@ -80,39 +81,21 @@ export default function SessionPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', overflowX: 'hidden' }}>
+      <Header />
+
       {/* Ambient */}
       <div className="ambient-bg" aria-hidden>
         <div className="ambient-orb" /><div className="ambient-orb" /><div className="ambient-orb" />
       </div>
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="sticky top-0 z-50" style={{
-        background: 'rgba(7,7,15,0.80)', backdropFilter: 'blur(40px)',
-        WebkitBackdropFilter: 'blur(40px)', borderBottom: '1px solid var(--border)',
-        paddingTop: 'env(safe-area-inset-top)',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 18px', height: 54 }}>
-          <button onClick={() => router.push('/')} style={{
-            display: 'flex', alignItems: 'center', gap: 6, color: 'var(--t3)',
-            fontSize: '0.82rem', fontWeight: 600, background: 'none', border: 'none',
-            cursor: 'pointer', padding: '6px 8px', borderRadius: 8,
-          }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M19 12H5M12 19l-7-7 7-7" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            Solive
-          </button>
-          <span style={{ fontSize: '0.72rem', color: 'var(--t3)', fontWeight: 600, letterSpacing: '0.04em' }}>
-            BUILD YOUR SESSION
-          </span>
-        </div>
-      </div>
-
-      <main style={{ maxWidth: 640, margin: '0 auto', padding: '22px 16px 150px', position: 'relative', zIndex: 10 }}>
+      <main style={{ maxWidth: 640, margin: '0 auto', padding: 'calc(env(safe-area-inset-top) + 88px) 16px 150px', position: 'relative', zIndex: 10 }}>
 
         {/* Title */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}
           style={{ textAlign: 'center', marginBottom: 20 }}>
+          <p style={{ fontSize: '0.7rem', color: 'var(--t4)', fontWeight: 700, letterSpacing: '0.1em', marginBottom: 10 }}>
+            BUILD YOUR SESSION
+          </p>
           <h1 style={{ fontSize: '1.55rem', fontWeight: 900, letterSpacing: '-0.035em', marginBottom: 5 }}>
             Design your session
           </h1>
@@ -128,7 +111,7 @@ export default function SessionPage() {
             ? <ThreeVisualizer hz={hz} isPlaying={false} analyserRef={{ current: null }} colorHex={color} vizMode="lissajous" />
             : viz === 'brain'
             ? <NeuralBrain isPlaying={false} mode="preview" />
-            : <BioVisualizer mode={viz} hz={hz} colorHex={color} isPlaying={false} quality="preview" />
+            : <Biofield colorHex={color} isPlaying={false} quality="preview" />
           }
           {/* Overlay labels */}
           <div style={{ position: 'absolute', top: 12, left: 14, zIndex: 5, pointerEvents: 'none' }}>

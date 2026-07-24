@@ -9,6 +9,7 @@ import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 
 const NeuralBrain = dynamic(() => import('@/components/NeuralBrain'), { ssr: false })
+const HeroOrb = dynamic(() => import('@/components/HeroOrb'), { ssr: false })
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 const FREQUENCIES = [
@@ -315,7 +316,10 @@ export default function HomePage() {
                  style={{ paddingTop: 'calc(env(safe-area-inset-top) + 7rem)' }}>
           <WaveCanvas />
 
-          <div className="relative z-10 max-w-3xl mx-auto w-full">
+          <div className="relative z-10 max-w-6xl mx-auto w-full grid lg:grid-cols-2 gap-8 lg:gap-14 items-center">
+
+            {/* Left column — content */}
+            <div className="order-2 lg:order-1 w-full">
 
             {/* Badge */}
             <motion.div
@@ -336,7 +340,7 @@ export default function HomePage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.18, duration: 0.7, ease: [0.4, 0, 0.2, 1] }}
               style={{
-                fontSize: 'clamp(2.6rem, 7vw, 5.2rem)',
+                fontSize: 'clamp(2.4rem, 5.6vw, 4.4rem)',
                 fontWeight: 900,
                 lineHeight: 1,
                 letterSpacing: '-0.04em',
@@ -355,7 +359,7 @@ export default function HomePage() {
               transition={{ delay: 0.3, duration: 0.6 }}
               style={{ color: 'var(--t2)', fontSize: '1.05rem', lineHeight: 1.6, marginBottom: '2.5rem', maxWidth: '30rem' }}
             >
-              10 Solfeggio tones. Real-time 3D cymatics.
+              53 tuned frequencies. Real-time 3D cymatics.
               Personalized to how you feel right now.
             </motion.p>
 
@@ -427,6 +431,19 @@ export default function HomePage() {
                   {f.hz} Hz
                 </button>
               ))}
+            </motion.div>
+            </div>{/* /left column */}
+
+            {/* Right column — 3D cymatic orb */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.35, duration: 1, ease: [0.4, 0, 0.2, 1] }}
+              className="order-1 lg:order-2 relative mx-auto w-full max-w-[300px] sm:max-w-[380px] lg:max-w-[560px]"
+              style={{ aspectRatio: '1 / 1' }}
+            >
+              <div aria-hidden className="absolute breathe-ring" style={{ inset: '-6%', background: 'radial-gradient(circle at 50% 50%, rgba(92,232,220,0.12), rgba(139,92,246,0.06) 45%, transparent 68%)', filter: 'blur(24px)', pointerEvents: 'none' }} />
+              <HeroOrb />
             </motion.div>
           </div>
 

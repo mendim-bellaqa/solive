@@ -8,7 +8,7 @@ import type { QuestionnaireAnswers } from '@/lib/recommendation'
 import dynamic from 'next/dynamic'
 
 const ThreeVisualizer = dynamic(() => import('./ThreeVisualizer'), { ssr: false })
-const BioVisualizer = dynamic(() => import('./BioVisualizer'), { ssr: false })
+const Biofield = dynamic(() => import('./Biofield'), { ssr: false })
 const NeuralBrain = dynamic(() => import('./NeuralBrain'), { ssr: false })
 
 export type SceneMode = 'brain' | 'aura' | 'frequency'
@@ -469,13 +469,12 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
             }
           />
         ) : (
-          <BioVisualizer
-            mode={sceneMode}
-            hz={hz}
+          <Biofield
             colorHex={frequency.colorHex}
             isPlaying={playerState === 'playing'}
             analyserRef={analyserRef}
             quality="full"
+            interactive
           />
         )}
 
