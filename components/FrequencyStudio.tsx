@@ -110,6 +110,7 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
   const [liveHz, setLiveHz]               = useState(hz)
   const liveHzRef                         = useRef(hz)
   const [isFullscreen, setIsFullscreen]   = useState(false)
+  const [pseudoFs, setPseudoFs]           = useState(false)   // CSS fullscreen fallback (iOS Safari)
   const [vizMode, setVizMode]             = useState<'lissajous' | 'waveform'>('lissajous')
   const [sceneMode, setSceneMode]         = useState<SceneMode>(initialScene)
   const containerRef                      = useRef<HTMLDivElement>(null)
@@ -381,11 +382,43 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
     }
   }
 
+  // Resize the WebGL canvases after a fullscreen layout change
+  function nudgeResize() {
+    setTimeout(() => window.dispatchEvent(new Event('resize')), 90)
+  }
+
+  function enterPseudoFullscreen() {
+    setPseudoFs(true)
+    setIsFullscreen(true)
+    // Best-effort landscape lock (works on some Android; iOS ignores it)
+    try {
+      const o = window.screen?.orientation as { lock?: (o: string) => Promise<void> } | undefined
+      o?.lock?.('landscape').catch(() => {})
+    } catch { /* not supported */ }
+    nudgeResize()
+  }
+
+  function exitPseudoFullscreen() {
+    setPseudoFs(false)
+    setIsFullscreen(false)
+    try {
+      const o = window.screen?.orientation as { unlock?: () => void } | undefined
+      o?.unlock?.()
+    } catch { /* not supported */ }
+    nudgeResize()
+  }
+
   function handleFullscreen() {
-    if (!document.fullscreenElement) {
-      containerRef.current?.requestFullscreen().catch(() => {})
+    if (!isFullscreen) {
+      const el = containerRef.current
+      if (el && document.fullscreenEnabled) {
+        el.requestFullscreen().catch(() => enterPseudoFullscreen())
+      } else {
+        enterPseudoFullscreen()   // iOS Safari & anything without the Fullscreen API
+      }
     } else {
-      document.exitFullscreen().catch(() => {})
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
+      if (pseudoFs) exitPseudoFullscreen()
     }
   }
 
@@ -446,7 +479,9 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
 
       {/* ── 3D Visualizer ─────────────────────────────────────────────── */}
       <div className={`relative overflow-hidden studio-visualizer${isFullscreen ? ' viz-fullscreen' : ''}`}
-           style={{ flex: '1 1 0', minHeight: 0 }}>
+           style={pseudoFs
+             ? { position: 'fixed', inset: 0, zIndex: 9998, minHeight: 0, background: 'var(--bg-void)' }
+             : { flex: '1 1 0', minHeight: 0 }}>
         {sceneMode === 'frequency' ? (
           <ThreeVisualizer
             hz={hz}
@@ -717,8 +752,8 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
           {isFullscreen && (
             <motion.div
               initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
-              className="absolute bottom-0 left-0 right-0 z-10 flex items-center justify-center gap-6 pb-8 pt-6"
-              style={{ background:'linear-gradient(0deg, rgba(5,5,12,0.7) 0%, transparent 100%)' }}>
+              className="absolute bottom-0 left-0 right-0 z-10 flex items-center justify-center gap-6 pt-6"
+              style={{ background:'linear-gradient(0deg, rgba(5,5,12,0.7) 0%, transparent 100%)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 28px)' }}>
               {/* Volume */}
               <div className="flex items-center gap-3 w-40">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
@@ -747,8 +782,12 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
               </button>
               {/* Exit */}
               <button onClick={handleFullscreen}
-                      className="glass px-3 py-2 rounded-xl text-xs" style={{ color:'var(--text-muted)' }}>
-                Exit (F)
+                      className="glass px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5"
+                      style={{ color:'var(--t1)', fontWeight:600 }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+                Exit
               </button>
             </motion.div>
           )}
