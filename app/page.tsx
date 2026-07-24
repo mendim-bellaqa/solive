@@ -41,12 +41,18 @@ const MARQUEE = [
 ]
 
 const USE_CASES = [
-  { emoji: '😴', title: 'Sleep',      body: 'Drift off with delta waves and 174 Hz grounding.',    hz: 174, band: 'delta' },
-  { emoji: '🎯', title: 'Focus',      body: 'Lock in with 40 Hz gamma and beta entrainment.',      hz: 40,  band: 'beta'  },
-  { emoji: '🧘', title: 'Meditation', body: 'Go deep with theta and 963 Hz crown activation.',     hz: 963, band: 'theta' },
-  { emoji: '💆', title: 'Calm',       body: 'Melt stress with 432 Hz and alpha waves.',            hz: 432, band: 'alpha' },
-  { emoji: '❤️‍🩹', title: 'Recovery', body: 'Restore with 285 Hz tissue and 528 Hz repair tones.', hz: 528, band: 'delta' },
-  { emoji: '⚡', title: 'Energy',     body: 'Lift your state with 741 Hz clarity and gamma.',       hz: 741, band: 'beta'  },
+  { title: 'Sleep',      body: 'Drift off with delta waves and 174 Hz grounding.',    hz: 174, band: 'delta', color: '#6b8cff',
+    icon: <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /> },
+  { title: 'Focus',      body: 'Lock in with 40 Hz gamma and beta entrainment.',      hz: 40,  band: 'beta',  color: '#4a90e8',
+    icon: <><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3" /><path d="M12 2v2M12 20v2M2 12h2M20 12h2" /></> },
+  { title: 'Meditation', body: 'Go deep with theta and 963 Hz crown activation.',     hz: 963, band: 'theta', color: '#8b5cf6',
+    icon: <><circle cx="12" cy="5.5" r="2.5" /><path d="M6 20c0-3 2.7-5 6-5s6 2 6 5" /><path d="M12 10.5v3.5M8.5 14l3.5-2 3.5 2" /></> },
+  { title: 'Calm',       body: 'Melt stress with 432 Hz and alpha waves.',            hz: 432, band: 'alpha', color: '#5CE8DC',
+    icon: <><path d="M2 10c2-3 4-3 6 0s4 3 6 0 4-3 6 0" /><path d="M2 16c2-3 4-3 6 0s4 3 6 0 4-3 6 0" /></> },
+  { title: 'Recovery',   body: 'Restore with 285 Hz tissue and 528 Hz repair tones.', hz: 528, band: 'delta', color: '#e0607a',
+    icon: <path d="M20.8 5.6a5.5 5.5 0 0 0-8.8 1.4A5.5 5.5 0 0 0 3.2 5.6C1 7.8 1 11.4 3.2 13.6L12 22l8.8-8.4c2.2-2.2 2.2-5.8 0-8z" /> },
+  { title: 'Energy',     body: 'Lift your state with 741 Hz clarity and gamma.',       hz: 741, band: 'beta',  color: '#e8a020',
+    icon: <path d="M13 2L4.5 13.5H11l-1 8.5 8.5-11.5H13z" /> },
 ]
 
 // ─── Lissajous SVG ────────────────────────────────────────────────────────────
@@ -655,10 +661,12 @@ export default function HomePage() {
                   whileHover={{ y: -5 }} whileTap={{ scale: 0.98 }}
                   className="glass-card grain h-full p-6 text-left w-full" style={{ transition: 'transform 0.2s' }}>
                   <div className="relative z-10">
-                    <div style={{ fontSize: '1.9rem', marginBottom: 12 }}>{u.emoji}</div>
+                    <div className="mb-4 flex items-center justify-center" style={{ width: 46, height: 46, borderRadius: 13, background: `${u.color}18`, border: `1px solid ${u.color}38`, color: u.color }}>
+                      <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{u.icon}</svg>
+                    </div>
                     <h3 style={{ fontWeight: 800, fontSize: '1.05rem', marginBottom: 8, color: 'var(--t1)' }}>{u.title}</h3>
                     <p style={{ fontSize: '0.84rem', lineHeight: 1.6, color: 'var(--t2)', marginBottom: 14 }}>{u.body}</p>
-                    <span className="inline-flex items-center gap-1.5" style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent)' }}>
+                    <span className="inline-flex items-center gap-1.5" style={{ fontSize: '0.75rem', fontWeight: 700, color: u.color }}>
                       Play {u.hz} Hz
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3" /></svg>
                     </span>
