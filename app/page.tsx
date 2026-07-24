@@ -10,6 +10,8 @@ import Footer from '@/components/Footer'
 
 const NeuralBrain = dynamic(() => import('@/components/NeuralBrain'), { ssr: false })
 const HeroOrb = dynamic(() => import('@/components/HeroOrb'), { ssr: false })
+const Biofield = dynamic(() => import('@/components/Biofield'), { ssr: false })
+const ThreeVisualizer = dynamic(() => import('@/components/ThreeVisualizer'), { ssr: false })
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 const FREQUENCIES = [
@@ -26,10 +28,25 @@ const FREQUENCIES = [
 ]
 
 const STATS = [
-  { value: '31.5%', label: 'Cortisol reduction', sub: '432 Hz · 5 min session' },
-  { value: '7 min',  label: 'Brainwave shift',    sub: 'Binaural entrainment'  },
-  { value: '7.83',   label: 'Schumann Hz',        sub: "Earth's own frequency" },
-  { value: '10',     label: 'Solfeggio tones',    sub: 'Each precisely mapped' },
+  { num: 31.5, decimals: 1, suffix: '%',   label: 'Cortisol reduction', sub: '432 Hz · 5-min session' },
+  { num: 7,    decimals: 0, suffix: ' min', label: 'Brainwave shift',    sub: 'Binaural entrainment'  },
+  { num: 7.83, decimals: 2, suffix: ' Hz',  label: 'Schumann resonance', sub: "The Earth's own pulse" },
+  { num: 100,  decimals: 0, suffix: '+',    label: 'Years of research',  sub: 'EEG since 1924' },
+]
+
+const MARQUEE = [
+  '432 Hz · Earth Tone', '528 Hz · Miracle', 'Delta · deep sleep', 'Theta · meditation',
+  '40 Hz · Gamma focus', 'Schumann · 7.83 Hz', 'OM · 136.1 Hz', '963 Hz · Crown',
+  'Binaural beats', '174 Hz · pain relief', 'Alpha · calm focus', '639 Hz · connection',
+]
+
+const USE_CASES = [
+  { emoji: '😴', title: 'Sleep',      body: 'Drift off with delta waves and 174 Hz grounding.',    hz: 174, band: 'delta' },
+  { emoji: '🎯', title: 'Focus',      body: 'Lock in with 40 Hz gamma and beta entrainment.',      hz: 40,  band: 'beta'  },
+  { emoji: '🧘', title: 'Meditation', body: 'Go deep with theta and 963 Hz crown activation.',     hz: 963, band: 'theta' },
+  { emoji: '💆', title: 'Calm',       body: 'Melt stress with 432 Hz and alpha waves.',            hz: 432, band: 'alpha' },
+  { emoji: '❤️‍🩹', title: 'Recovery', body: 'Restore with 285 Hz tissue and 528 Hz repair tones.', hz: 528, band: 'delta' },
+  { emoji: '⚡', title: 'Energy',     body: 'Lift your state with 741 Hz clarity and gamma.',       hz: 741, band: 'beta'  },
 ]
 
 // ─── Lissajous SVG ────────────────────────────────────────────────────────────
@@ -130,6 +147,107 @@ function Reveal({ children, delay = 0, className = '' }: {
     >
       {children}
     </motion.div>
+  )
+}
+
+// ─── Count-up number (animates when scrolled into view) ───────────────────────
+function CountUp({ value, decimals = 0, suffix = '', prefix = '', duration = 1.4 }: {
+  value: number; decimals?: number; suffix?: string; prefix?: string; duration?: number
+}) {
+  const ref = useRef<HTMLSpanElement>(null)
+  const inView = useInView(ref, { once: true, margin: '-40px' })
+  const [display, setDisplay] = useState(0)
+  useEffect(() => {
+    if (!inView) return
+    let raf = 0
+    const start = performance.now()
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / (duration * 1000))
+      const eased = 1 - Math.pow(1 - t, 3)
+      setDisplay(value * eased)
+      if (t < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [inView, value, duration])
+  return <span ref={ref}>{prefix}{display.toFixed(decimals)}{suffix}</span>
+}
+
+// ─── Interactive 3D showcase (Brain / Aura / Cymatics) ────────────────────────
+const SHOWCASE = [
+  { id: 'brain'     as const, label: 'Brain',     sub: 'Neural activation',  color: '#5CE8DC', desc: 'A living neural network lights up from cool to hot as sound entrains your brainwaves — resting at the start of a session, fully activated by the end.' },
+  { id: 'aura'      as const, label: 'Body Aura', sub: 'Biofield expansion', color: '#8b5cf6', desc: 'A luminous body inside a toroidal energy field. As the frequency resonates, the field expands and brightens, with energy circulating through the torus.' },
+  { id: 'frequency' as const, label: 'Cymatics',  sub: 'Sound made shape',   color: '#4a90e8', desc: 'The pure geometry of your chosen frequency — a 3D Lissajous form that morphs in real time. Every Hz draws a different figure.' },
+]
+
+function Viz3DShowcase() {
+  const router = useRouter()
+  const [tab, setTab] = useState<'brain' | 'aura' | 'frequency'>('brain')
+  const active = SHOWCASE.find(s => s.id === tab)!
+
+  return (
+    <div className="grid lg:grid-cols-2 gap-10 items-center">
+      {/* Viewer */}
+      <Reveal>
+        <div className="relative">
+          <div aria-hidden className="absolute -inset-8 pointer-events-none breathe-ring"
+               style={{ background: `radial-gradient(circle at 50% 50%, ${active.color}1f, transparent 65%)`, filter: 'blur(28px)' }} />
+          <div className="player-surface relative" style={{ aspectRatio: '1 / 1', borderRadius: 26, overflow: 'hidden', border: `1px solid ${active.color}40` }}>
+            <AnimatePresence mode="wait">
+              <motion.div key={tab} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }} style={{ position: 'absolute', inset: 0 }}>
+                {tab === 'brain'   && <NeuralBrain isPlaying={false} mode="preview" />}
+                {tab === 'aura'    && <Biofield colorHex={active.color} isPlaying={false} quality="preview" />}
+                {tab === 'frequency' && <ThreeVisualizer hz={528} isPlaying={false} analyserRef={{ current: null }} colorHex={active.color} vizMode="lissajous" />}
+              </motion.div>
+            </AnimatePresence>
+            <div style={{ position: 'absolute', bottom: 14, left: 16, zIndex: 5, pointerEvents: 'none' }}>
+              <p style={{ fontSize: '0.6rem', letterSpacing: '0.12em', color: 'var(--t3)', fontWeight: 700 }}>LIVE PREVIEW</p>
+              <p style={{ fontSize: '0.95rem', fontWeight: 800, color: active.color }}>{active.sub}</p>
+            </div>
+          </div>
+        </div>
+      </Reveal>
+
+      {/* Tabs + copy */}
+      <Reveal delay={0.12}>
+        <div>
+          <p style={{ color: 'var(--t4)', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.1em', marginBottom: 12 }}>EXPERIENCE IT IN 3D</p>
+          <h2 style={{ fontSize: 'clamp(1.7rem, 4vw, 2.6rem)', fontWeight: 900, letterSpacing: '-0.035em', lineHeight: 1.05, marginBottom: 16 }}>
+            See sound come alive.
+          </h2>
+          <div className="flex flex-col gap-2.5 mb-6">
+            {SHOWCASE.map(s => {
+              const on = s.id === tab
+              return (
+                <button key={s.id} onClick={() => setTab(s.id)}
+                  className="flex items-center gap-3 rounded-2xl transition-all text-left"
+                  style={{ padding: '12px 14px', border: `1px solid ${on ? s.color : 'var(--border)'}`, background: on ? `${s.color}12` : 'var(--glass-1)' }}>
+                  <span style={{ width: 34, height: 34, borderRadius: 10, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: on ? `${s.color}22` : 'rgba(255,255,255,0.04)', color: on ? s.color : 'var(--t3)' }}>
+                    {s.id === 'brain' && <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M9 4a3 3 0 0 0-3 3 3 3 0 0 0-1 5.8A3 3 0 0 0 7 18a2.5 2.5 0 0 0 5 .5V5a2 2 0 0 0-3-1ZM15 4a3 3 0 0 1 3 3 3 3 0 0 1 1 5.8A3 3 0 0 1 17 18a2.5 2.5 0 0 1-5 .5" strokeLinejoin="round"/></svg>}
+                    {s.id === 'aura' && <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="6" r="2"/><path d="M12 8v7M12 15l-3 5M12 15l3 5M8 11h8" strokeLinecap="round"/><ellipse cx="12" cy="12" rx="9" ry="10"/></svg>}
+                    {s.id === 'frequency' && <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M12 3 C18 3 21 8 21 12 C21 16 18 21 12 21 C6 21 3 16 3 12 C3 8 6 3 12 3 Z"/><path d="M6 12 Q9 6 12 12 Q15 18 18 12" strokeLinecap="round"/></svg>}
+                  </span>
+                  <span>
+                    <span style={{ display: 'block', fontSize: '0.9rem', fontWeight: 800, color: on ? 'var(--t1)' : 'var(--t2)' }}>{s.label}</span>
+                    <span style={{ display: 'block', fontSize: '0.7rem', color: 'var(--t3)' }}>{s.sub}</span>
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+          <AnimatePresence mode="wait">
+            <motion.p key={tab} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}
+              style={{ fontSize: '0.88rem', lineHeight: 1.6, color: 'var(--t2)', marginBottom: 20 }}>
+              {active.desc}
+            </motion.p>
+          </AnimatePresence>
+          <button onClick={() => router.push('/session')} className="pill-btn">
+            Build a session
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          </button>
+        </div>
+      </Reveal>
+    </div>
   )
 }
 
@@ -258,40 +376,6 @@ function Divider() {
     <div className="w-full h-px my-2" style={{
       background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.07) 30%, rgba(255,255,255,0.07) 70%, transparent)'
     }} />
-  )
-}
-
-// ─── Brain reveal — live 3D neural network lighting up ───────────────────────
-function BrainScanReveal() {
-  return (
-    <div className="relative mx-auto w-full" style={{ maxWidth: 520 }}>
-      {/* Ambient glow behind the scan */}
-      <div
-        aria-hidden
-        className="absolute -inset-10 pointer-events-none breathe-ring"
-        style={{
-          background: 'radial-gradient(circle at 50% 45%, rgba(255,90,40,0.14), rgba(90,232,220,0.06) 45%, transparent 70%)',
-          filter: 'blur(24px)',
-        }}
-      />
-      {/* Scan frame */}
-      <div
-        className="relative overflow-hidden"
-        style={{
-          aspectRatio: '1 / 1',
-          borderRadius: 28,
-          border: '1px solid var(--border-mid)',
-          boxShadow: '0 40px 100px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08)',
-        }}
-      >
-        <NeuralBrain isPlaying={false} mode="preview" />
-        <div className="absolute left-4 bottom-4 z-10" style={{ pointerEvents: 'none' }}>
-          <span className="glass px-3 py-1.5 rounded-full" style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--t2)' }}>
-            Neural activation · live
-          </span>
-        </div>
-      </div>
-    </div>
   )
 }
 
@@ -470,55 +554,42 @@ export default function HomePage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {STATS.map((s, i) => (
               <Reveal key={s.label} delay={i * 0.07}>
-                <div className="stat-card">
+                <motion.div className="stat-card" whileHover={{ y: -4 }} style={{ transition: 'transform 0.2s' }}>
                   <p style={{
-                    fontSize: '1.85rem',
+                    fontSize: '1.95rem',
                     fontWeight: 900,
                     letterSpacing: '-0.04em',
                     lineHeight: 1,
                     marginBottom: 6,
                     color: 'var(--t1)',
                   }} className="tabular">
-                    {s.value}
+                    <CountUp value={s.num} decimals={s.decimals} suffix={s.suffix} />
                   </p>
                   <p style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--t2)', marginBottom: 2 }}>{s.label}</p>
                   <p style={{ fontSize: '0.7rem', color: 'var(--t3)' }}>{s.sub}</p>
-                </div>
+                </motion.div>
               </Reveal>
             ))}
           </div>
         </section>
 
-        <Divider />
-
-        {/* ══════════════════ BRAIN SCAN REVEAL ═════════════════════════════ */}
-        <section className="px-5 py-20 max-w-4xl mx-auto">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <Reveal>
-              <div>
-                <p style={{ color: 'var(--t4)', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.1em', marginBottom: 12 }}>
-                  NEURAL ENTRAINMENT
-                </p>
-                <h2 style={{ fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', fontWeight: 900, letterSpacing: '-0.035em', lineHeight: 1.05, marginBottom: 16 }}>
-                  Watch your brain{' '}
-                  <span style={{ color: 'var(--t2)' }}>light up.</span>
-                </h2>
-                <p style={{ color: 'var(--t2)', fontSize: '0.95rem', maxWidth: '28rem', lineHeight: 1.6, marginBottom: 20 }}>
-                  A live map of neural activity. As sound entrains your brainwaves, the network fires
-                  and spreads — cool, resting blues warming into an active, glowing core.
-                </p>
-                <button onClick={() => router.push('/session')} className="pill-btn">
-                  Start a session
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                    <path d="M5 12h14M12 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
-              </div>
-            </Reveal>
-            <Reveal delay={0.15}>
-              <BrainScanReveal />
-            </Reveal>
+        {/* ══════════════════ MARQUEE ═══════════════════════════════════════ */}
+        <section className="py-6" style={{ borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
+          <div className="marquee-mask">
+            <div className="marquee-track">
+              {[...MARQUEE, ...MARQUEE].map((m, i) => (
+                <span key={i} className="inline-flex items-center gap-2" style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--t3)', padding: '0 6px' }}>
+                  <span className="live-dot" style={{ width: 5, height: 5, background: 'var(--accent)' }} />
+                  {m}
+                </span>
+              ))}
+            </div>
           </div>
+        </section>
+
+        {/* ══════════════════ 3D SHOWCASE ═══════════════════════════════════ */}
+        <section className="px-5 py-20 max-w-5xl mx-auto">
+          <Viz3DShowcase />
         </section>
 
         <Divider />
@@ -564,6 +635,38 @@ export default function HomePage() {
               <HzInput size="sm" />
             </div>
           </Reveal>
+        </section>
+
+        <Divider />
+
+        {/* ══════════════════ USE CASES ═════════════════════════════════════ */}
+        <section className="px-5 py-20 max-w-5xl mx-auto">
+          <Reveal>
+            <p style={{ color: 'var(--t4)', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.1em', marginBottom: 12 }}>WAYS TO USE IT</p>
+            <h2 style={{ fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', fontWeight: 900, letterSpacing: '-0.035em', lineHeight: 1.05, marginBottom: 40 }}>
+              A frequency for{' '}<span style={{ color: 'var(--t2)' }}>every moment.</span>
+            </h2>
+          </Reveal>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {USE_CASES.map((u, i) => (
+              <Reveal key={u.title} delay={(i % 3) * 0.07}>
+                <motion.button
+                  onClick={() => router.push(`/studio?hz=${u.hz}&binaural=${u.band}&duration=30`)}
+                  whileHover={{ y: -5 }} whileTap={{ scale: 0.98 }}
+                  className="glass-card grain h-full p-6 text-left w-full" style={{ transition: 'transform 0.2s' }}>
+                  <div className="relative z-10">
+                    <div style={{ fontSize: '1.9rem', marginBottom: 12 }}>{u.emoji}</div>
+                    <h3 style={{ fontWeight: 800, fontSize: '1.05rem', marginBottom: 8, color: 'var(--t1)' }}>{u.title}</h3>
+                    <p style={{ fontSize: '0.84rem', lineHeight: 1.6, color: 'var(--t2)', marginBottom: 14 }}>{u.body}</p>
+                    <span className="inline-flex items-center gap-1.5" style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent)' }}>
+                      Play {u.hz} Hz
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3" /></svg>
+                    </span>
+                  </div>
+                </motion.button>
+              </Reveal>
+            ))}
+          </div>
         </section>
 
         <Divider />
