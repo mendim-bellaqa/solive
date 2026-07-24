@@ -514,7 +514,8 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
         )}
 
         {/* ── Top-left: frequency live display ───────────────────────── */}
-        <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
+        <div className="absolute z-10 flex flex-col gap-2"
+             style={{ top: isFullscreen ? 'calc(env(safe-area-inset-top) + 12px)' : 12, left: 'calc(env(safe-area-inset-left) + 12px)' }}>
           {/* Live Hz display */}
           <motion.div
             className="glass-card px-3 py-2 rounded-xl min-w-[90px]"
@@ -552,7 +553,8 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
         </div>
 
         {/* ── Top-right: badges ──────────────────────────────────────── */}
-        <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-1.5">
+        <div className="absolute z-10 flex flex-col items-end gap-1.5"
+             style={{ top: isFullscreen ? 'calc(env(safe-area-inset-top) + 12px)' : 12, right: 'calc(env(safe-area-inset-right) + 12px)' }}>
           {/* Binaural band badge */}
           <div className="glass px-2.5 py-1.5 rounded-xl flex items-center gap-1.5 text-xs"
                style={{ color: band.color, border:`1px solid ${band.color}25` }}>

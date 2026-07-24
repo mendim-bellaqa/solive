@@ -189,6 +189,7 @@ export default function ThreeVisualizer({ hz, isPlaying, analyserRef, colorHex, 
 
     // ── Touchpad / wheel / pinch zoom (camera dolly) ────────────────────────
     const minCamZ = camZ * 0.4, maxCamZ = camZ * 2.6
+    camera.position.z = maxCamZ   // start fully zoomed out
     const applyZoom = (factor: number) => {
       camera.position.z = Math.max(minCamZ, Math.min(maxCamZ, camera.position.z * factor))
     }

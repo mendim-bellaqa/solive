@@ -184,6 +184,7 @@ export default function NeuralBrain({ isPlaying, mode = 'session', progress = 0,
 
     // ── Camera wheel / pinch zoom ──────────────────────────────────────────
     const baseZ = camera.position.z
+    camera.position.z = baseZ * 2.2   // start fully zoomed out
     const applyZoom = (factor: number) => {
       camera.position.z = Math.max(baseZ * 0.45, Math.min(baseZ * 2.2, camera.position.z * factor))
     }
