@@ -178,7 +178,7 @@ export default function Biofield({ colorHex, isPlaying, analyserRef, quality = '
     const detachPinch = attachPinchZoom(root, applyZoom)   // pinch works everywhere (mobile)
 
     // ── Animation ──────────────────────────────────────────────────────────
-    const clock = new THREE.Clock()
+    let last = performance.now()
     let t = 0, aSmooth = 0.55
     let dataArray: Uint8Array<ArrayBuffer> | null = null
     const flowAttr = flowGeo.getAttribute('position') as THREE.BufferAttribute
@@ -186,7 +186,7 @@ export default function Biofield({ colorHex, isPlaying, analyserRef, quality = '
 
     function animate() {
       rafRef.current = requestAnimationFrame(animate)
-      const dt = Math.min(0.05, clock.getDelta()); t += dt
+      const now = performance.now(); const dt = Math.min(0.05, (now - last) / 1000); last = now; t += dt
       const playing = playingRef.current
 
       let rms = 0

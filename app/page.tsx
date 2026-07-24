@@ -70,8 +70,9 @@ function WaveCanvas() {
     let t = 0
 
     function draw() {
+      const c = ref.current
+      if (!c) return                       // unmounted — stop the loop
       raf.current = requestAnimationFrame(draw)
-      const c = ref.current!
       const W = c.offsetWidth, H = c.offsetHeight
       const dpr = Math.min(window.devicePixelRatio, 2)
       if (c.width !== W * dpr || c.height !== H * dpr) {
@@ -155,8 +156,12 @@ function HzInput({ size = 'md' }: { size?: 'sm' | 'md' }) {
       animate={error ? { x: [0, -7, 7, -5, 5, 0] } : { x: 0 }}
       transition={{ duration: 0.35 }}
       className="hz-input-group"
-      style={{ borderRadius: sm ? 12 : 16 }}
     >
+      <span className="hz-glyph" aria-hidden>
+        <svg width={sm ? 16 : 18} height={sm ? 16 : 18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <path d="M2 12 Q5 5 8 12 Q11 19 14 12 Q17 5 20 12" />
+        </svg>
+      </span>
       <input
         type="number"
         value={value}
@@ -166,18 +171,14 @@ function HzInput({ size = 'md' }: { size?: 'sm' | 'md' }) {
         min={1}
         max={20000}
         aria-label="Enter frequency in Hz"
-        style={{
-          fontSize: sm ? '1.1rem' : '1.45rem',
-          padding: sm ? '10px 6px 10px 14px' : undefined,
-          width: sm ? 88 : 108,
-        }}
+        style={{ fontSize: sm ? '1.15rem' : undefined, width: sm ? 86 : undefined }}
       />
       <span className="hz-unit" style={{ fontSize: sm ? '0.72rem' : undefined }}>Hz</span>
       <button
         className="hz-play-btn"
         onClick={go}
         disabled={!value}
-        style={{ padding: sm ? '0 14px' : undefined, minHeight: sm ? 38 : 48 }}
+        style={{ padding: sm ? '0 16px' : undefined, minHeight: sm ? 40 : 46 }}
         aria-label="Play this frequency"
       >
         <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -359,7 +360,7 @@ export default function HomePage() {
               transition={{ delay: 0.3, duration: 0.6 }}
               style={{ color: 'var(--t2)', fontSize: '1.05rem', lineHeight: 1.6, marginBottom: '2.5rem', maxWidth: '30rem' }}
             >
-              53 tuned frequencies. Real-time 3D cymatics.
+              Play any frequency from 1 to 20,000 Hz. Real-time 3D cymatics.
               Personalized to how you feel right now.
             </motion.p>
 
@@ -527,14 +528,15 @@ export default function HomePage() {
           <Reveal>
             <div className="mb-12">
               <p style={{ color: 'var(--t4)', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.1em', marginBottom: 12 }}>
-                THE SOLFEGGIO SCALE
+                POPULAR FREQUENCIES
               </p>
               <h2 style={{ fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', fontWeight: 900, letterSpacing: '-0.035em', lineHeight: 1.05, marginBottom: 12 }}>
-                10 tones.{' '}
-                <span style={{ color: 'var(--t2)' }}>Click any to play.</span>
+                Start with a classic.{' '}
+                <span style={{ color: 'var(--t2)' }}>Or play any Hz.</span>
               </h2>
-              <p style={{ color: 'var(--t2)', fontSize: '0.95rem', maxWidth: '28rem', lineHeight: 1.6 }}>
-                Each Solfeggio frequency targets a specific domain — healing, focus, release, connection.
+              <p style={{ color: 'var(--t2)', fontSize: '0.95rem', maxWidth: '30rem', lineHeight: 1.6 }}>
+                Tap a well-known tone below, browse the full library, or type any frequency from 1 to 20,000 Hz —
+                the studio plays them all.
               </p>
             </div>
           </Reveal>

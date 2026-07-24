@@ -193,7 +193,7 @@ export default function NeuralBrain({ isPlaying, mode = 'session', progress = 0,
     const detachPinch = attachPinchZoom(root, applyZoom)   // pinch works in every mode
 
     // ── Animation ──────────────────────────────────────────────────────────
-    const clock = new THREE.Clock()
+    let last = performance.now()
     let elapsed = 0
     let aSmooth = mode === 'preview' ? 0.3 : 0.08
     let dataArray: Uint8Array<ArrayBuffer> | null = null
@@ -202,7 +202,7 @@ export default function NeuralBrain({ isPlaying, mode = 'session', progress = 0,
 
     function animate() {
       frameRef.current = requestAnimationFrame(animate)
-      const dt = Math.min(0.05, clock.getDelta())
+      const now = performance.now(); const dt = Math.min(0.05, (now - last) / 1000); last = now
       elapsed += dt
       const playing = playingRef.current
 

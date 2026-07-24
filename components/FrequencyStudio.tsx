@@ -1,9 +1,11 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { BinauralBand, BINAURAL_PRESETS, FREQUENCIES, getOrCreateFrequency } from '@/lib/frequencies'
 import { createClient } from '@/lib/supabase/client'
+import { usePlan } from '@/lib/plan'
 import type { QuestionnaireAnswers } from '@/lib/recommendation'
 import dynamic from 'next/dynamic'
 
@@ -123,7 +125,16 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
   const barRef       = useRef<HTMLDivElement>(null)
   const scrubbingRef = useRef(false)
 
-  const totalSeconds = duration === 9999 ? Infinity : duration * 60
+  const router = useRouter()
+  const { limits } = usePlan()
+
+  // Free-plan gating: cap session length; Brain & Aura are a paid experience
+  const requestedMinutes = duration === 9999 ? Infinity : duration
+  const cappedMinutes = Math.min(requestedMinutes, limits.maxMinutes)
+  const durationCapped = requestedMinutes > limits.maxMinutes
+  const totalSeconds = cappedMinutes === Infinity ? Infinity : cappedMinutes * 60
+  const vizLocked = !limits.allViz && sceneMode !== 'frequency'
+
   const binaural = BINAURAL_PRESETS[activeBand]
   const band     = BAND_META[activeBand]
 
@@ -482,7 +493,31 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
            style={pseudoFs
              ? { position: 'fixed', inset: 0, zIndex: 9998, minHeight: 0, background: 'var(--bg-void)' }
              : { flex: '1 1 0', minHeight: 0 }}>
-        {sceneMode === 'frequency' ? (
+        {vizLocked ? (
+          <div className="absolute inset-0 flex items-center justify-center px-6" style={{ background: 'radial-gradient(circle at 50% 45%, #0a1024, #05050c 75%)' }}>
+            <div className="glass-card grain text-center" style={{ padding: '30px 26px', borderRadius: 22, maxWidth: 340 }}>
+              <div className="relative z-10">
+                <div className="mx-auto mb-4 flex items-center justify-center" style={{ width: 46, height: 46, borderRadius: 14, background: 'var(--accent-dim)', border: '1px solid var(--accent-mid)' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round">
+                    <rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                  </svg>
+                </div>
+                <p style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--t1)', marginBottom: 6 }}>
+                  {sceneMode === 'brain' ? 'Brain' : 'Aura'} is a Plus experience
+                </p>
+                <p style={{ fontSize: '0.82rem', color: 'var(--t3)', lineHeight: 1.5, marginBottom: 18 }}>
+                  Unlock the Brain and Aura 3D visualizations and unlimited sessions with Plus.
+                </p>
+                <button onClick={() => router.push('/pricing')} className="btn-primary" style={{ width: '100%', justifyContent: 'center', background: 'var(--accent)', color: '#04140f', marginBottom: 8 }}>
+                  Upgrade to Plus
+                </button>
+                <button onClick={() => setSceneMode('frequency')} className="btn-ghost" style={{ width: '100%', justifyContent: 'center' }}>
+                  Use Cymatics instead
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : sceneMode === 'frequency' ? (
           <ThreeVisualizer
             hz={hz}
             isPlaying={playerState === 'playing'}
@@ -800,6 +835,15 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
       {!isFullscreen && (
         <div className="flex-shrink-0 px-4 pt-3 pb-4 safe-bottom relative"
              style={{ background:'rgba(5,5,12,0.96)', backdropFilter:'blur(24px)', borderTop:'1px solid var(--border)' }}>
+
+          {/* Free-plan cap notice */}
+          {durationCapped && (
+            <button onClick={() => router.push('/pricing')} className="mb-2 w-full flex items-center justify-center gap-2 rounded-xl"
+                    style={{ padding: '7px 12px', background: 'var(--accent-dim)', border: '1px solid var(--accent-mid)', color: 'var(--accent)', fontSize: '0.72rem', fontWeight: 600 }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+              Free plan · {limits.maxMinutes}-min sessions — Upgrade for unlimited →
+            </button>
+          )}
 
           {/* Session progress — draggable scrubber */}
           {totalSeconds !== Infinity && (

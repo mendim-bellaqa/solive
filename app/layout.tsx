@@ -12,9 +12,12 @@ export const metadata: Metadata = {
     title: 'Solive',
     statusBarStyle: 'black-translucent',
   },
+  other: {
+    'mobile-web-app-capable': 'yes',   // standard replacement for the deprecated apple- one
+  },
   openGraph: {
     title: 'Solive — Healing Frequency Studio',
-    description: 'Personalized sound healing sessions. 10 Solfeggio frequencies. Real-time 3D cymatic visualization.',
+    description: 'Personalized sound healing sessions. Play any frequency, 1–20,000 Hz. Real-time 3D cymatic visualization.',
     type: 'website',
   },
 }

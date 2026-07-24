@@ -22,24 +22,50 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setMessage(null)
-    const supabase = createClient()
 
-    if (mode === 'login') {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) {
-        setMessage({ text: error.message, isError: true })
+    let supabase
+    try {
+      supabase = createClient()
+    } catch {
+      setMessage({ text: 'Sign-in is not configured. Add your Supabase keys to .env.local.', isError: true })
+      setLoading(false)
+      return
+    }
+
+    try {
+      if (mode === 'login') {
+        const { error } = await supabase.auth.signInWithPassword({ email, password })
+        if (error) {
+          const msg = /email not confirmed/i.test(error.message)
+            ? 'Please confirm your email first — check your inbox for the confirmation link.'
+            : /invalid login/i.test(error.message)
+              ? 'Incorrect email or password.'
+              : error.message
+          setMessage({ text: msg, isError: true })
+        } else {
+          router.push('/')
+          router.refresh()
+        }
       } else {
-        router.push('/dashboard')
-        router.refresh()
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+        })
+        if (error) {
+          setMessage({ text: error.message, isError: true })
+        } else if (data.session) {
+          // email confirmation disabled → already signed in
+          router.push('/')
+          router.refresh()
+        } else if (data.user && data.user.identities && data.user.identities.length === 0) {
+          setMessage({ text: 'That email is already registered. Try signing in instead.', isError: true })
+        } else {
+          setMessage({ text: 'Account created! Check your email for the confirmation link, then sign in.', isError: false })
+        }
       }
-    } else {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-      })
-      if (error) setMessage({ text: error.message, isError: true })
-      else setMessage({ text: 'Account created! Check your email to confirm, then sign in.', isError: false })
+    } catch {
+      setMessage({ text: 'Could not reach the auth server. Check your connection and Supabase settings.', isError: true })
     }
     setLoading(false)
   }

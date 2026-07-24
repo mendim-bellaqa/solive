@@ -8,6 +8,7 @@ import {
   FREQUENCIES, HEALING_FREQUENCIES, SUGGESTED_BAND, getOrCreateFrequency,
 } from '@/lib/frequencies'
 import Header from '@/components/Header'
+import { usePlan } from '@/lib/plan'
 
 const Biofield = dynamic(() => import('@/components/Biofield'), { ssr: false })
 const ThreeVisualizer = dynamic(() => import('@/components/ThreeVisualizer'), { ssr: false })
@@ -61,12 +62,14 @@ function VizGlyph({ mode, active, color }: { mode: VizMode; active: boolean; col
 // ─── Main ───────────────────────────────────────────────────────────────────
 export default function SessionPage() {
   const router = useRouter()
+  const { limits } = usePlan()
   const [viz, setViz]   = useState<VizMode>('brain')
   const [hz, setHz]     = useState<number>(528)
   const [open, setOpen] = useState(false)
 
   const freq = useMemo(() => getOrCreateFrequency(hz), [hz])
   const color = freq.colorHex
+  const isPlusViz = (v: VizMode) => v === 'brain' || v === 'aura'
 
   function begin() {
     const band = SUGGESTED_BAND[hz] ?? 'alpha'
@@ -142,10 +145,15 @@ export default function SessionPage() {
                 className="freq-cell"
                 style={{
                   padding: '16px 8px 14px', display: 'flex', flexDirection: 'column',
-                  alignItems: 'center', gap: 8, color: 'var(--t3)',
+                  alignItems: 'center', gap: 8, color: 'var(--t3)', position: 'relative',
                   borderColor: active ? color : undefined,
                   background: active ? `${color}14` : undefined,
                 }}>
+                {!limits.allViz && isPlusViz(o.id) && (
+                  <span style={{ position: 'absolute', top: 7, right: 7, fontSize: '0.52rem', fontWeight: 800, letterSpacing: '0.06em', color: 'var(--accent)', background: 'var(--accent-dim)', border: '1px solid var(--accent-mid)', padding: '2px 6px', borderRadius: 999 }}>
+                    PLUS
+                  </span>
+                )}
                 <VizGlyph mode={o.id} active={active} color={color} />
                 <div style={{ textAlign: 'center' }}>
                   <p style={{ fontSize: '0.78rem', fontWeight: 800, color: active ? 'var(--t1)' : 'var(--t2)' }}>{o.label}</p>

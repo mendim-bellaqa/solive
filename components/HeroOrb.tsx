@@ -79,11 +79,12 @@ export default function HeroOrb() {
     const palette = ['#5CE8DC', '#4a90e8', '#8b5cf6', '#e0607a', '#e8a020', '#10b981'].map(c => new THREE.Color(c))
     const col = new THREE.Color()
 
-    const clock = new THREE.Clock()
+    let last = performance.now()
     let t = 0
     function animate() {
       rafRef.current = requestAnimationFrame(animate)
-      t += Math.min(0.05, clock.getDelta())
+      const now = performance.now(); const dt = Math.min(0.05, (now - last) / 1000); last = now
+      t += dt
 
       // ripple displacement (standing waves)
       let peak = 0

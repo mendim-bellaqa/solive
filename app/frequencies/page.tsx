@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import {
@@ -21,11 +21,16 @@ function HzInput() {
   }, [value, router])
   return (
     <motion.div animate={error ? { x: [0, -7, 7, -5, 5, 0] } : { x: 0 }} transition={{ duration: 0.35 }}
-      className="hz-input-group" style={{ borderRadius: 16 }}>
+      className="hz-input-group">
+      <span className="hz-glyph" aria-hidden>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <path d="M2 12 Q5 5 8 12 Q11 19 14 12 Q17 5 20 12" />
+        </svg>
+      </span>
       <input type="number" value={value} onChange={e => setValue(e.target.value)}
         onKeyDown={e => e.key === 'Enter' && go()} placeholder="432" min={1} max={20000} aria-label="Enter a frequency in Hz" />
       <span className="hz-unit">Hz</span>
-      <button className="hz-play-btn" onClick={go} disabled={!value} aria-label="Play this frequency">
+      <button className="hz-play-btn" onClick={go} disabled={!value} style={{ minHeight: 46 }} aria-label="Play this frequency">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden><polygon points="6 3 20 12 6 21 6 3" /></svg>
         Play
       </button>
@@ -43,7 +48,6 @@ function FreqCard({ entry, color, index }: { entry: CatalogEntry; color: string;
   }
   return (
     <motion.button
-      layout
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: Math.min(index, 12) * 0.02 }}
@@ -101,11 +105,11 @@ export default function FrequenciesPage() {
         <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="mb-8">
           <p style={{ color: 'var(--t4)', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.1em', marginBottom: 12 }}>FREQUENCY LIBRARY</p>
           <h1 style={{ fontSize: 'clamp(2rem, 5vw, 3.4rem)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.02, marginBottom: 14 }}>
-            {FREQ_CATALOG.length} frequencies.{' '}<span style={{ color: 'var(--t2)' }}>One tap to play.</span>
+            Play any frequency.{' '}<span style={{ color: 'var(--t2)' }}>One tap.</span>
           </h1>
           <p style={{ color: 'var(--t2)', fontSize: '1rem', lineHeight: 1.6, maxWidth: '36rem' }}>
-            A curated library of the best-known healing, brainwave, planetary and angelic tones —
-            or type any Hz you like.
+            Type any Hz from 1 to 20,000 — or start from {FREQ_CATALOG.length} curated presets of the
+            best-known healing, brainwave, planetary and angelic tones.
           </p>
         </motion.div>
 
@@ -141,13 +145,11 @@ export default function FrequenciesPage() {
         <p style={{ color: 'var(--t3)', fontSize: '0.78rem', marginBottom: 20 }}>{activeBlurb}</p>
 
         {/* Grid */}
-        <motion.div layout className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          <AnimatePresence mode="popLayout">
-            {list.map((entry, i) => (
-              <FreqCard key={entry.hz} entry={entry} color={colorFor(entry.category)} index={i} />
-            ))}
-          </AnimatePresence>
-        </motion.div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          {list.map((entry, i) => (
+            <FreqCard key={`${cat}-${entry.hz}`} entry={entry} color={colorFor(entry.category)} index={i} />
+          ))}
+        </div>
 
         {/* Build a session prompt */}
         <div className="mt-12 text-center">

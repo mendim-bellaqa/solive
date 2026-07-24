@@ -21,6 +21,7 @@ export default function Header() {
   const NAV = [
     { label: 'Frequencies', href: '/frequencies' },
     { label: 'Science',     href: '/science' },
+    { label: 'Pricing',     href: '/pricing' },
     { label: 'History',     href: '/history' },
   ]
 
