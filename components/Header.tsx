@@ -13,9 +13,16 @@ export default function Header() {
   const [scrolled, setScrolled]       = useState(false)
   const [user, setUser]               = useState<UserInfo | null>(null)
   const [menuOpen, setMenuOpen]       = useState(false)
+  const [navOpen, setNavOpen]         = useState(false)
   const [hzIdx, setHzIdx]             = useState(0)
   const ticking                       = useRef(false)
   const menuRef                       = useRef<HTMLDivElement>(null)
+
+  const NAV = [
+    { label: 'Frequencies', href: '/frequencies' },
+    { label: 'Science',     href: '/science' },
+    { label: 'History',     href: '/history' },
+  ]
 
   // Cycle Hz values for the logo waveform color
   const PALETTE = ['#00c896', '#4a90e8', '#7c6ff7', '#b06ef5', '#e05050', '#e8a020']
@@ -123,11 +130,7 @@ export default function Header() {
 
         {/* Nav center — hidden on mobile */}
         <nav className="hidden md:flex items-center gap-1">
-          {[
-            { label: 'Frequencies', href: '/frequencies' },
-            { label: 'Science', href: '/science' },
-            { label: 'History', href: '/history' },
-          ].map(({ label, href }) => (
+          {NAV.map(({ label, href }) => (
             <Link
               key={label}
               href={href}
@@ -283,8 +286,80 @@ export default function Header() {
               Sign in
             </Link>
           )}
+
+          {/* Mobile menu toggle */}
+          <button
+            onClick={() => setNavOpen(v => !v)}
+            aria-label="Menu"
+            className="md:hidden flex items-center justify-center rounded-xl"
+            style={{ width: 40, height: 40, background: navOpen ? 'rgba(255,255,255,0.08)' : 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-primary)' }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              {navOpen
+                ? <path d="M6 6l12 12M18 6L6 18" />
+                : <><path d="M3 6h18" /><path d="M3 12h18" /><path d="M3 18h18" /></>}
+            </svg>
+          </button>
         </div>
       </div>
+
+      {/* Mobile nav panel */}
+      <AnimatePresence>
+        {navOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+              className="md:hidden"
+              style={{
+                background: 'rgba(5,5,12,0.94)',
+                backdropFilter: 'blur(28px) saturate(160%)',
+                WebkitBackdropFilter: 'blur(28px) saturate(160%)',
+                borderBottom: '1px solid rgba(255,255,255,0.08)',
+                paddingLeft: 'env(safe-area-inset-left)',
+                paddingRight: 'env(safe-area-inset-right)',
+              }}
+            >
+              <div className="px-5 py-4 flex flex-col gap-1">
+                {NAV.map(({ label, href }) => (
+                  <Link
+                    key={label}
+                    href={href}
+                    onClick={() => setNavOpen(false)}
+                    className="px-3 py-3 rounded-xl text-base font-medium transition-colors"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
+                    {label}
+                  </Link>
+                ))}
+
+                <div className="my-2" style={{ height: 1, background: 'rgba(255,255,255,0.07)' }} />
+
+                <Link
+                  href="/session"
+                  onClick={() => setNavOpen(false)}
+                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold"
+                  style={{ background: `${accentColor}18`, border: `1px solid ${accentColor}35`, color: accentColor }}
+                >
+                  <span className="live-dot" style={{ background: accentColor, width: 6, height: 6 }} />
+                  Start a session
+                </Link>
+
+                {!user && (
+                  <Link
+                    href="/auth/login"
+                    onClick={() => setNavOpen(false)}
+                    className="px-3 py-3 rounded-xl text-sm text-center"
+                    style={{ color: 'var(--text-muted)' }}
+                  >
+                    Sign in
+                  </Link>
+                )}
+              </div>
+            </motion.div>
+        )}
+      </AnimatePresence>
     </motion.header>
   )
 }

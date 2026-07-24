@@ -4,7 +4,11 @@ export const dynamic = 'force-dynamic'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { motion, AnimatePresence } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
+import Header from '@/components/Header'
+import Footer from '@/components/Footer'
 
 export default function LoginPage() {
   const [mode, setMode] = useState<'login' | 'register'>('login')
@@ -32,189 +36,149 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
+        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
       })
-      if (error) {
-        setMessage({ text: error.message, isError: true })
-      } else {
-        setMessage({
-          text: 'Account created! Check your email to confirm, then sign in.',
-          isError: false,
-        })
-      }
+      if (error) setMessage({ text: error.message, isError: true })
+      else setMessage({ text: 'Account created! Check your email to confirm, then sign in.', isError: false })
     }
-
     setLoading(false)
   }
 
   const inputStyle: React.CSSProperties = {
     width: '100%',
-    padding: '11px 14px',
-    background: 'rgba(255,255,255,0.05)',
-    border: '1px solid rgba(255,255,255,0.12)',
-    borderRadius: 8,
-    color: '#fff',
-    fontSize: 14,
+    padding: '13px 15px',
+    background: 'rgba(255,255,255,0.045)',
+    border: '1px solid var(--border-mid)',
+    borderRadius: 12,
+    color: 'var(--t1)',
+    fontSize: 15,
     outline: 'none',
     boxSizing: 'border-box',
-    transition: 'border-color 0.2s',
+    transition: 'border-color 0.2s, box-shadow 0.2s',
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'var(--bg-primary)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 20,
-    }}>
-      <div style={{
-        width: '100%',
-        maxWidth: 400,
-      }}>
-        {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: 36 }}>
-          <div style={{
-            width: 52,
-            height: 52,
-            background: 'linear-gradient(135deg, #00d4ff, #8b5cf6)',
-            borderRadius: 14,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 26,
-            margin: '0 auto 14px',
-          }}>
-            ◎
-          </div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#00d4ff', margin: 0 }}>Solive</h1>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>3D Sound Frequency Studio</p>
-        </div>
+    <>
+      <Header />
 
-        {/* Card */}
-        <div style={{
-          background: 'rgba(255,255,255,0.03)',
-          border: '1px solid rgba(255,255,255,0.08)',
-          borderRadius: 16,
-          padding: '28px 28px',
-        }}>
-          {/* Mode tabs */}
-          <div style={{
-            display: 'flex',
-            background: 'rgba(255,255,255,0.04)',
-            borderRadius: 8,
-            padding: 3,
-            marginBottom: 24,
-          }}>
-            {(['login', 'register'] as const).map((m) => (
-              <button
-                key={m}
-                onClick={() => { setMode(m); setMessage(null) }}
-                style={{
-                  flex: 1,
-                  padding: '8px',
-                  borderRadius: 6,
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  transition: 'all 0.2s',
-                  background: mode === m ? 'rgba(0,212,255,0.15)' : 'transparent',
-                  color: mode === m ? '#00d4ff' : 'var(--text-secondary)',
-                  borderBottom: mode === m ? '1px solid rgba(0,212,255,0.4)' : '1px solid transparent',
-                }}
-              >
-                {m === 'login' ? 'Sign In' : 'Create Account'}
-              </button>
-            ))}
-          </div>
-
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div>
-              <label style={{ fontSize: 12, color: 'var(--text-secondary)', letterSpacing: 0.5, display: 'block', marginBottom: 6 }}>
-                EMAIL
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                required
-                style={inputStyle}
-                onFocus={(e) => e.currentTarget.style.borderColor = 'rgba(0,212,255,0.5)'}
-                onBlur={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'}
-              />
-            </div>
-
-            <div>
-              <label style={{ fontSize: 12, color: 'var(--text-secondary)', letterSpacing: 0.5, display: 'block', marginBottom: 6 }}>
-                PASSWORD
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder={mode === 'register' ? 'At least 6 characters' : '••••••••'}
-                required
-                minLength={6}
-                style={inputStyle}
-                onFocus={(e) => e.currentTarget.style.borderColor = 'rgba(0,212,255,0.5)'}
-                onBlur={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'}
-              />
-            </div>
-
-            {message && (
-              <div style={{
-                padding: '10px 14px',
-                borderRadius: 8,
-                fontSize: 13,
-                background: message.isError ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)',
-                border: `1px solid ${message.isError ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)'}`,
-                color: message.isError ? '#f87171' : '#4ade80',
-              }}>
-                {message.text}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                padding: '12px',
-                borderRadius: 8,
-                border: 'none',
-                background: loading
-                  ? 'rgba(255,255,255,0.1)'
-                  : 'linear-gradient(135deg, #00d4ff, #8b5cf6)',
-                color: 'white',
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: loading ? 'not-allowed' : 'pointer',
-                transition: 'opacity 0.2s',
-                opacity: loading ? 0.6 : 1,
-                marginTop: 4,
-              }}
-            >
-              {loading ? 'Please wait…' : mode === 'login' ? 'Sign In' : 'Create Account'}
-            </button>
-          </form>
-        </div>
-
-        {/* Guest access */}
-        <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: 'var(--text-secondary)' }}>
-          Or{' '}
-          <a
-            href="/dashboard"
-            style={{ color: '#a78bfa', textDecoration: 'none', borderBottom: '1px solid rgba(167,139,250,0.3)' }}
-          >
-            continue as guest
-          </a>
-          {' '}without an account
-        </p>
+      <div className="ambient-bg" aria-hidden>
+        <div className="ambient-orb" /><div className="ambient-orb" /><div className="ambient-orb" />
       </div>
-    </div>
+
+      <main
+        className="relative z-10 flex flex-col items-center justify-center px-5"
+        style={{ minHeight: '100vh', paddingTop: 'calc(env(safe-area-inset-top) + 96px)', paddingBottom: 60 }}
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+          style={{ width: '100%', maxWidth: 420 }}
+        >
+          {/* Logo */}
+          <div style={{ textAlign: 'center', marginBottom: 28 }}>
+            <Link href="/" className="inline-flex items-center gap-2.5 mb-3">
+              <span className="text-accent">
+                <svg width="26" height="26" viewBox="0 0 22 22" fill="none">
+                  <path d="M1 11 Q4 5 7 11 Q10 17 13 11 Q16 5 19 11 Q20 13 21 11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
+                </svg>
+              </span>
+              <span className="font-bold text-xl tracking-tight" style={{ color: 'var(--t1)' }}>Solive</span>
+            </Link>
+            <p style={{ fontSize: '0.82rem', color: 'var(--t3)' }}>
+              {mode === 'login' ? 'Welcome back. Sign in to save your sessions.' : 'Create an account to track your progress.'}
+            </p>
+          </div>
+
+          {/* Card */}
+          <div className="glass-card grain" style={{ padding: '26px 24px', borderRadius: 24 }}>
+            <div className="shimmer-overlay" />
+            <div style={{ position: 'relative', zIndex: 2 }}>
+              {/* Tabs */}
+              <div style={{ display: 'flex', background: 'rgba(255,255,255,0.04)', borderRadius: 12, padding: 4, marginBottom: 22, border: '1px solid var(--border)' }}>
+                {(['login', 'register'] as const).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => { setMode(m); setMessage(null) }}
+                    style={{
+                      flex: 1,
+                      padding: '9px',
+                      borderRadius: 9,
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      transition: 'all 0.2s',
+                      background: mode === m ? 'var(--accent-dim)' : 'transparent',
+                      color: mode === m ? 'var(--accent)' : 'var(--t3)',
+                      boxShadow: mode === m ? 'inset 0 0 0 1px var(--accent-mid)' : 'none',
+                    }}
+                  >
+                    {m === 'login' ? 'Sign In' : 'Create Account'}
+                  </button>
+                ))}
+              </div>
+
+              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div>
+                  <label style={{ fontSize: 11, color: 'var(--t3)', letterSpacing: '0.08em', fontWeight: 700, display: 'block', marginBottom: 7 }}>EMAIL</label>
+                  <input
+                    type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com" required style={inputStyle}
+                    onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.boxShadow = '0 0 0 3px var(--accent-dim)' }}
+                    onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-mid)'; e.currentTarget.style.boxShadow = 'none' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: 11, color: 'var(--t3)', letterSpacing: '0.08em', fontWeight: 700, display: 'block', marginBottom: 7 }}>PASSWORD</label>
+                  <input
+                    type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+                    placeholder={mode === 'register' ? 'At least 6 characters' : '••••••••'}
+                    required minLength={6} style={inputStyle}
+                    onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.boxShadow = '0 0 0 3px var(--accent-dim)' }}
+                    onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-mid)'; e.currentTarget.style.boxShadow = 'none' }}
+                  />
+                </div>
+
+                <AnimatePresence>
+                  {message && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                      style={{
+                        padding: '11px 14px', borderRadius: 10, fontSize: 13, overflow: 'hidden',
+                        background: message.isError ? 'rgba(224,80,80,0.10)' : 'var(--accent-dim)',
+                        border: `1px solid ${message.isError ? 'rgba(224,80,80,0.30)' : 'var(--accent-mid)'}`,
+                        color: message.isError ? '#f0a0a0' : 'var(--accent)',
+                      }}
+                    >
+                      {message.text}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <button
+                  type="submit" disabled={loading} className="btn-primary"
+                  style={{ width: '100%', padding: '13px', fontSize: 14, marginTop: 2, justifyContent: 'center', opacity: loading ? 0.65 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
+                >
+                  {loading ? 'Please wait…' : mode === 'login' ? 'Sign In →' : 'Create Account →'}
+                </button>
+              </form>
+            </div>
+          </div>
+
+          {/* Guest access */}
+          <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: 'var(--t3)' }}>
+            Or{' '}
+            <Link href="/session" style={{ color: 'var(--accent)', borderBottom: '1px solid var(--accent-mid)' }}>
+              continue as guest
+            </Link>
+            {' '}— no account needed
+          </p>
+        </motion.div>
+      </main>
+
+      <Footer />
+    </>
   )
 }
