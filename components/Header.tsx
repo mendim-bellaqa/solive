@@ -11,11 +11,9 @@ interface UserInfo {
 
 export default function Header() {
   const [scrolled, setScrolled]       = useState(false)
-  const [visible, setVisible]         = useState(true)
   const [user, setUser]               = useState<UserInfo | null>(null)
   const [menuOpen, setMenuOpen]       = useState(false)
   const [hzIdx, setHzIdx]             = useState(0)
-  const lastScrollY                   = useRef(0)
   const ticking                       = useRef(false)
   const menuRef                       = useRef<HTMLDivElement>(null)
 
@@ -23,22 +21,12 @@ export default function Header() {
   const PALETTE = ['#00c896', '#4a90e8', '#7c6ff7', '#b06ef5', '#e05050', '#e8a020']
   const accentColor = PALETTE[hzIdx % PALETTE.length]
 
-  // Scroll behavior
+  // Scroll behavior — header stays fixed & visible; only the background reacts
   const handleScroll = useCallback(() => {
     if (ticking.current) return
     ticking.current = true
     requestAnimationFrame(() => {
-      const y = window.scrollY
-      setScrolled(y > 20)
-      if (y < 60) {
-        setVisible(true)
-      } else if (y > lastScrollY.current + 6) {
-        setVisible(false)
-        setMenuOpen(false)
-      } else if (y < lastScrollY.current - 4) {
-        setVisible(true)
-      }
-      lastScrollY.current = y
+      setScrolled(window.scrollY > 20)
       ticking.current = false
     })
   }, [])
@@ -95,8 +83,6 @@ export default function Header() {
 
   return (
     <motion.header
-      animate={{ y: visible ? 0 : -80, opacity: visible ? 1 : 0 }}
-      transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
       className="fixed top-0 left-0 right-0 z-50"
       style={{
         background: scrolled ? 'rgba(5,5,12,0.82)' : 'transparent',
@@ -134,8 +120,8 @@ export default function Header() {
         {/* Nav center — hidden on mobile */}
         <nav className="hidden md:flex items-center gap-1">
           {[
-            { label: 'Frequencies', href: '#frequencies' },
-            { label: 'Science', href: '#science' },
+            { label: 'Frequencies', href: '/frequencies' },
+            { label: 'Science', href: '/science' },
             { label: 'History', href: '/history' },
           ].map(({ label, href }) => (
             <Link

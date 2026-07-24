@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence, useInView } from 'framer-motion'
 import Header from '@/components/Header'
+import Footer from '@/components/Footer'
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 const FREQUENCIES = [
@@ -767,22 +768,9 @@ export default function HomePage() {
           </Reveal>
         </section>
 
-        {/* Footer */}
-        <footer
-          className="px-5 py-8 flex flex-wrap items-center justify-between gap-4"
-          style={{ borderTop: '1px solid var(--border)' }}
-        >
-          <p style={{ fontSize: '0.75rem', color: 'var(--t4)' }}>
-            Solive · Not a substitute for medical care
-          </p>
-          <div className="flex gap-5" style={{ color: 'var(--t4)', fontSize: '0.75rem' }}>
-            <Link href="/session" className="hover:opacity-70 transition-opacity">Questionnaire</Link>
-            <Link href="/history" className="hover:opacity-70 transition-opacity">History</Link>
-            <Link href="/auth/login" className="hover:opacity-70 transition-opacity">Sign in</Link>
-          </div>
-        </footer>
-
       </main>
+
+      <Footer />
     </>
   )
 }

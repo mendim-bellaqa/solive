@@ -171,7 +171,8 @@ export default function ThreeVisualizer({ hz, isPlaying, analyserRef, colorHex, 
 
     const aspect = w / h
     const fov    = aspect < 0.8 ? 60 : aspect < 1.2 ? 54 : 50
-    const camZ   = aspect < 0.8 ? 10 : 9
+    // Pulled back so the cymatic form sits comfortably in frame (was 9–10, felt cramped)
+    const camZ   = aspect < 0.8 ? 13 : 11.5
     const camera = new THREE.PerspectiveCamera(fov, aspect, 0.1, 100)
     camera.position.set(0, 0, camZ)
 

@@ -437,7 +437,7 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
 
   return (
     <div ref={containerRef} className="flex flex-col overflow-hidden"
-         style={{ height: '100dvh', background:'var(--bg-void)' }}>
+         style={{ height: '100dvh', paddingTop: isFullscreen ? 0 : 64, background:'var(--bg-void)' }}>
 
       {/* ── 3D Visualizer ─────────────────────────────────────────────── */}
       <div className={`relative overflow-hidden studio-visualizer${isFullscreen ? ' viz-fullscreen' : ''}`}
@@ -473,16 +473,8 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
           />
         )}
 
-        {/* ── Top-left: nav + frequency live display ─────────────────── */}
+        {/* ── Top-left: frequency live display ───────────────────────── */}
         <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
-          <a href="/" className="flex items-center gap-1.5 text-xs transition-opacity hover:opacity-100"
-             style={{ color:'var(--text-muted)', opacity:0.55 }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M19 12H5M12 19l-7-7 7-7" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            Solive
-          </a>
-
           {/* Live Hz display */}
           <motion.div
             className="glass-card px-3 py-2 rounded-xl min-w-[90px]"
