@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
+import { attachPinchZoom } from '@/lib/attachZoom'
 
 interface Props {
   colorHex: string
@@ -166,13 +167,14 @@ export default function Biofield({ colorHex, isPlaying, analyserRef, quality = '
     scene.add(new THREE.AmbientLight('#ffffff', 0.4))
     const light = new THREE.PointLight(colorHex, 3, 12); light.position.set(0, 0.3, 2.5); scene.add(light)
 
-    // Wheel zoom
+    // Wheel + pinch zoom
     const baseZ = camera.position.z
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault()
-      camera.position.z = Math.max(baseZ * 0.5, Math.min(baseZ * 2.2, camera.position.z * Math.exp(e.deltaY * 0.0015)))
+    const applyZoom = (factor: number) => {
+      camera.position.z = Math.max(baseZ * 0.5, Math.min(baseZ * 2.2, camera.position.z * factor))
     }
+    const onWheel = (e: WheelEvent) => { e.preventDefault(); applyZoom(Math.exp(e.deltaY * 0.0015)) }
     if (interactive) root.addEventListener('wheel', onWheel, { passive: false })
+    const detachPinch = attachPinchZoom(root, applyZoom)   // pinch works everywhere (mobile)
 
     // ── Animation ──────────────────────────────────────────────────────────
     const clock = new THREE.Clock()
@@ -240,6 +242,7 @@ export default function Biofield({ colorHex, isPlaying, analyserRef, quality = '
     return () => {
       window.removeEventListener('resize', onResize)
       if (interactive) root.removeEventListener('wheel', onWheel)
+      detachPinch()
       cancelAnimationFrame(rafRef.current)
       tex.dispose()
       disposables.forEach(d => { try { d.dispose() } catch { /* noop */ } })
@@ -249,5 +252,5 @@ export default function Biofield({ colorHex, isPlaying, analyserRef, quality = '
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [colorHex, quality, interactive])
 
-  return <div ref={rootRef} style={{ position: 'absolute', inset: 0, overflow: 'hidden', background: '#05050c' }} />
+  return <div ref={rootRef} style={{ position: 'absolute', inset: 0, overflow: 'hidden', touchAction: 'pan-y', background: '#05050c' }} />
 }

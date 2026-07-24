@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
+import { attachPinchZoom } from '@/lib/attachZoom'
 
 interface Props {
   isPlaying: boolean
@@ -183,11 +184,12 @@ export default function NeuralBrain({ isPlaying, mode = 'session', progress = 0,
 
     // ── Camera wheel / pinch zoom ──────────────────────────────────────────
     const baseZ = camera.position.z
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault()
-      camera.position.z = Math.max(baseZ * 0.45, Math.min(baseZ * 2.2, camera.position.z * Math.exp(e.deltaY * 0.0015)))
+    const applyZoom = (factor: number) => {
+      camera.position.z = Math.max(baseZ * 0.45, Math.min(baseZ * 2.2, camera.position.z * factor))
     }
+    const onWheel = (e: WheelEvent) => { e.preventDefault(); applyZoom(Math.exp(e.deltaY * 0.0015)) }
     if (mode === 'session') root.addEventListener('wheel', onWheel, { passive: false })
+    const detachPinch = attachPinchZoom(root, applyZoom)   // pinch works in every mode
 
     // ── Animation ──────────────────────────────────────────────────────────
     const clock = new THREE.Clock()
@@ -287,6 +289,7 @@ export default function NeuralBrain({ isPlaying, mode = 'session', progress = 0,
     return () => {
       window.removeEventListener('resize', onResize)
       if (mode === 'session') root.removeEventListener('wheel', onWheel)
+      detachPinch()
       cancelAnimationFrame(frameRef.current)
       nGeo.dispose(); nMat.dispose(); haloMat.dispose()
       sGeo.dispose(); sMat.dispose()
@@ -298,7 +301,7 @@ export default function NeuralBrain({ isPlaying, mode = 'session', progress = 0,
   }, [mode, analyserRef])
 
   return (
-    <div ref={rootRef} style={{ position: 'absolute', inset: 0, overflow: 'hidden', background: 'radial-gradient(circle at 50% 45%, #0a1024 0%, #05050c 72%)' }}>
+    <div ref={rootRef} style={{ position: 'absolute', inset: 0, overflow: 'hidden', touchAction: 'pan-y', background: 'radial-gradient(circle at 50% 45%, #0a1024 0%, #05050c 72%)' }}>
       {mode === 'session' && (
         <div style={{ position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)', zIndex: 5, pointerEvents: 'none' }}>
           <span ref={captionRef} className="glass" style={{ padding: '5px 14px', borderRadius: 999, fontSize: '0.72rem', fontWeight: 700, color: 'var(--t2)', letterSpacing: '0.02em' }}>

@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { getComplexityLevel } from '@/lib/frequencies'
+import { attachPinchZoom } from '@/lib/attachZoom'
 
 interface Props {
   hz: number
@@ -186,14 +187,14 @@ export default function ThreeVisualizer({ hz, isPlaying, analyserRef, colorHex, 
     renderer.domElement.style.transition = 'opacity 0.05s linear'
     mount.appendChild(renderer.domElement)
 
-    // ── Touchpad / wheel zoom (camera dolly) ────────────────────────────────
+    // ── Touchpad / wheel / pinch zoom (camera dolly) ────────────────────────
     const minCamZ = camZ * 0.4, maxCamZ = camZ * 2.6
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault()
-      const factor = Math.exp(e.deltaY * 0.0015)
+    const applyZoom = (factor: number) => {
       camera.position.z = Math.max(minCamZ, Math.min(maxCamZ, camera.position.z * factor))
     }
+    const onWheel = (e: WheelEvent) => { e.preventDefault(); applyZoom(Math.exp(e.deltaY * 0.0015)) }
     mount.addEventListener('wheel', onWheel, { passive: false })
+    const detachPinch = attachPinchZoom(mount, applyZoom)
 
     const mainColor = new THREE.Color(colorHex)
     const spriteTexture = createCircleTexture()
@@ -466,6 +467,7 @@ export default function ThreeVisualizer({ hz, isPlaying, analyserRef, colorHex, 
     return () => {
       window.removeEventListener('resize', onResize)
       mount.removeEventListener('wheel', onWheel)
+      detachPinch()
       cancelAnimationFrame(frameRef.current)
       lissGeo.dispose(); lissMat.dispose()
       glowLayers.forEach(({ geo, mat }) => { geo.dispose(); mat.dispose() })
@@ -508,7 +510,7 @@ export default function ThreeVisualizer({ hz, isPlaying, analyserRef, colorHex, 
         width: '100%', height: '100%', display: 'block',
         background: '#05050c',
         cursor: focusMode ? 'ew-resize' : 'default',
-        touchAction: focusMode ? 'none' : 'auto',
+        touchAction: focusMode ? 'none' : 'pan-y',
         position: 'relative',
         overflow: 'hidden',
       }}
