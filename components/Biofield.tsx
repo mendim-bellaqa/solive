@@ -169,7 +169,9 @@ export default function Biofield({ colorHex, isPlaying, analyserRef, quality = '
 
     // Wheel + pinch zoom
     const baseZ = camera.position.z
-    camera.position.z = baseZ * 2.2   // start fully zoomed out
+    // Designed framing by default; previews go tighter to fill their small box.
+    // Zoom-out to baseZ * 2.2 stays available via wheel/pinch.
+    camera.position.z = preview ? baseZ * 0.92 : baseZ * 1.05
     const applyZoom = (factor: number) => {
       camera.position.z = Math.max(baseZ * 0.5, Math.min(baseZ * 2.2, camera.position.z * factor))
     }

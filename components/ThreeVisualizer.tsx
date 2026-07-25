@@ -189,7 +189,10 @@ export default function ThreeVisualizer({ hz, isPlaying, analyserRef, colorHex, 
 
     // ── Touchpad / wheel / pinch zoom (camera dolly) ────────────────────────
     const minCamZ = camZ * 0.4, maxCamZ = camZ * 2.6
-    camera.position.z = maxCamZ   // start fully zoomed out
+    // camZ is the framing this scene was built for — start there rather than at
+    // maxCamZ, which rendered the form tiny inside small preview boxes.
+    // Full zoom-out is still reachable with wheel/pinch.
+    camera.position.z = camZ
     const applyZoom = (factor: number) => {
       camera.position.z = Math.max(minCamZ, Math.min(maxCamZ, camera.position.z * factor))
     }

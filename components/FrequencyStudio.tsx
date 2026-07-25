@@ -961,8 +961,20 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
           {/* Playback row — 3 equal columns keep the play button dead-centre */}
           <div className="flex items-center">
 
-            {/* Left column */}
-            <div className="flex items-center flex-1">
+            {/* Left column — justify-end so Back & Adjust sit right beside the
+                play controls instead of stranded at the far edge */}
+            <div className="flex items-center justify-end flex-1 gap-1">
+              {/* Back */}
+              <button onClick={() => router.back()}
+                      aria-label="Go back"
+                      className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all min-w-[52px] hover:bg-white/[0.06]"
+                      style={{ background: 'transparent', color: 'var(--text-muted)' }}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M19 12H5M12 19l-7-7 7-7" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <span className="text-xs">Back</span>
+              </button>
+
               {/* Adjust */}
               <button onClick={() => { setShowAdjust(v => !v); setShowInfo(false) }}
                       className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all min-w-[52px]"
@@ -1014,8 +1026,8 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
               </motion.button>
             </div>
 
-            {/* Right column */}
-            <div className="flex items-center justify-end flex-1">
+            {/* Right column — mirrors the left, hugging the centre cluster */}
+            <div className="flex items-center justify-start flex-1">
               {/* Headphones */}
               <div className="flex flex-col items-center gap-1 px-3 py-2 min-w-[52px]" style={{ color:'var(--text-muted)' }}>
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">

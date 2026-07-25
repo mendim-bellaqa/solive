@@ -184,7 +184,11 @@ export default function NeuralBrain({ isPlaying, mode = 'session', progress = 0,
 
     // ── Camera wheel / pinch zoom ──────────────────────────────────────────
     const baseZ = camera.position.z
-    camera.position.z = baseZ * 2.2   // start fully zoomed out
+    // Start at the framing the scene was designed around. Previews sit in small
+    // boxes so they go slightly tighter to fill them; sessions leave a little
+    // headroom for the overlay badges. Zooming out to baseZ * 2.2 is still
+    // available via wheel/pinch — it's just no longer the default.
+    camera.position.z = mode === 'preview' ? baseZ * 0.92 : baseZ * 1.05
     const applyZoom = (factor: number) => {
       camera.position.z = Math.max(baseZ * 0.45, Math.min(baseZ * 2.2, camera.position.z * factor))
     }
