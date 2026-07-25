@@ -6,13 +6,17 @@ import {
   addDoc, collection, getDocs, query, where, limit,
   serverTimestamp, Timestamp,
 } from 'firebase/firestore'
-import { auth, db } from './client'
+import { getFirebaseAuth, getFirebaseDb } from './client'
 
 // ─── Auth hook ────────────────────────────────────────────────────────────────
 // `undefined` = still resolving, `null` = signed out, User = signed in.
 export function useAuthUser() {
   const [user, setUser] = useState<User | null | undefined>(undefined)
-  useEffect(() => onAuthStateChanged(auth, (u) => setUser(u)), [])
+  useEffect(() => {
+    const auth = getFirebaseAuth()
+    if (!auth) { setUser(null); return }   // misconfigured build → treat as signed out
+    return onAuthStateChanged(auth, (u) => setUser(u))
+  }, [])
   return user
 }
 
@@ -45,8 +49,10 @@ export async function saveSession(input: {
   beforeScore: number | null
   afterScore: number | null
 }): Promise<void> {
-  const user = auth.currentUser
-  if (!user) return
+  const auth = getFirebaseAuth()
+  const db = getFirebaseDb()
+  const user = auth?.currentUser
+  if (!user || !db) return
   try {
     await addDoc(collection(db, 'sessions'), {
       uid: user.uid,
@@ -65,6 +71,8 @@ export async function saveSession(input: {
 // Fetch the signed-in user's sessions, newest first.
 // Sorted client-side so no Firestore composite index is required.
 export async function fetchSessions(uid: string): Promise<SessionRecord[]> {
+  const db = getFirebaseDb()
+  if (!db) return []
   const q = query(
     collection(db, 'sessions'),
     where('uid', '==', uid),

@@ -50,7 +50,9 @@ export default function Header() {
     Promise.all([
       import('firebase/auth'),
       import('@/lib/firebase/client'),
-    ]).then(([{ onAuthStateChanged }, { auth }]) => {
+    ]).then(([{ onAuthStateChanged }, { getFirebaseAuth }]) => {
+      const auth = getFirebaseAuth()
+      if (!auth) return
       unsub = onAuthStateChanged(auth, (u) => {
         setUser(u ? { email: u.email, name: u.displayName } : null)
       })
@@ -85,11 +87,12 @@ export default function Header() {
 
   async function handleSignOut() {
     setMenuOpen(false)
-    const [{ signOut }, { auth }] = await Promise.all([
+    const [{ signOut }, { getFirebaseAuth }] = await Promise.all([
       import('firebase/auth'),
       import('@/lib/firebase/client'),
     ])
-    await signOut(auth)
+    const auth = getFirebaseAuth()
+    if (auth) await signOut(auth)
     setUser(null)
     window.location.href = '/'
   }

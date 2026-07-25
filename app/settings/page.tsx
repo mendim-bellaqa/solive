@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { signOut } from 'firebase/auth'
-import { auth } from '@/lib/firebase/client'
+import { getFirebaseAuth } from '@/lib/firebase/client'
 import { useAuthUser } from '@/lib/firebase/sessions'
 import { usePlan, PLANS } from '@/lib/plan'
 import Header from '@/components/Header'
@@ -23,7 +23,8 @@ export default function SettingsPage() {
 
   async function handleSignOut() {
     setSigningOut(true)
-    try { await signOut(auth) } catch { /* ignore */ }
+    const auth = getFirebaseAuth()
+    if (auth) { try { await signOut(auth) } catch { /* ignore */ } }
     router.push('/')
   }
 

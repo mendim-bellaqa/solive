@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth'
-import { auth, isFirebaseConfigured } from '@/lib/firebase/client'
+import { getFirebaseAuth, isFirebaseConfigured } from '@/lib/firebase/client'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 
@@ -24,7 +24,8 @@ export default function LoginPage() {
     setLoading(true)
     setMessage(null)
 
-    if (!isFirebaseConfigured) {
+    const auth = getFirebaseAuth()
+    if (!isFirebaseConfigured || !auth) {
       setMessage({
         text: 'Auth isn’t configured for this deployment — the NEXT_PUBLIC_FIREBASE_* environment variables were missing when the site was built. Add them in your host and redeploy.',
         isError: true,
