@@ -6,7 +6,8 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import { createClient } from '@/lib/supabase/client'
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth'
+import { auth } from '@/lib/firebase/client'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 
@@ -23,49 +24,30 @@ export default function LoginPage() {
     setLoading(true)
     setMessage(null)
 
-    let supabase
-    try {
-      supabase = createClient()
-    } catch {
-      setMessage({ text: 'Sign-in is not configured. Add your Supabase keys to .env.local.', isError: true })
-      setLoading(false)
-      return
-    }
-
     try {
       if (mode === 'login') {
-        const { error } = await supabase.auth.signInWithPassword({ email, password })
-        if (error) {
-          const msg = /email not confirmed/i.test(error.message)
-            ? 'Please confirm your email first — check your inbox for the confirmation link.'
-            : /invalid login/i.test(error.message)
-              ? 'Incorrect email or password.'
-              : error.message
-          setMessage({ text: msg, isError: true })
-        } else {
-          router.push('/')
-          router.refresh()
-        }
+        await signInWithEmailAndPassword(auth, email, password)
       } else {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-        })
-        if (error) {
-          setMessage({ text: error.message, isError: true })
-        } else if (data.session) {
-          // email confirmation disabled → already signed in
-          router.push('/')
-          router.refresh()
-        } else if (data.user && data.user.identities && data.user.identities.length === 0) {
-          setMessage({ text: 'That email is already registered. Try signing in instead.', isError: true })
-        } else {
-          setMessage({ text: 'Account created! Check your email for the confirmation link, then sign in.', isError: false })
-        }
+        await createUserWithEmailAndPassword(auth, email, password)
+        // Firebase signs the user in immediately on account creation.
       }
-    } catch {
-      setMessage({ text: 'Could not reach the auth server. Check your connection and Supabase settings.', isError: true })
+      // Signed in — go home. onAuthStateChanged in the header picks up the user.
+      router.push('/')
+      router.refresh()
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code ?? ''
+      const friendly: Record<string, string> = {
+        'auth/invalid-credential': 'Incorrect email or password.',
+        'auth/wrong-password': 'Incorrect email or password.',
+        'auth/user-not-found': 'No account found with that email. Try creating one.',
+        'auth/invalid-email': 'That email address looks invalid.',
+        'auth/email-already-in-use': 'That email is already registered. Try signing in instead.',
+        'auth/weak-password': 'Password is too weak — use at least 6 characters.',
+        'auth/too-many-requests': 'Too many attempts. Please wait a moment and try again.',
+        'auth/network-request-failed': 'Network error — check your connection and try again.',
+        'auth/operation-not-allowed': 'Email/password sign-in is not enabled in Firebase yet.',
+      }
+      setMessage({ text: friendly[code] || 'Something went wrong. Please try again.', isError: true })
     }
     setLoading(false)
   }

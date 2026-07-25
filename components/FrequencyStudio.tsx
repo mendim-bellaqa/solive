@@ -4,8 +4,8 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { BinauralBand, BINAURAL_PRESETS, FREQUENCIES, getOrCreateFrequency } from '@/lib/frequencies'
-import { createClient } from '@/lib/supabase/client'
-import { usePlan } from '@/lib/plan'
+import { saveSession } from '@/lib/firebase/sessions'
+import { usePlan, PLANS } from '@/lib/plan'
 import type { QuestionnaireAnswers } from '@/lib/recommendation'
 import dynamic from 'next/dynamic'
 
@@ -42,17 +42,8 @@ function inferBeforeScore(ans: QuestionnaireAnswers | undefined): number {
   return map[ans.currentFeeling] ?? 3
 }
 
-async function saveSession(hz:number, band:BinauralBand, durationSecs:number, ans:QuestionnaireAnswers|undefined, beforeScore:number, afterScore:number) {
-  try {
-    const supabase = createClient()
-    const { data:{ user } } = await supabase.auth.getUser()
-    if (!user) return
-    await supabase.from('sessions').insert({
-      user_id: user.id, hz, binaural_band: band,
-      duration_seconds: durationSecs, answers: ans ?? null,
-      before_score: beforeScore, after_score: afterScore,
-    })
-  } catch { /* non-critical */ }
+async function persistSession(hz:number, band:BinauralBand, durationSecs:number, beforeScore:number, afterScore:number|null) {
+  await saveSession({ hz, band, durationSeconds: durationSecs, beforeScore, afterScore })
 }
 
 function playEndChime(ctx: AudioContext, baseHz: number) {
@@ -108,13 +99,12 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
   const [sessionEnded, setSessionEnded]   = useState(false)
   const [afterScore, setAfterScore]       = useState<number | null>(null)
   const [rated, setRated]                 = useState(false)
-  const [focusMode, setFocusMode]         = useState(false)
-  const [liveHz, setLiveHz]               = useState(hz)
-  const liveHzRef                         = useRef(hz)
   const [isFullscreen, setIsFullscreen]   = useState(false)
   const [pseudoFs, setPseudoFs]           = useState(false)   // CSS fullscreen fallback (iOS Safari)
   const [vizMode, setVizMode]             = useState<'lissajous' | 'waveform'>('lissajous')
   const [sceneMode, setSceneMode]         = useState<SceneMode>(initialScene)
+  const [showPaywall, setShowPaywall]     = useState(false)  // free 30s teaser gate
+  const gatedRef                          = useRef(false)
   const containerRef                      = useRef<HTMLDivElement>(null)
 
   const timerRef     = useRef<number>(0)           // requestAnimationFrame id
@@ -134,6 +124,7 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
   const durationCapped = requestedMinutes > limits.maxMinutes
   const totalSeconds = cappedMinutes === Infinity ? Infinity : cappedMinutes * 60
   const vizLocked = !limits.allViz && sceneMode !== 'frequency'
+  const previewSeconds = limits.previewSeconds   // Infinity for paid plans
 
   const binaural = BINAURAL_PRESETS[activeBand]
   const band     = BAND_META[activeBand]
@@ -293,6 +284,14 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
       if (secs !== lastTickRef.current) {
         lastTickRef.current = secs
         setElapsed(secs)
+        // Free-plan teaser: cut the sound at the preview limit and show the paywall.
+        if (secs >= previewSeconds && !gatedRef.current) {
+          gatedRef.current = true
+          muteAudio()
+          setPlayerState('paused')
+          setShowPaywall(true)
+          return // stop loop
+        }
         if (secs >= totalSeconds) {
           elapsedAtEnd.current = secs
           const ctx = audioCtxRef.current
@@ -339,7 +338,10 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
       if (e.code === 'Space') {
         e.preventDefault()
         if (playerState === 'playing') { muteAudio(); setPlayerState('paused') }
-        else if (playerState === 'paused') { unmuteAudio(volume); setPlayerState('playing') }
+        else if (playerState === 'paused') {
+          if (gatedRef.current) { setShowPaywall(true) }
+          else { unmuteAudio(volume); setPlayerState('playing') }
+        }
         else if (playerState === 'idle') { initAudio(); setPlayerState('playing') }
       }
       if (e.code === 'ArrowUp') {
@@ -374,7 +376,10 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
   // ── Controls ─────────────────────────────────────────────────────────────
   function play()   { try { initAudio() } catch { /* unsupported */ }; setPlayerState('playing') }
   function pause()  { muteAudio(); setPlayerState('paused') }
-  function resume() { unmuteAudio(volume); setPlayerState('playing') }
+  function resume() {
+    if (gatedRef.current) { setShowPaywall(true); return }  // free teaser used up
+    unmuteAudio(volume); setPlayerState('playing')
+  }
 
   function stop() {
     // If meaningful time elapsed, show rating overlay
@@ -390,6 +395,8 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
       setSessionEnded(false)
       setRated(false)
       setAfterScore(null)
+      gatedRef.current = false
+      setShowPaywall(false)
     }
   }
 
@@ -438,31 +445,13 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
     setShowAdjust(false)
   }
 
-  function handleVisualizerDrag(dx: number) {
-    const delta = dx * 0.18
-    const newHz = Math.max(hz - 30, Math.min(hz + 30, liveHzRef.current + delta))
-    liveHzRef.current = newHz
-    setLiveHz(newHz)
-    const osc = oscBaseRef.current, ctx = audioCtxRef.current
-    if (osc && ctx) osc.frequency.setTargetAtTime(newHz, ctx.currentTime, 0.02)
-  }
-
-  function toggleFocusMode() {
-    if (focusMode) {
-      liveHzRef.current = hz; setLiveHz(hz)
-      const osc = oscBaseRef.current, ctx = audioCtxRef.current
-      if (osc && ctx) osc.frequency.linearRampToValueAtTime(hz, ctx.currentTime + 0.5)
-    }
-    setFocusMode(v => !v)
-  }
-
   function handleRate(score: number | null) {
     const finalAfter = score ?? 3
     setAfterScore(finalAfter)
     setRated(true)
     const durationSecs = elapsedAtEnd.current || elapsed
     const beforeScore  = inferBeforeScore(answers)
-    saveSession(hz, activeBand, durationSecs, answers, beforeScore, finalAfter)
+    persistSession(hz, activeBand, durationSecs, beforeScore, finalAfter)
     try { sessionStorage.removeItem('solive_answers') } catch { /* ignore */ }
   }
 
@@ -474,7 +463,7 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
   const timeLeft    = totalSeconds === Infinity ? null : Math.max(0, totalSeconds - elapsed)
   const progressPct = totalSeconds === Infinity ? 0 : Math.min(100, (elapsed / totalSeconds) * 100)
   const improvement = afterScore !== null ? afterScore - inferBeforeScore(answers) : 0
-  const currentDisplayHz = focusMode ? Math.round(liveHz * 10) / 10 : hz
+  const currentDisplayHz = hz
 
   // getOrCreateFrequency always returns a value — this is just a safety net
   if (!frequency) return null
@@ -523,8 +512,6 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
             isPlaying={playerState === 'playing'}
             analyserRef={analyserRef}
             colorHex={frequency.colorHex}
-            focusMode={focusMode}
-            onDrag={handleVisualizerDrag}
             vizMode={vizMode}
           />
         ) : sceneMode === 'brain' ? (
@@ -571,11 +558,6 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
                   <span className="text-xs font-normal opacity-60 ml-0.5">Hz</span>
                 </motion.p>
               </AnimatePresence>
-              {focusMode && Math.abs(liveHz - hz) > 0.2 && (
-                <p className="text-xs opacity-60 mt-0.5" style={{ color:frequency.colorHex }}>
-                  {liveHz > hz ? `+${Math.round((liveHz-hz)*10)/10}` : Math.round((liveHz-hz)*10)/10} offset
-                </p>
-              )}
               {/* Live indicator */}
               {playerState === 'playing' && (
                 <div className="flex items-center gap-1 mt-1">
@@ -684,24 +666,6 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
           </button>
         </div>
 
-        {/* Focus mode hint */}
-        <AnimatePresence>
-          {focusMode && !sessionEnded && (
-            <motion.div
-              initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:8 }}
-              className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 px-4 py-2 rounded-full"
-              style={{ background:`${frequency.colorHex}18`, border:`1px solid ${frequency.colorHex}40`, pointerEvents:'none' }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
-                   style={{ color:frequency.colorHex }}>
-                <path d="M5 9l-3 3 3 3M19 9l3 3-3 3M9 5l3-3 3 3M9 19l3 3 3-3" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <span className="text-xs font-medium" style={{ color:frequency.colorHex }}>
-                Drag left / right to fine-tune frequency
-              </span>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         {/* ── Session ended overlay ──────────────────────────────────── */}
         <AnimatePresence>
           {sessionEnded && (
@@ -772,7 +736,7 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
                       <a href="/session" className="btn-primary text-center w-full"
                          style={{ background:frequency.colorHex, color:'#000' }}>New Session</a>
                       <a href="/history" className="btn-ghost text-center w-full text-sm">View History</a>
-                      <button onClick={() => { setSessionEnded(false); setPlayerState('idle'); setElapsed(0); setRated(false); setAfterScore(null) }}
+                      <button onClick={() => { setSessionEnded(false); setPlayerState('idle'); setElapsed(0); setRated(false); setAfterScore(null); gatedRef.current = false; setShowPaywall(false) }}
                               className="text-xs py-1 hover:opacity-80 transition-opacity" style={{ color:'var(--text-muted)' }}>
                         Close
                       </button>
@@ -780,6 +744,77 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
                   </motion.div>
                 )}
               </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── Free-plan paywall (after 30s teaser) ───────────────────── */}
+        <AnimatePresence>
+          {showPaywall && (
+            <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
+              className="absolute inset-0 z-30 flex items-center justify-center overflow-y-auto"
+              style={{ background:'rgba(4,4,10,0.9)', backdropFilter:'blur(16px)', WebkitBackdropFilter:'blur(16px)' }}>
+              <motion.div
+                initial={{ scale:0.94, opacity:0, y:12 }} animate={{ scale:1, opacity:1, y:0 }} exit={{ scale:0.94, opacity:0 }}
+                transition={{ duration:0.28, ease:[0.4,0,0.2,1] }}
+                className="w-full max-w-sm mx-auto px-6 py-8 text-center">
+
+                <div className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center"
+                     style={{ background:'var(--accent-dim)', border:'1px solid var(--accent-mid)' }}>
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.6">
+                    <rect x="4" y="10" width="16" height="11" rx="2.5" />
+                    <path d="M8 10V7a4 4 0 0 1 8 0v3" strokeLinecap="round" />
+                  </svg>
+                </div>
+
+                <p className="text-[0.62rem] font-bold tracking-[0.14em] mb-2" style={{ color:'var(--accent)' }}>
+                  YOUR 30-SECOND PREVIEW IS UP
+                </p>
+                <h2 className="text-xl font-black mb-1.5" style={{ letterSpacing:'-0.02em' }}>
+                  Keep the sound going
+                </h2>
+                <p className="text-sm mb-6" style={{ color:'var(--text-secondary)', lineHeight:1.55 }}>
+                  Free sessions stop after 30 seconds. Upgrade to play any frequency for as long as you like — uninterrupted.
+                </p>
+
+                {/* Plan choices */}
+                <div className="flex flex-col gap-2.5 mb-4">
+                  {PLANS.filter(p => p.id !== 'free').map(p => (
+                    <button key={p.id} onClick={() => router.push(`/checkout?plan=${p.id}`)}
+                      className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all"
+                      style={{
+                        background: p.highlight ? 'var(--accent-dim)' : 'rgba(255,255,255,0.045)',
+                        border: `1px solid ${p.highlight ? 'var(--accent-mid)' : 'rgba(255,255,255,0.1)'}`,
+                      }}>
+                      <span className="text-left">
+                        <span className="flex items-center gap-2">
+                          <span className="font-bold text-sm" style={{ color:'var(--text-primary)' }}>{p.name}</span>
+                          {p.highlight && (
+                            <span className="text-[0.55rem] font-bold px-1.5 py-0.5 rounded"
+                                  style={{ background:'var(--accent)', color:'#04140f' }}>POPULAR</span>
+                          )}
+                        </span>
+                        <span className="block text-[0.7rem] mt-0.5" style={{ color:'var(--text-muted)' }}>{p.tagline}</span>
+                      </span>
+                      <span className="text-right flex-shrink-0">
+                        <span className="font-black text-base" style={{ color:'var(--text-primary)' }}>${p.price}</span>
+                        <span className="block text-[0.6rem]" style={{ color:'var(--text-muted)' }}>/mo</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                <a href="/pricing" className="block text-xs mb-4 hover:opacity-80 transition-opacity"
+                   style={{ color:'var(--accent)' }}>
+                  Compare all plans →
+                </a>
+
+                <button
+                  onClick={() => { setShowPaywall(false); router.push('/') }}
+                  className="text-xs hover:opacity-80 transition-opacity" style={{ color:'var(--text-muted)' }}>
+                  Maybe later
+                </button>
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -923,39 +958,27 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
             </span>
           </div>
 
-          {/* Playback row */}
-          <div className="flex items-center justify-between">
+          {/* Playback row — 3 equal columns keep the play button dead-centre */}
+          <div className="flex items-center">
 
-            {/* Focus mode */}
-            <button onClick={toggleFocusMode}
-                    className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all min-w-[52px]"
-                    style={{
-                      background: focusMode ? `${frequency.colorHex}18` : 'transparent',
-                      color: focusMode ? frequency.colorHex : 'var(--text-muted)',
-                      border: focusMode ? `1px solid ${frequency.colorHex}35` : '1px solid transparent',
-                    }}>
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12" strokeLinecap="round" />
-              </svg>
-              <span className="text-xs">Focus</span>
-            </button>
-
-            {/* Adjust */}
-            <button onClick={() => { setShowAdjust(v => !v); setShowInfo(false) }}
-                    className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all min-w-[52px]"
-                    style={{
-                      background: showAdjust ? 'rgba(255,255,255,0.07)' : 'transparent',
-                      color: showAdjust ? 'var(--text-primary)' : 'var(--text-muted)',
-                    }}>
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" strokeLinecap="round" />
-              </svg>
-              <span className="text-xs">Adjust</span>
-            </button>
+            {/* Left column */}
+            <div className="flex items-center flex-1">
+              {/* Adjust */}
+              <button onClick={() => { setShowAdjust(v => !v); setShowInfo(false) }}
+                      className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all min-w-[52px]"
+                      style={{
+                        background: showAdjust ? 'rgba(255,255,255,0.07)' : 'transparent',
+                        color: showAdjust ? 'var(--text-primary)' : 'var(--text-muted)',
+                      }}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" strokeLinecap="round" />
+                </svg>
+                <span className="text-xs">Adjust</span>
+              </button>
+            </div>
 
             {/* Stop + Play/Pause */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-none">
               {(playerState === 'playing' || playerState === 'paused') && (
                 <button onClick={stop}
                         className="w-10 h-10 rounded-full flex items-center justify-center transition-all hover:opacity-75"
@@ -991,24 +1014,27 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
               </motion.button>
             </div>
 
-            {/* Headphones */}
-            <div className="flex flex-col items-center gap-1 px-3 py-2 min-w-[52px]" style={{ color:'var(--text-muted)' }}>
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
-                <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z" />
-                <path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
-              </svg>
-              <span className="text-xs">Req&apos;d</span>
-            </div>
+            {/* Right column */}
+            <div className="flex items-center justify-end flex-1">
+              {/* Headphones */}
+              <div className="flex flex-col items-center gap-1 px-3 py-2 min-w-[52px]" style={{ color:'var(--text-muted)' }}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
+                  <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z" />
+                  <path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
+                </svg>
+                <span className="text-xs">Req&apos;d</span>
+              </div>
 
-            {/* Keyboard hint */}
-            <div className="hidden sm:flex flex-col items-center gap-1 px-3 py-2 min-w-[52px]"
-                 style={{ color:'var(--text-muted)' }}>
-              <span className="text-xs font-mono px-1.5 py-0.5 rounded"
-                    style={{ background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.08)' }}>
-                ⎵
-              </span>
-              <span className="text-xs">Play</span>
+              {/* Keyboard hint */}
+              <div className="hidden sm:flex flex-col items-center gap-1 px-3 py-2 min-w-[52px]"
+                   style={{ color:'var(--text-muted)' }}>
+                <span className="text-xs font-mono px-1.5 py-0.5 rounded"
+                      style={{ background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.08)' }}>
+                  ⎵
+                </span>
+                <span className="text-xs">Play</span>
+              </div>
             </div>
           </div>
         </div>

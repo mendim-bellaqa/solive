@@ -91,7 +91,10 @@ export default function SessionPage() {
         <div className="ambient-orb" /><div className="ambient-orb" /><div className="ambient-orb" />
       </div>
 
-      <main style={{ maxWidth: 640, margin: '0 auto', padding: 'calc(env(safe-area-inset-top) + 88px) 16px 150px', position: 'relative', zIndex: 10 }}>
+      {/* No z-index here on purpose: it would create a stacking context that traps
+          the frequency dropdown below the sticky CTA bar. `position: relative` alone
+          still paints above .ambient-bg (z-index 0, earlier in the DOM). */}
+      <main style={{ maxWidth: 640, margin: '0 auto', padding: 'calc(env(safe-area-inset-top) + 88px) 16px 150px', position: 'relative' }}>
 
         {/* Title */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}
@@ -197,7 +200,7 @@ export default function SessionPage() {
           <AnimatePresence>
             {open && (
               <>
-                <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
+                <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 45 }} />
                 <motion.div
                   initial={{ opacity: 0, y: -8, scale: 0.98 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -269,8 +272,9 @@ export default function SessionPage() {
       </main>
 
       {/* ── Sticky CTA ─────────────────────────────────────────────────────── */}
+      {/* zIndex stays below the frequency dropdown (50) so the menu opens over it. */}
       <div style={{
-        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 60,
+        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 30,
         padding: '12px 16px calc(20px + env(safe-area-inset-bottom))',
         background: 'linear-gradient(0deg, rgba(7,7,15,0.98) 60%, transparent)',
       }}>

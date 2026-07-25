@@ -33,15 +33,15 @@ const BENEFITS = [
 ]
 
 const COMPARE: { label: string; free: string | boolean; plus: string | boolean; pro: string | boolean }[] = [
-  { label: 'Session length',              free: '15 min', plus: 'Unlimited', pro: 'Unlimited' },
+  { label: 'Session length',              free: '30 sec preview', plus: 'Unlimited', pro: 'Unlimited' },
   { label: 'Any frequency (1–20,000 Hz)', free: true,     plus: true,        pro: true },
   { label: 'Curated frequency library',   free: true,     plus: true,        pro: true },
   { label: 'Binaural beats',              free: true,     plus: true,        pro: true },
-  { label: 'Cymatic visualization',       free: true,     plus: true,        pro: true },
-  { label: 'Brain & Aura 3D',             free: false,    plus: true,        pro: true },
+  { label: 'All 3D experiences',          free: 'Preview', plus: true,       pro: true },
+  { label: 'Uninterrupted playback',      free: false,    plus: true,        pro: true },
   { label: 'Fullscreen immersive mode',   free: false,    plus: true,        pro: true },
   { label: 'Schumann & undertone layers', free: false,    plus: true,        pro: true },
-  { label: 'Session history & tracking',  free: false,    plus: false,       pro: true },
+  { label: 'Session history & tracking',  free: false,    plus: true,        pro: true },
   { label: 'Before/after insights',       free: false,    plus: false,       pro: true },
   { label: 'Downloadable sessions',       free: false,    plus: false,       pro: 'Soon' },
 ]
@@ -49,7 +49,7 @@ const COMPARE: { label: string; free: string | boolean; plus: string | boolean; 
 const FAQ = [
   { q: 'Is Solive a medical treatment?', a: 'No. Solive is built for relaxation, focus and curiosity. Brainwave entrainment and binaural beats are real, studied phenomena, but this is not a substitute for professional medical care.' },
   { q: 'Do I need headphones?', a: 'For binaural beats, yes — the effect relies on a slightly different tone in each ear. Everything else (pure tones, cymatics) works on any speaker.' },
-  { q: 'What frequencies can I play?', a: 'Any frequency from 1 to 20,000 Hz on every plan — type a number and press play. Plus and Pro also unlock the Brain and Aura 3D experiences.' },
+  { q: 'What frequencies can I play?', a: 'Any frequency from 1 to 20,000 Hz on every plan — type a number and press play. Free gives you a 30-second preview of any session; Plus and Pro remove the limit so you can listen for as long as you like.' },
   { q: 'Can I cancel anytime?', a: 'Yes. Plans are month-to-month (or annual) and you can cancel whenever you like — you keep access until the period ends.' },
   { q: 'Is my data private?', a: 'Always. There are no ads, and your sessions and history stay yours. You can use most of the app with no account at all.' },
   { q: 'How does billing work?', a: 'Billing isn’t connected in this build yet — selecting a plan unlocks it locally so you can preview the paid experience. Connect a payment provider (e.g. Stripe) to charge real cards.' },
@@ -71,9 +71,14 @@ export default function PricingPage() {
 
   function select(id: PlanId) {
     if (id === plan) return
-    choosePlan(id)
-    setToast(id === 'free' ? 'You are on the Free plan.' : `${id === 'plus' ? 'Plus' : 'Pro'} unlocked — enjoy the full studio.`)
-    setTimeout(() => setToast(null), 3200)
+    if (id === 'free') {
+      choosePlan('free')
+      setToast('You are on the Free plan.')
+      setTimeout(() => setToast(null), 3200)
+      return
+    }
+    // Paid plans go through checkout.
+    router.push(`/checkout?plan=${id}&billing=${annual ? 'annual' : 'monthly'}`)
   }
 
   const priceOf = (p: number) => annual ? (p * 0.8) : p

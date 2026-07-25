@@ -19,12 +19,12 @@ export const PLANS: Plan[] = [
     id: 'free',
     name: 'Free',
     price: 0,
-    tagline: 'Try it out, no account needed.',
+    tagline: 'Get a taste of every experience.',
     features: [
-      'Sessions up to 15 minutes',
-      'Cymatic waveform visualization',
+      '30-second preview of any session',
+      'All 3 visual experiences to try',
       'Any frequency, 1–20,000 Hz',
-      'Binaural beats',
+      'No account required',
     ],
     cta: 'Start free',
   },
@@ -60,15 +60,17 @@ export const PLANS: Plan[] = [
 ]
 
 export interface PlanLimits {
-  maxMinutes: number   // Infinity for unlimited
-  allViz: boolean      // Brain & Aura unlocked
-  history: boolean     // session history / tracking
+  previewSeconds: number // audio cut-off for the free teaser; Infinity = unlimited
+  maxMinutes: number     // Infinity for unlimited
+  allViz: boolean        // Brain & Aura unlocked
+  history: boolean       // session history / tracking
 }
 
 export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
-  free: { maxMinutes: 15, allViz: false, history: false },
-  plus: { maxMinutes: Infinity, allViz: true, history: false },
-  pro:  { maxMinutes: Infinity, allViz: true, history: true },
+  // Free = a 30-second taste of everything, then the paywall.
+  free: { previewSeconds: 30, maxMinutes: Infinity, allViz: true, history: true },
+  plus: { previewSeconds: Infinity, maxMinutes: Infinity, allViz: true, history: true },
+  pro:  { previewSeconds: Infinity, maxMinutes: Infinity, allViz: true, history: true },
 }
 
 const KEY = 'solive_plan'

@@ -44,16 +44,18 @@ export default function Header() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [handleScroll])
 
-  // Auth check
+  // Auth check — subscribe to Firebase auth state
   useEffect(() => {
-    import('@/lib/supabase/client').then(({ createClient }) => {
-      createClient().auth.getUser().then(({ data: { user: u } }) => {
-        if (u) {
-          const name = u.user_metadata?.full_name || u.user_metadata?.name || null
-          setUser({ email: u.email ?? null, name })
-        }
-      }).catch(() => {})
-    })
+    let unsub = () => {}
+    Promise.all([
+      import('firebase/auth'),
+      import('@/lib/firebase/client'),
+    ]).then(([{ onAuthStateChanged }, { auth }]) => {
+      unsub = onAuthStateChanged(auth, (u) => {
+        setUser(u ? { email: u.email, name: u.displayName } : null)
+      })
+    }).catch(() => {})
+    return () => unsub()
   }, [])
 
   // Hz cycle for logo
@@ -83,8 +85,11 @@ export default function Header() {
 
   async function handleSignOut() {
     setMenuOpen(false)
-    const { createClient } = await import('@/lib/supabase/client')
-    await createClient().auth.signOut()
+    const [{ signOut }, { auth }] = await Promise.all([
+      import('firebase/auth'),
+      import('@/lib/firebase/client'),
+    ])
+    await signOut(auth)
     setUser(null)
     window.location.href = '/'
   }
@@ -146,18 +151,31 @@ export default function Header() {
         {/* Right side */}
         <div className="flex items-center gap-2">
 
-          {/* New Session CTA */}
+          {/* New Session CTA — flat 2D white outline, inverts to solid on hover */}
           <Link
             href="/session"
-            className="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all"
+            className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold"
             style={{
-              background: `${accentColor}18`,
-              border: `1px solid ${accentColor}35`,
-              color: accentColor,
-              transition: 'all 0.3s ease',
+              background: 'transparent',
+              border: '1px solid rgba(255,255,255,0.85)',
+              color: '#ffffff',
+              letterSpacing: '-0.01em',
+              transition: 'background 0.22s ease, color 0.22s ease, border-color 0.22s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = '#ffffff'
+              e.currentTarget.style.color = '#07070f'
+              e.currentTarget.style.borderColor = '#ffffff'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent'
+              e.currentTarget.style.color = '#ffffff'
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.85)'
             }}
           >
-            <span className="live-dot" style={{ background: accentColor, width: 6, height: 6 }} />
+            <svg width="9" height="10" viewBox="0 0 9 10" fill="currentColor" aria-hidden style={{ flexShrink: 0 }}>
+              <polygon points="0,0 9,5 0,10" />
+            </svg>
             Start Session
           </Link>
 
@@ -210,8 +228,17 @@ export default function Header() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 8, scale: 0.96 }}
                     transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
-                    className="glass-card absolute right-0 mt-2 w-52 py-1"
-                    style={{ top: '100%' }}
+                    className="glass-card w-52 py-1"
+                    // `position` must be inline: .glass-card sets `position: relative`
+                    // in globals.css, which loads after Tailwind and would otherwise
+                    // beat the `absolute` utility and drop the menu into normal flow.
+                    style={{
+                      position: 'absolute',
+                      top: 'calc(100% + 8px)',
+                      right: 0,
+                      transformOrigin: 'top right',
+                      zIndex: 60,
+                    }}
                   >
                     {/* User info */}
                     <div className="px-4 py-3 border-b" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
@@ -223,8 +250,22 @@ export default function Header() {
 
                     {/* Menu items */}
                     {[
-                      { icon: '📊', label: 'My Sessions', href: '/history' },
-                      { icon: '🎵', label: 'Start Session', href: '/session' },
+                      {
+                        label: 'My Sessions', href: '/history',
+                        icon: <><path d="M3 3v18h18" strokeLinecap="round" strokeLinejoin="round" /><path d="M7 14l3-4 3 3 4-6" strokeLinecap="round" strokeLinejoin="round" /></>,
+                      },
+                      {
+                        label: 'Start Session', href: '/session',
+                        icon: <><circle cx="12" cy="12" r="9" /><path d="M10 9l5 3-5 3V9z" strokeLinejoin="round" fill="currentColor" stroke="none" /></>,
+                      },
+                      {
+                        label: 'Plans & Pricing', href: '/pricing',
+                        icon: <><path d="M20.6 12.3 12.3 20.6a1.4 1.4 0 0 1-2 0l-7-7a1.4 1.4 0 0 1-.4-1V4.4A1.4 1.4 0 0 1 4.4 3h8.2a1.4 1.4 0 0 1 1 .4l7 7a1.4 1.4 0 0 1 0 1.9Z" strokeLinejoin="round" /><circle cx="7.5" cy="7.5" r="1.2" fill="currentColor" stroke="none" /></>,
+                      },
+                      {
+                        label: 'Settings', href: '/settings',
+                        icon: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" strokeLinecap="round" strokeLinejoin="round" /></>,
+                      },
                     ].map(item => (
                       <Link
                         key={item.label}
@@ -233,24 +274,13 @@ export default function Header() {
                         className="flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-white/[0.05]"
                         style={{ color: 'var(--text-secondary)' }}
                       >
-                        <span>{item.icon}</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"
+                             style={{ color: 'var(--text-muted)', flexShrink: 0 }}>
+                          {item.icon}
+                        </svg>
                         {item.label}
                       </Link>
                     ))}
-
-                    {/* Settings placeholder */}
-                    <button
-                      onClick={() => setMenuOpen(false)}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-white/[0.05]"
-                      style={{ color: 'var(--text-muted)' }}
-                    >
-                      <span>⚙️</span>
-                      Settings
-                      <span className="ml-auto text-xs px-1.5 py-0.5 rounded"
-                            style={{ background: 'rgba(255,255,255,0.07)', color: 'var(--text-muted)' }}>
-                        Soon
-                      </span>
-                    </button>
 
                     <div className="border-t my-1" style={{ borderColor: 'rgba(255,255,255,0.07)' }} />
 
@@ -341,9 +371,11 @@ export default function Header() {
                   href="/session"
                   onClick={() => setNavOpen(false)}
                   className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold"
-                  style={{ background: `${accentColor}18`, border: `1px solid ${accentColor}35`, color: accentColor }}
+                  style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.85)', color: '#ffffff' }}
                 >
-                  <span className="live-dot" style={{ background: accentColor, width: 6, height: 6 }} />
+                  <svg width="9" height="10" viewBox="0 0 9 10" fill="currentColor" aria-hidden style={{ flexShrink: 0 }}>
+                    <polygon points="0,0 9,5 0,10" />
+                  </svg>
                   Start a session
                 </Link>
 
