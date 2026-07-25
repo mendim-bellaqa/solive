@@ -16,6 +16,18 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 }
 
+/**
+ * True when the build actually received the Firebase config.
+ *
+ * NEXT_PUBLIC_* values are inlined at BUILD time, so a deploy that builds
+ * without them ships a bundle with `undefined` here — auth then fails with an
+ * opaque `auth/invalid-api-key`. Check this before calling any auth method so
+ * we can say what's actually wrong (set the vars in the host, then rebuild).
+ */
+export const isFirebaseConfigured = Boolean(
+  firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.authDomain,
+)
+
 // Reuse the existing app across hot-reloads / re-imports instead of re-initializing.
 export const firebaseApp: FirebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig)
 

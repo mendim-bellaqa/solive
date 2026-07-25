@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth'
-import { auth } from '@/lib/firebase/client'
+import { auth, isFirebaseConfigured } from '@/lib/firebase/client'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 
@@ -23,6 +23,15 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setMessage(null)
+
+    if (!isFirebaseConfigured) {
+      setMessage({
+        text: 'Auth isn’t configured for this deployment — the NEXT_PUBLIC_FIREBASE_* environment variables were missing when the site was built. Add them in your host and redeploy.',
+        isError: true,
+      })
+      setLoading(false)
+      return
+    }
 
     try {
       if (mode === 'login') {
@@ -46,6 +55,9 @@ export default function LoginPage() {
         'auth/too-many-requests': 'Too many attempts. Please wait a moment and try again.',
         'auth/network-request-failed': 'Network error — check your connection and try again.',
         'auth/operation-not-allowed': 'Email/password sign-in is not enabled in Firebase yet.',
+        'auth/invalid-api-key': 'Invalid Firebase API key for this deployment. Check the NEXT_PUBLIC_FIREBASE_* env vars, then rebuild.',
+        'auth/configuration-not-found': 'Firebase Authentication isn’t set up for this project yet. Enable Email/Password in the Firebase console.',
+        'auth/unauthorized-domain': `This domain (${typeof window !== 'undefined' ? window.location.hostname : ''}) isn’t authorized in Firebase. Add it under Authentication → Settings → Authorized domains.`,
       }
       setMessage({ text: friendly[code] || 'Something went wrong. Please try again.', isError: true })
     }

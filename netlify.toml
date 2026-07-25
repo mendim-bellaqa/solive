@@ -1,0 +1,12 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  # The Firebase SDK (@firebase/*) requires Node >= 20. Without this, Netlify
+  # may build on the older default Node for this site and fail.
+  NODE_VERSION = "20"
+
+# Next.js on Netlify is handled by the official runtime.
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
