@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react'
 import { onAuthStateChanged, type User } from 'firebase/auth'
 import {
-  addDoc, collection, getDocs, query, where, limit,
-  serverTimestamp, Timestamp,
+  addDoc, collection, doc, getDocs, query, where, limit,
+  serverTimestamp, updateDoc, Timestamp,
 } from 'firebase/firestore'
 import { getFirebaseAuth, getFirebaseDb } from './client'
 
@@ -21,12 +21,20 @@ export function useAuthUser() {
 }
 
 // ─── Session model ────────────────────────────────────────────────────────────
+export type SessionStatus = 'in_progress' | 'completed'
+
 export interface SessionRecord {
   id: string
   hz: number
   band: string
-  durationSeconds: number
+  viz: string
+  /** Session length the user chose, in seconds. */
+  plannedSeconds: number
+  /** How much was actually listened to, in seconds. */
+  elapsedSeconds: number
+  status: SessionStatus
   beforeScore: number | null
+  /** null means the user hasn't left feedback yet. */
   afterScore: number | null
   createdAt: Date
 }
@@ -35,36 +43,80 @@ interface SessionDoc {
   uid: string
   hz: number
   band: string
-  durationSeconds: number
+  viz?: string
+  plannedSeconds?: number
+  elapsedSeconds?: number
+  status?: SessionStatus
   beforeScore: number | null
   afterScore: number | null
   createdAt: Timestamp | null
+  // legacy field from the first version of this collection
+  durationSeconds?: number
 }
 
-// Save a completed session for the signed-in user. No-op if signed out.
-export async function saveSession(input: {
+/**
+ * Create the session document as soon as playback begins, so a session shows
+ * up in history even if the user pauses and walks away (or hits the free-plan
+ * paywall) without ever finishing it. Returns the doc id, or null when signed
+ * out / unconfigured — callers treat null as "not tracking".
+ */
+export async function startSession(input: {
   hz: number
   band: string
-  durationSeconds: number
+  viz: string
+  plannedSeconds: number
   beforeScore: number | null
-  afterScore: number | null
-}): Promise<void> {
+}): Promise<string | null> {
   const auth = getFirebaseAuth()
   const db = getFirebaseDb()
   const user = auth?.currentUser
-  if (!user || !db) return
+  if (!user || !db) return null
   try {
-    await addDoc(collection(db, 'sessions'), {
+    const ref = await addDoc(collection(db, 'sessions'), {
       uid: user.uid,
       hz: input.hz,
       band: input.band,
-      durationSeconds: input.durationSeconds,
+      viz: input.viz,
+      plannedSeconds: input.plannedSeconds,
+      elapsedSeconds: 0,
+      status: 'in_progress' as SessionStatus,
       beforeScore: input.beforeScore,
-      afterScore: input.afterScore,
+      afterScore: null,
       createdAt: serverTimestamp(),
     })
+    return ref.id
   } catch (err) {
-    console.warn('[Solive] Could not save session:', err)
+    console.warn('[Solive] Could not start session:', err)
+    return null
+  }
+}
+
+/** Record progress (on pause, on leaving, on completion). */
+export async function updateSessionProgress(
+  id: string,
+  elapsedSeconds: number,
+  status: SessionStatus,
+): Promise<void> {
+  const db = getFirebaseDb()
+  if (!db || !id) return
+  try {
+    await updateDoc(doc(db, 'sessions', id), {
+      elapsedSeconds: Math.round(elapsedSeconds),
+      status,
+    })
+  } catch (err) {
+    console.warn('[Solive] Could not update session:', err)
+  }
+}
+
+/** Attach (or change) the user's after-session feedback score. */
+export async function rateSession(id: string, afterScore: number): Promise<void> {
+  const db = getFirebaseDb()
+  if (!db || !id) return
+  try {
+    await updateDoc(doc(db, 'sessions', id), { afterScore })
+  } catch (err) {
+    console.warn('[Solive] Could not save feedback:', err)
   }
 }
 
@@ -79,13 +131,18 @@ export async function fetchSessions(uid: string): Promise<SessionRecord[]> {
     limit(300),
   )
   const snap = await getDocs(q)
-  const rows = snap.docs.map((d) => {
+  const rows: SessionRecord[] = snap.docs.map((d) => {
     const data = d.data() as SessionDoc
+    // Older docs only had durationSeconds and were always complete.
+    const legacy = data.durationSeconds ?? 0
     return {
       id: d.id,
       hz: data.hz,
       band: data.band,
-      durationSeconds: data.durationSeconds ?? 0,
+      viz: data.viz ?? 'frequency',
+      plannedSeconds: data.plannedSeconds ?? legacy,
+      elapsedSeconds: data.elapsedSeconds ?? legacy,
+      status: data.status ?? 'completed',
       beforeScore: data.beforeScore ?? null,
       afterScore: data.afterScore ?? null,
       createdAt: data.createdAt ? data.createdAt.toDate() : new Date(),

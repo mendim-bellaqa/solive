@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { BinauralBand, BINAURAL_PRESETS, FREQUENCIES, getOrCreateFrequency } from '@/lib/frequencies'
-import { saveSession } from '@/lib/firebase/sessions'
+import { startSession, updateSessionProgress, rateSession } from '@/lib/firebase/sessions'
 import { usePlan, PLANS } from '@/lib/plan'
 import type { QuestionnaireAnswers } from '@/lib/recommendation'
 import dynamic from 'next/dynamic'
@@ -22,6 +22,10 @@ interface Props {
   secondaryHz?: number
   answers?: QuestionnaireAnswers
   initialScene?: SceneMode
+  /** Existing session doc to continue writing to (resumed from history). */
+  sessionId?: string
+  /** Seconds already listened to, when resuming. */
+  resumeFrom?: number
 }
 
 type PlayerState = 'idle' | 'playing' | 'paused' | 'done'
@@ -42,9 +46,6 @@ function inferBeforeScore(ans: QuestionnaireAnswers | undefined): number {
   return map[ans.currentFeeling] ?? 3
 }
 
-async function persistSession(hz:number, band:BinauralBand, durationSecs:number, beforeScore:number, afterScore:number|null) {
-  await saveSession({ hz, band, durationSeconds: durationSecs, beforeScore, afterScore })
-}
 
 function playEndChime(ctx: AudioContext, baseHz: number) {
   const partials = [
@@ -74,7 +75,7 @@ const RATING_OPTIONS = [
 ]
 
 // ─── Component ──────────────────────────────────────────────────────────────
-export default function FrequencyStudio({ hz, binauralBand:initialBand, duration, secondaryHz, answers, initialScene = 'frequency' }: Props) {
+export default function FrequencyStudio({ hz, binauralBand:initialBand, duration, secondaryHz, answers, initialScene = 'frequency', sessionId, resumeFrom = 0 }: Props) {
   const frequency = getOrCreateFrequency(hz)
 
   const audioCtxRef       = useRef<AudioContext | null>(null)
@@ -91,7 +92,7 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
 
   const [playerState, setPlayerState]     = useState<PlayerState>('idle')
   const [volume, setVolume]               = useState(0.65)
-  const [elapsed, setElapsed]             = useState(0)
+  const [elapsed, setElapsed]             = useState(resumeFrom)
   const [activeBand, setActiveBand]       = useState<BinauralBand>(initialBand)
   const [schumannOn, setSchumannOn]       = useState(false)
   const [showInfo, setShowInfo]           = useState(false)
@@ -114,6 +115,12 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
   const lastTickRef  = useRef(0)                   // last elapsed value rendered
   const barRef       = useRef<HTMLDivElement>(null)
   const scrubbingRef = useRef(false)
+
+  // Firestore session tracking. The doc is created on first play so a session
+  // still shows up in history if the user pauses and leaves without finishing.
+  const sessionIdRef = useRef<string | null>(sessionId ?? null)
+  const elapsedRef   = useRef(resumeFrom)   // readable from cleanup without re-subscribing
+  const playerStateRef = useRef<PlayerState>('idle')
 
   const router = useRouter()
   const { limits } = usePlan()
@@ -284,18 +291,21 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
       if (secs !== lastTickRef.current) {
         lastTickRef.current = secs
         setElapsed(secs)
+        elapsedRef.current = secs
         // Free-plan teaser: cut the sound at the preview limit and show the paywall.
         if (secs >= previewSeconds && !gatedRef.current) {
           gatedRef.current = true
           muteAudio()
           setPlayerState('paused')
           setShowPaywall(true)
+          saveProgress('in_progress')
           return // stop loop
         }
         if (secs >= totalSeconds) {
           elapsedAtEnd.current = secs
           const ctx = audioCtxRef.current
           if (ctx) { try { playEndChime(ctx, hz) } catch { /* ignore */ } }
+          saveProgress('completed')
           setTimeout(() => {
             closeAudio(true)
             setPlayerState('done')
@@ -371,11 +381,45 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
     return () => document.removeEventListener('fullscreenchange', onFsChange)
   }, [])
 
-  useEffect(() => () => { closeAudio(false) }, [closeAudio])
+  // Mirror playerState into a ref so the unmount cleanup can read it.
+  useEffect(() => { playerStateRef.current = playerState }, [playerState])
+
+  // Tear down audio on unmount, and flush whatever progress was reached so
+  // leaving mid-session (Back, nav, tab close) still lands in history.
+  useEffect(() => () => {
+    closeAudio(false)
+    const id = sessionIdRef.current
+    if (id && elapsedRef.current > 0) {
+      updateSessionProgress(id, elapsedRef.current, playerStateRef.current === 'done' ? 'completed' : 'in_progress')
+    }
+  }, [closeAudio])
 
   // ── Controls ─────────────────────────────────────────────────────────────
-  function play()   { try { initAudio() } catch { /* unsupported */ }; setPlayerState('playing') }
-  function pause()  { muteAudio(); setPlayerState('paused') }
+  // ── Session tracking ─────────────────────────────────────────────────────
+  /** Create the doc on first play; later plays reuse the same id. */
+  async function ensureSessionDoc() {
+    if (sessionIdRef.current) return
+    const id = await startSession({
+      hz,
+      band: activeBand,
+      viz: sceneMode,
+      plannedSeconds: totalSeconds === Infinity ? 0 : totalSeconds,
+      beforeScore: inferBeforeScore(answers),
+    })
+    if (id) sessionIdRef.current = id
+  }
+
+  function saveProgress(status: 'in_progress' | 'completed') {
+    const id = sessionIdRef.current
+    if (id) updateSessionProgress(id, elapsedRef.current, status)
+  }
+
+  function play()   {
+    try { initAudio() } catch { /* unsupported */ }
+    setPlayerState('playing')
+    ensureSessionDoc()
+  }
+  function pause()  { muteAudio(); setPlayerState('paused'); saveProgress('in_progress') }
   function resume() {
     if (gatedRef.current) { setShowPaywall(true); return }  // free teaser used up
     unmuteAudio(volume); setPlayerState('playing')
@@ -388,7 +432,9 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
       closeAudio(true)
       setPlayerState('done')
       setSessionEnded(true)
+      saveProgress('completed')
     } else {
+      saveProgress('in_progress')
       closeAudio(true)
       setPlayerState('idle')
       setElapsed(0)
@@ -449,9 +495,12 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
     const finalAfter = score ?? 3
     setAfterScore(finalAfter)
     setRated(true)
-    const durationSecs = elapsedAtEnd.current || elapsed
-    const beforeScore  = inferBeforeScore(answers)
-    persistSession(hz, activeBand, durationSecs, beforeScore, finalAfter)
+    elapsedRef.current = elapsedAtEnd.current || elapsed
+    const id = sessionIdRef.current
+    if (id) {
+      updateSessionProgress(id, elapsedRef.current, 'completed')
+      rateSession(id, finalAfter)
+    }
     try { sessionStorage.removeItem('solive_answers') } catch { /* ignore */ }
   }
 

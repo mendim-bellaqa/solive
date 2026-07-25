@@ -70,6 +70,11 @@ export default function StudioClient() {
     )
   }
 
+  // Resuming a paused session from /history
+  const sessionId = params.get('sid') ?? undefined
+  const resumeRaw = Number(params.get('resume'))
+  const resumeFrom = Number.isFinite(resumeRaw) && resumeRaw > 0 ? Math.floor(resumeRaw) : 0
+
   return (
     <FrequencyStudio
       hz={hz}
@@ -78,6 +83,8 @@ export default function StudioClient() {
       secondaryHz={secondaryHz}
       answers={answers}
       initialScene={initialScene}
+      sessionId={sessionId}
+      resumeFrom={resumeFrom}
     />
   )
 }

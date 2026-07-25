@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 
 interface UserInfo {
@@ -17,6 +18,10 @@ export default function Header() {
   const [hzIdx, setHzIdx]             = useState(0)
   const ticking                       = useRef(false)
   const menuRef                       = useRef<HTMLDivElement>(null)
+  const pathname                      = usePathname()
+
+  // Pointless to offer "Start Session" while building or already in one.
+  const inSessionFlow = pathname === '/session' || pathname === '/studio'
 
   const NAV = [
     { label: 'Frequencies', href: '/frequencies' },
@@ -155,6 +160,7 @@ export default function Header() {
         <div className="flex items-center gap-2">
 
           {/* New Session CTA — flat 2D white outline, inverts to solid on hover */}
+          {!inSessionFlow && (
           <Link
             href="/session"
             className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold"
@@ -181,6 +187,7 @@ export default function Header() {
             </svg>
             Start Session
           </Link>
+          )}
 
           {/* Auth section */}
           {user ? (
@@ -370,17 +377,19 @@ export default function Header() {
 
                 <div className="my-2" style={{ height: 1, background: 'rgba(255,255,255,0.07)' }} />
 
-                <Link
-                  href="/session"
-                  onClick={() => setNavOpen(false)}
-                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold"
-                  style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.85)', color: '#ffffff' }}
-                >
-                  <svg width="9" height="10" viewBox="0 0 9 10" fill="currentColor" aria-hidden style={{ flexShrink: 0 }}>
-                    <polygon points="0,0 9,5 0,10" />
-                  </svg>
-                  Start a session
-                </Link>
+                {!inSessionFlow && (
+                  <Link
+                    href="/session"
+                    onClick={() => setNavOpen(false)}
+                    className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold"
+                    style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.85)', color: '#ffffff' }}
+                  >
+                    <svg width="9" height="10" viewBox="0 0 9 10" fill="currentColor" aria-hidden style={{ flexShrink: 0 }}>
+                      <polygon points="0,0 9,5 0,10" />
+                    </svg>
+                    Start a session
+                  </Link>
+                )}
 
                 {!user && (
                   <Link

@@ -2,13 +2,20 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Session history — a user can only read/write their own sessions.
+    // Session history — a user can only touch their own sessions.
     match /sessions/{sessionId} {
       allow read, delete: if request.auth != null
                           && resource.data.uid == request.auth.uid;
+
       allow create: if request.auth != null
                     && request.resource.data.uid == request.auth.uid;
-      allow update: if false; // sessions are immutable once written
+
+      // Sessions are updated after creation: progress is written while playing
+      // or on pause, and feedback (afterScore) can be added later from the
+      // history page. Ownership itself can never change.
+      allow update: if request.auth != null
+                    && resource.data.uid == request.auth.uid
+                    && request.resource.data.uid == resource.data.uid;
     }
   }
 }
