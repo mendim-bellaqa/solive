@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { BinauralBand, BINAURAL_PRESETS, FREQUENCIES, getOrCreateFrequency } from '@/lib/frequencies'
 import { startSession, updateSessionProgress, rateSession } from '@/lib/firebase/sessions'
@@ -105,6 +106,7 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
   const [vizMode, setVizMode]             = useState<'lissajous' | 'waveform'>('lissajous')
   const [sceneMode, setSceneMode]         = useState<SceneMode>(initialScene)
   const [showPaywall, setShowPaywall]     = useState(false)  // free 30s teaser gate
+  const [openingPlan, setOpeningPlan]     = useState<string | null>(null)
   const gatedRef                          = useRef(false)
   const containerRef                      = useRef<HTMLDivElement>(null)
 
@@ -132,6 +134,15 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
   const totalSeconds = cappedMinutes === Infinity ? Infinity : cappedMinutes * 60
   const vizLocked = !limits.allViz && sceneMode !== 'frequency'
   const previewSeconds = limits.previewSeconds   // Infinity for paid plans
+
+  // Warm the checkout routes while the free preview is still playing, so the
+  // paywall's plan links resolve instantly instead of waiting on a slow
+  // connection at the exact moment we interrupt the user.
+  useEffect(() => {
+    if (previewSeconds === Infinity) return
+    router.prefetch('/checkout')
+    router.prefetch('/pricing')
+  }, [previewSeconds, router])
 
   const binaural = BINAURAL_PRESETS[activeBand]
   const band     = BAND_META[activeBand]
@@ -415,6 +426,9 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
   }
 
   function play()   {
+    // Same guard as resume(): once the free preview is spent, starting over
+    // must re-open the paywall rather than grant another 30 seconds.
+    if (gatedRef.current) { setShowPaywall(true); return }
     try { initAudio() } catch { /* unsupported */ }
     setPlayerState('playing')
     ensureSessionDoc()
@@ -441,8 +455,10 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
       setSessionEnded(false)
       setRated(false)
       setAfterScore(null)
-      gatedRef.current = false
       setShowPaywall(false)
+      // gatedRef is deliberately NOT reset: on the free plan, restarting from
+      // zero would otherwise hand out another 30 seconds every time.
+      if (previewSeconds === Infinity) gatedRef.current = false
     }
   }
 
@@ -793,77 +809,6 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
                   </motion.div>
                 )}
               </AnimatePresence>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* ── Free-plan paywall (after 30s teaser) ───────────────────── */}
-        <AnimatePresence>
-          {showPaywall && (
-            <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
-              className="absolute inset-0 z-30 flex items-center justify-center overflow-y-auto"
-              style={{ background:'rgba(4,4,10,0.9)', backdropFilter:'blur(16px)', WebkitBackdropFilter:'blur(16px)' }}>
-              <motion.div
-                initial={{ scale:0.94, opacity:0, y:12 }} animate={{ scale:1, opacity:1, y:0 }} exit={{ scale:0.94, opacity:0 }}
-                transition={{ duration:0.28, ease:[0.4,0,0.2,1] }}
-                className="w-full max-w-sm mx-auto px-6 py-8 text-center">
-
-                <div className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-                     style={{ background:'var(--accent-dim)', border:'1px solid var(--accent-mid)' }}>
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.6">
-                    <rect x="4" y="10" width="16" height="11" rx="2.5" />
-                    <path d="M8 10V7a4 4 0 0 1 8 0v3" strokeLinecap="round" />
-                  </svg>
-                </div>
-
-                <p className="text-[0.62rem] font-bold tracking-[0.14em] mb-2" style={{ color:'var(--accent)' }}>
-                  YOUR 30-SECOND PREVIEW IS UP
-                </p>
-                <h2 className="text-xl font-black mb-1.5" style={{ letterSpacing:'-0.02em' }}>
-                  Keep the sound going
-                </h2>
-                <p className="text-sm mb-6" style={{ color:'var(--text-secondary)', lineHeight:1.55 }}>
-                  Free sessions stop after 30 seconds. Upgrade to play any frequency for as long as you like — uninterrupted.
-                </p>
-
-                {/* Plan choices */}
-                <div className="flex flex-col gap-2.5 mb-4">
-                  {PLANS.filter(p => p.id !== 'free').map(p => (
-                    <button key={p.id} onClick={() => router.push(`/checkout?plan=${p.id}`)}
-                      className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all"
-                      style={{
-                        background: p.highlight ? 'var(--accent-dim)' : 'rgba(255,255,255,0.045)',
-                        border: `1px solid ${p.highlight ? 'var(--accent-mid)' : 'rgba(255,255,255,0.1)'}`,
-                      }}>
-                      <span className="text-left">
-                        <span className="flex items-center gap-2">
-                          <span className="font-bold text-sm" style={{ color:'var(--text-primary)' }}>{p.name}</span>
-                          {p.highlight && (
-                            <span className="text-[0.55rem] font-bold px-1.5 py-0.5 rounded"
-                                  style={{ background:'var(--accent)', color:'#04140f' }}>POPULAR</span>
-                          )}
-                        </span>
-                        <span className="block text-[0.7rem] mt-0.5" style={{ color:'var(--text-muted)' }}>{p.tagline}</span>
-                      </span>
-                      <span className="text-right flex-shrink-0">
-                        <span className="font-black text-base" style={{ color:'var(--text-primary)' }}>${p.price}</span>
-                        <span className="block text-[0.6rem]" style={{ color:'var(--text-muted)' }}>/mo</span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-
-                <a href="/pricing" className="block text-xs mb-4 hover:opacity-80 transition-opacity"
-                   style={{ color:'var(--accent)' }}>
-                  Compare all plans →
-                </a>
-
-                <button
-                  onClick={() => { setShowPaywall(false); router.push('/') }}
-                  className="text-xs hover:opacity-80 transition-opacity" style={{ color:'var(--text-muted)' }}>
-                  Maybe later
-                </button>
-              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -1222,6 +1167,97 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
               </div>
             </motion.div>
           </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Free-plan paywall (after the 30s teaser) ──────────────────────
+          Lives at the root of the studio, not inside the visualiser, and is
+          `fixed` at z-index 100 so it sits above the site header (z-50) and
+          the transport controls. When it was scoped to the visualiser box the
+          controls underneath stayed live, so a stray tap on stop() wiped the
+          gate and handed out a fresh 30 seconds. */}
+      <AnimatePresence>
+        {showPaywall && (
+          <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
+            className="fixed inset-0 overflow-y-auto"
+            style={{ zIndex:100, background:'rgba(4,4,10,0.94)', backdropFilter:'blur(18px)', WebkitBackdropFilter:'blur(18px)' }}>
+            <div className="min-h-full flex items-center justify-center px-6"
+                 style={{ paddingTop:'calc(env(safe-area-inset-top) + 28px)', paddingBottom:'calc(env(safe-area-inset-bottom) + 32px)' }}>
+              <motion.div
+                initial={{ scale:0.94, opacity:0, y:12 }} animate={{ scale:1, opacity:1, y:0 }} exit={{ scale:0.94, opacity:0 }}
+                transition={{ duration:0.28, ease:[0.4,0,0.2,1] }}
+                className="w-full max-w-sm text-center">
+
+                <div className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center"
+                     style={{ background:'var(--accent-dim)', border:'1px solid var(--accent-mid)' }}>
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.6">
+                    <rect x="4" y="10" width="16" height="11" rx="2.5" />
+                    <path d="M8 10V7a4 4 0 0 1 8 0v3" strokeLinecap="round" />
+                  </svg>
+                </div>
+
+                <p className="text-[0.62rem] font-bold tracking-[0.14em] mb-2" style={{ color:'var(--accent)' }}>
+                  YOUR 30-SECOND PREVIEW IS UP
+                </p>
+                <h2 className="text-xl font-black mb-1.5" style={{ letterSpacing:'-0.02em' }}>
+                  Keep the sound going
+                </h2>
+                <p className="text-sm mb-6" style={{ color:'var(--text-secondary)', lineHeight:1.55 }}>
+                  Free sessions stop after 30 seconds. Upgrade to play any frequency for as long as you like — uninterrupted.
+                </p>
+
+                {/* Plan choices.
+                    These are real <Link>s, not buttons with a router.push handler.
+                    Next prefetches the checkout payload as soon as the paywall
+                    mounts, so the tap resolves from cache instead of waiting on
+                    the network — and if the client router can't complete (patchy
+                    mobile data), the browser still follows the href. As buttons
+                    with a JS-only handler, a slow connection made them look
+                    completely dead: no navigation, no feedback, nothing. */}
+                <div className="flex flex-col gap-2.5 mb-4">
+                  {PLANS.filter(p => p.id !== 'free').map(p => (
+                    <Link key={p.id} href={`/checkout?plan=${p.id}`} prefetch
+                      onClick={() => setOpeningPlan(p.id)}
+                      className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all"
+                      style={{
+                        background: p.highlight ? 'var(--accent-dim)' : 'rgba(255,255,255,0.045)',
+                        border: `1px solid ${p.highlight ? 'var(--accent-mid)' : 'rgba(255,255,255,0.1)'}`,
+                        opacity: openingPlan && openingPlan !== p.id ? 0.5 : 1,
+                      }}>
+                      <span className="text-left">
+                        <span className="flex items-center gap-2">
+                          <span className="font-bold text-sm" style={{ color:'var(--text-primary)' }}>{p.name}</span>
+                          {p.highlight && (
+                            <span className="text-[0.55rem] font-bold px-1.5 py-0.5 rounded"
+                                  style={{ background:'var(--accent)', color:'#04140f' }}>POPULAR</span>
+                          )}
+                        </span>
+                        <span className="block text-[0.7rem] mt-0.5" style={{ color:'var(--text-muted)' }}>
+                          {openingPlan === p.id ? 'Opening checkout…' : p.tagline}
+                        </span>
+                      </span>
+                      <span className="text-right flex-shrink-0">
+                        <span className="font-black text-base" style={{ color:'var(--text-primary)' }}>${p.price}</span>
+                        <span className="block text-[0.6rem]" style={{ color:'var(--text-muted)' }}>/mo</span>
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+
+                <Link href="/pricing" prefetch className="block text-xs mb-4 hover:opacity-80 transition-opacity"
+                      style={{ color:'var(--accent)' }}>
+                  Compare all plans →
+                </Link>
+
+                {/* Dismiss in place — no navigation, so this can't fail offline. */}
+                <button
+                  onClick={() => setShowPaywall(false)}
+                  className="text-xs hover:opacity-80 transition-opacity" style={{ color:'var(--text-muted)' }}>
+                  Maybe later
+                </button>
+              </motion.div>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
