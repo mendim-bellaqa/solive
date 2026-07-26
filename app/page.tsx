@@ -41,19 +41,33 @@ const MARQUEE = [
 ]
 
 const USE_CASES = [
-  { title: 'Sleep',      body: 'Drift off with delta waves and 174 Hz grounding.',    hz: 174, band: 'delta', color: '#6b8cff',
+  { title: 'Sleep', when: 'Lights out', hz: 174, band: 'delta', color: '#6b8cff',
+    body: 'Delta waves slow the mind down while 174 Hz settles the body. Put it on, close your eyes, and let it run past the point you stop noticing it.',
     icon: <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /> },
-  { title: 'Focus',      body: 'Lock in with 40 Hz gamma and beta entrainment.',      hz: 40,  band: 'beta',  color: '#4a90e8',
+  { title: 'Focus', when: 'Deep work block', hz: 40, band: 'beta', color: '#4a90e8',
+    body: '40 Hz gamma is the frequency most associated with active concentration. Start it before the work, not during — give your brain a minute to lock on.',
     icon: <><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3" /><path d="M12 2v2M12 20v2M2 12h2M20 12h2" /></> },
-  { title: 'Meditation', body: 'Go deep with theta and 963 Hz crown activation.',     hz: 963, band: 'theta', color: '#8b5cf6',
+  { title: 'Meditation', when: 'Morning stillness', hz: 963, band: 'theta', color: '#8b5cf6',
+    body: 'Theta sits at the edge of sleep — where the internal chatter goes quiet. 963 Hz rides on top of it as a single clean point to return to.',
     icon: <><circle cx="12" cy="5.5" r="2.5" /><path d="M6 20c0-3 2.7-5 6-5s6 2 6 5" /><path d="M12 10.5v3.5M8.5 14l3.5-2 3.5 2" /></> },
-  { title: 'Calm',       body: 'Melt stress with 432 Hz and alpha waves.',            hz: 432, band: 'alpha', color: '#5CE8DC',
+  { title: 'Calm', when: 'After a hard day', hz: 432, band: 'alpha', color: '#5CE8DC',
+    body: 'Alpha is the relaxed-but-awake state. 432 Hz is the tone people reach for when they want warmth without drifting off entirely.',
     icon: <><path d="M2 10c2-3 4-3 6 0s4 3 6 0 4-3 6 0" /><path d="M2 16c2-3 4-3 6 0s4 3 6 0 4-3 6 0" /></> },
-  { title: 'Recovery',   body: 'Restore with 285 Hz tissue and 528 Hz repair tones.', hz: 528, band: 'delta', color: '#e0607a',
+  { title: 'Recovery', when: 'Rest days', hz: 528, band: 'delta', color: '#e0607a',
+    body: '528 Hz layered over delta. Long and slow is the whole idea here — this one is built to be left on in the background.',
     icon: <path d="M20.8 5.6a5.5 5.5 0 0 0-8.8 1.4A5.5 5.5 0 0 0 3.2 5.6C1 7.8 1 11.4 3.2 13.6L12 22l8.8-8.4c2.2-2.2 2.2-5.8 0-8z" /> },
-  { title: 'Energy',     body: 'Lift your state with 741 Hz clarity and gamma.',       hz: 741, band: 'beta',  color: '#e8a020',
+  { title: 'Energy', when: 'The 3pm dip', hz: 741, band: 'beta', color: '#e8a020',
+    body: '741 Hz with a beta beat underneath — a shorter, brighter session for when you need to come back up rather than wind down.',
     icon: <path d="M13 2L4.5 13.5H11l-1 8.5 8.5-11.5H13z" /> },
 ]
+
+const BAND_META: Record<string, string> = {
+  delta: 'Delta · 0.5–4 Hz',
+  theta: 'Theta · 4–8 Hz',
+  alpha: 'Alpha · 8–13 Hz',
+  beta:  'Beta · 13–30 Hz',
+  gamma: 'Gamma · 30–100 Hz',
+}
 
 // ─── Lissajous SVG ────────────────────────────────────────────────────────────
 function LissajousSVG({ hz, size = 48, opacity = 0.7 }: { hz: number; size?: number; opacity?: number }) {
@@ -388,6 +402,8 @@ function Divider() {
 // ─── Page ────────────────────────────────────────────────────────────────────
 export default function HomePage() {
   const router = useRouter()
+  const [useCase, setUseCase] = useState(0)
+  const active = USE_CASES[useCase]
 
   return (
     <>
@@ -646,35 +662,160 @@ export default function HomePage() {
         <Divider />
 
         {/* ══════════════════ USE CASES ═════════════════════════════════════ */}
+        {/* Picker, not a grid — the two neighbouring sections are already card
+            grids, so this one earns its place by being interactive instead. */}
         <section className="px-5 py-20 max-w-5xl mx-auto">
           <Reveal>
-            <p style={{ color: 'var(--t4)', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.1em', marginBottom: 12 }}>WAYS TO USE IT</p>
-            <h2 style={{ fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', fontWeight: 900, letterSpacing: '-0.035em', lineHeight: 1.05, marginBottom: 40 }}>
-              A frequency for{' '}<span style={{ color: 'var(--t2)' }}>every moment.</span>
-            </h2>
+            <div className="mb-10">
+              <p style={{ color: 'var(--t4)', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.1em', marginBottom: 12 }}>WAYS TO USE IT</p>
+              <h2 style={{ fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', fontWeight: 900, letterSpacing: '-0.035em', lineHeight: 1.05, marginBottom: 12 }}>
+                What do you need{' '}<span style={{ color: 'var(--t2)' }}>right now?</span>
+              </h2>
+              <p style={{ color: 'var(--t2)', fontSize: '0.95rem', maxWidth: '32rem', lineHeight: 1.6 }}>
+                Six moments, each with a tone and a brainwave band already matched to it.
+                Pick one to see what it does — then play it.
+              </p>
+            </div>
           </Reveal>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {USE_CASES.map((u, i) => (
-              <Reveal key={u.title} delay={(i % 3) * 0.07}>
-                <motion.button
-                  onClick={() => router.push(`/studio?hz=${u.hz}&binaural=${u.band}&duration=30`)}
-                  whileHover={{ y: -5 }} whileTap={{ scale: 0.98 }}
-                  className="glass-card grain h-full p-6 text-left w-full" style={{ transition: 'transform 0.2s' }}>
-                  <div className="relative z-10">
-                    <div className="mb-4 flex items-center justify-center" style={{ width: 46, height: 46, borderRadius: 13, background: `${u.color}18`, border: `1px solid ${u.color}38`, color: u.color }}>
-                      <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{u.icon}</svg>
-                    </div>
-                    <h3 style={{ fontWeight: 800, fontSize: '1.05rem', marginBottom: 8, color: 'var(--t1)' }}>{u.title}</h3>
-                    <p style={{ fontSize: '0.84rem', lineHeight: 1.6, color: 'var(--t2)', marginBottom: 14 }}>{u.body}</p>
-                    <span className="inline-flex items-center gap-1.5" style={{ fontSize: '0.75rem', fontWeight: 700, color: u.color }}>
-                      Play {u.hz} Hz
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3" /></svg>
-                    </span>
-                  </div>
-                </motion.button>
-              </Reveal>
-            ))}
-          </div>
+
+          <Reveal delay={0.1}>
+            <div className="grid lg:grid-cols-[0.85fr_1.15fr] gap-4 items-stretch">
+
+              {/* ── Moment list ─────────────────────────────────────────── */}
+              <div className="grid grid-cols-2 lg:grid-cols-1 gap-2">
+                {USE_CASES.map((u, i) => {
+                  const on = i === useCase
+                  return (
+                    <button
+                      key={u.title}
+                      onClick={() => setUseCase(i)}
+                      onMouseEnter={() => setUseCase(i)}
+                      aria-pressed={on}
+                      className="relative flex items-center gap-3 text-left w-full"
+                      style={{
+                        padding: '13px 14px',
+                        borderRadius: 14,
+                        background: on ? `${u.color}14` : 'rgba(255,255,255,0.025)',
+                        border: `1px solid ${on ? `${u.color}55` : 'rgba(255,255,255,0.07)'}`,
+                        transition: 'background 0.25s, border-color 0.25s',
+                      }}
+                    >
+                      {on && (
+                        <motion.span
+                          layoutId="useCaseBar"
+                          style={{
+                            position: 'absolute', left: -1, top: 12, bottom: 12, width: 2.5,
+                            borderRadius: 4, background: u.color,
+                          }}
+                        />
+                      )}
+                      <span
+                        className="flex items-center justify-center flex-shrink-0"
+                        style={{
+                          width: 34, height: 34, borderRadius: 10,
+                          background: on ? `${u.color}22` : 'rgba(255,255,255,0.04)',
+                          color: on ? u.color : 'var(--t3)',
+                          transition: 'color 0.25s, background 0.25s',
+                        }}
+                      >
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{u.icon}</svg>
+                      </span>
+                      <span style={{ minWidth: 0, flex: 1 }}>
+                        <span className="block" style={{ fontWeight: 700, fontSize: '0.88rem', color: on ? 'var(--t1)' : 'var(--t2)', transition: 'color 0.25s' }}>
+                          {u.title}
+                        </span>
+                        <span className="block truncate" style={{ fontSize: '0.7rem', color: 'var(--t4)' }}>
+                          {u.when}
+                        </span>
+                      </span>
+                      <span className="hidden sm:block flex-shrink-0" style={{
+                        fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.02em',
+                        color: on ? u.color : 'var(--t4)', transition: 'color 0.25s',
+                      }}>
+                        {u.hz} Hz
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* ── Detail panel ────────────────────────────────────────── */}
+              <div className="glass-premium grain" style={{ borderRadius: 24, position: 'relative', overflow: 'hidden', minHeight: 420 }}>
+                {/* colour wash keyed to the active moment */}
+                <div aria-hidden style={{
+                  position: 'absolute', inset: 0,
+                  background: `radial-gradient(115% 75% at 78% 0%, ${active.color}26, transparent 62%)`,
+                  transition: 'background 0.5s ease',
+                }} />
+
+                <div className="relative z-10 h-full flex flex-col p-7 sm:p-9" style={{ minHeight: 420 }}>
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={active.title}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.26, ease: 'easeOut' }}
+                      className="flex flex-col"
+                      style={{ flex: 1 }}
+                    >
+                      {/* band pill */}
+                      <span className="self-start inline-flex items-center gap-2" style={{
+                        fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.06em',
+                        padding: '5px 11px', borderRadius: 999,
+                        background: `${active.color}1a`, border: `1px solid ${active.color}40`, color: active.color,
+                      }}>
+                        <span style={{ width: 5, height: 5, borderRadius: 999, background: active.color }} />
+                        {BAND_META[active.band]}
+                      </span>
+
+                      {/* Hz + waveform signature */}
+                      <div className="flex items-center justify-between gap-5 mt-7 mb-7">
+                        <div>
+                          <p style={{ fontSize: 'clamp(2.6rem, 7vw, 3.9rem)', fontWeight: 900, letterSpacing: '-0.05em', lineHeight: 0.9, color: 'var(--t1)' }}>
+                            {active.hz}
+                            <span style={{ fontSize: '0.3em', fontWeight: 700, letterSpacing: 0, color: 'var(--t3)', marginLeft: 6 }}>Hz</span>
+                          </p>
+                          <p style={{ fontSize: '1.05rem', fontWeight: 800, color: active.color, marginTop: 10, letterSpacing: '-0.01em' }}>
+                            {active.title}
+                          </p>
+                        </div>
+                        <div style={{ color: active.color, flexShrink: 0 }}>
+                          <LissajousSVG hz={active.hz} size={104} opacity={0.85} />
+                        </div>
+                      </div>
+
+                      <p style={{ fontSize: '0.9rem', lineHeight: 1.7, color: 'var(--t2)' }}>
+                        {active.body}
+                      </p>
+
+                      <div style={{ flex: 1, minHeight: 18 }} />
+
+                      <div className="flex flex-wrap items-center gap-3">
+                        <motion.button
+                          onClick={() => router.push(`/studio?hz=${active.hz}&binaural=${active.band}&duration=30`)}
+                          whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }}
+                          className="inline-flex items-center gap-2"
+                          style={{
+                            padding: '12px 20px', borderRadius: 999, fontWeight: 700, fontSize: '0.85rem',
+                            background: active.color, color: '#07070f', border: 'none',
+                            boxShadow: `0 8px 28px -10px ${active.color}`,
+                          }}
+                        >
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3" /></svg>
+                          Play this session
+                        </motion.button>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--t4)' }}>
+                          30 min · headphones recommended
+                        </span>
+                      </div>
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
+              </div>
+            </div>
+          </Reveal>
         </section>
 
         <Divider />
