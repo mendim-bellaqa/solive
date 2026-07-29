@@ -71,6 +71,15 @@ export default function Header() {
     return () => clearInterval(id)
   }, [])
 
+  // Freeze the page while the mobile nav is open, so the blurred backdrop
+  // stays put instead of scrolling around underneath the panel.
+  useEffect(() => {
+    if (!navOpen) return
+    const { overflow } = document.body.style
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = overflow }
+  }, [navOpen])
+
   // Close menu on outside click
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
@@ -117,7 +126,10 @@ export default function Header() {
         paddingRight: 'env(safe-area-inset-right)',
       }}
     >
-      <div className="max-w-7xl mx-auto px-5 sm:px-10 h-16 flex items-center justify-between">
+      {/* Positioned so the bar paints above the mobile nav backdrop — an
+          unpositioned in-flow child would otherwise fall behind it. */}
+      <div className="max-w-7xl mx-auto px-5 sm:px-10 h-16 flex items-center justify-between"
+           style={{ position: 'relative', zIndex: 1 }}>
 
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5 group" style={{ WebkitTapHighlightColor: 'transparent' }}>
@@ -344,6 +356,36 @@ export default function Header() {
         </div>
       </div>
 
+      {/* Mobile nav — dimmed, blurred backdrop over the rest of the page so the
+          panel reads as one layer instead of competing with the content below.
+          It sits at z-index 0 inside the header's own stacking context, which
+          keeps it under the bar and the panel but over everything on the page.
+          Tapping it closes the menu. */}
+      <AnimatePresence>
+        {navOpen && (
+          <motion.div
+            key="nav-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+            onClick={() => setNavOpen(false)}
+            aria-hidden
+            className="md:hidden"
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 0,
+              // The page is already near-black, so the tint stays light — the
+              // blur does the separating, not the darkness.
+              background: 'rgba(4,4,10,0.38)',
+              backdropFilter: 'blur(13px) saturate(115%)',
+              WebkitBackdropFilter: 'blur(13px) saturate(115%)',
+            }}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Mobile nav panel */}
       <AnimatePresence>
         {navOpen && (
@@ -354,6 +396,8 @@ export default function Header() {
               transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
               className="md:hidden"
               style={{
+                position: 'relative',
+                zIndex: 1,
                 background: 'rgba(5,5,12,0.94)',
                 backdropFilter: 'blur(28px) saturate(160%)',
                 WebkitBackdropFilter: 'blur(28px) saturate(160%)',
