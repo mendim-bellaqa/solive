@@ -3,8 +3,8 @@
   publish = ".next"
 
 [build.environment]
-  # The Firebase SDK (@firebase/*) requires Node >= 20. Without this, Netlify
-  # may build on the older default Node for this site and fail.
+  # Pinned so the build doesn't drift onto whatever default Node the site was
+  # created with. Next 14 and the Supabase SDK both want a current LTS.
   NODE_VERSION = "20"
 
 # Next.js on Netlify is handled by the official runtime.
