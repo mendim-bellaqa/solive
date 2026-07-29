@@ -851,7 +851,9 @@ export default function HomePage() {
               <Reveal key={step.n} delay={i * 0.1}>
                 <div className="glass-card grain h-full p-6">
                   <div className="relative z-10">
-                    <p style={{ fontWeight: 900, fontSize: '2.2rem', color: 'var(--t4)', letterSpacing: '-0.04em', marginBottom: 20, lineHeight: 1 }}>
+                    {/* A background numeral, not something to read — --t-decor
+                        keeps it quiet now that --t4 is a readable tier. */}
+                    <p style={{ fontWeight: 900, fontSize: '2.2rem', color: 'var(--t-decor)', letterSpacing: '-0.04em', marginBottom: 20, lineHeight: 1 }}>
                       {step.n}
                     </p>
                     <p style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: 10, color: 'var(--t1)' }}>{step.title}</p>

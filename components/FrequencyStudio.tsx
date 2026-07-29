@@ -610,7 +610,7 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
             style={{ border:`1px solid ${frequency.colorHex}30` }}>
             <div className="shimmer-overlay" />
             <div className="relative z-10">
-              <p className="text-xs uppercase tracking-wider opacity-70 mb-0.5" style={{ color:frequency.colorHex }}>
+              <p className="text-xs uppercase tracking-wider mb-0.5" style={{ color:frequency.colorHex }}>
                 {frequency.name}
               </p>
               <AnimatePresence mode="wait">
@@ -620,14 +620,14 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
                   exit={{ opacity:0, y:4 }}
                   className="text-2xl font-bold leading-none" style={{ color:frequency.colorHex }}>
                   {currentDisplayHz}
-                  <span className="text-xs font-normal opacity-60 ml-0.5">Hz</span>
+                  <span className="text-xs font-normal ml-0.5" style={{ color:'var(--t3)' }}>Hz</span>
                 </motion.p>
               </AnimatePresence>
               {/* Live indicator */}
               {playerState === 'playing' && (
                 <div className="flex items-center gap-1 mt-1">
                   <span className="live-dot" style={{ background:frequency.colorHex, width:5, height:5 }} />
-                  <span className="text-xs opacity-50" style={{ color:frequency.colorHex }}>LIVE</span>
+                  <span className="text-xs" style={{ color:frequency.colorHex }}>LIVE</span>
                 </div>
               )}
             </div>
@@ -921,7 +921,7 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
                   }}
                 />
               </div>
-              <p style={{ fontSize:'0.62rem', color:'var(--text-muted)', opacity:0.6, marginTop:2 }}>
+              <p style={{ fontSize:'0.66rem', color:'var(--t3)', marginTop:2 }}>
                 Drag to move through the session
               </p>
             </div>
@@ -1092,7 +1092,7 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
                       <span className="text-xs font-medium" style={{ color: active ? m.color : 'var(--text-muted)' }}>
                         {m.label}
                       </span>
-                      <span className="text-xs opacity-60" style={{ color:'var(--text-muted)', fontSize:'10px' }}>
+                      <span className="text-xs" style={{ color:'var(--t3)', fontSize:'10px' }}>
                         {m.hz}
                       </span>
                     </motion.button>
@@ -1105,7 +1105,7 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
                 className="mb-5 p-3 rounded-xl text-sm"
                 style={{ background:`${band.color}0c`, border:`1px solid ${band.color}25`, color:band.color }}>
                 <p className="font-semibold">{band.label} — {band.state}</p>
-                <p className="text-xs opacity-70 mt-0.5">{band.hz} binaural beat offset</p>
+                <p className="text-xs mt-0.5">{band.hz} binaural beat offset</p>
               </motion.div>
 
               {/* Schumann toggle */}
