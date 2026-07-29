@@ -449,6 +449,28 @@ button { font-family: inherit; cursor: pointer; }
 .freq-cell:active { transform: translateY(-1px) scale(0.99); }
 
 /* ══════════════════════════════════════════════════════════════════════════ */
+/*  SESSION TIMELINE                                                          */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+/* The studio referenced .progress-bar / .progress-fill but neither was ever
+   defined, so the track collapsed to a zero-height div and the session showed
+   a lone knob floating over nothing. The track is a thin white line running
+   the whole duration; the played portion fills it in the tone's colour. */
+.progress-bar {
+  position: relative;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.30);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.15s linear;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════ */
 /*  QUESTIONNAIRE ACCORDION                                                   */
 /* ══════════════════════════════════════════════════════════════════════════ */
 

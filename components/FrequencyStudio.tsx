@@ -14,6 +14,16 @@ const ThreeVisualizer = dynamic(() => import('./ThreeVisualizer'), { ssr: false 
 const Biofield = dynamic(() => import('./Biofield'), { ssr: false })
 const NeuralBrain = dynamic(() => import('./NeuralBrain'), { ssr: false })
 
+/* Layering, top to bottom. The pseudo-fullscreen stage used to sit at 9998,
+   which is above anything Tailwind's z-* utilities can express — so the About
+   and Adjust sheets (z-40) were painted underneath it and tapping About in
+   fullscreen appeared to do nothing at all. These are ordered so the sheets and
+   the paywall always clear the stage. Site header is 50. */
+const Z_STAGE           = 80
+const Z_SHEET_BACKDROP  = 90
+const Z_SHEET           = 95
+const Z_PAYWALL         = 100
+
 export type SceneMode = 'brain' | 'aura' | 'frequency'
 
 interface Props {
@@ -545,7 +555,7 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
       {/* ── 3D Visualizer ─────────────────────────────────────────────── */}
       <div className={`relative overflow-hidden studio-visualizer${isFullscreen ? ' viz-fullscreen' : ''}`}
            style={pseudoFs
-             ? { position: 'fixed', inset: 0, zIndex: 9998, minHeight: 0, background: 'var(--bg-void)' }
+             ? { position: 'fixed', inset: 0, zIndex: Z_STAGE, minHeight: 0, background: 'var(--bg-void)' }
              : { flex: '1 1 0', minHeight: 0 }}>
         {vizLocked ? (
           <div className="absolute inset-0 flex items-center justify-center px-6" style={{ background: 'radial-gradient(circle at 50% 45%, #0a1024, #05050c 75%)' }}>
@@ -680,32 +690,31 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
                 </button>
               )
             })}
-          </div>
 
-          {/* Viz mode toggle (cymatics only) */}
-          {sceneMode === 'frequency' && (
-            <button onClick={() => setVizMode(v => v === 'lissajous' ? 'waveform' : 'lissajous')}
-                    className="glass px-2.5 py-1.5 rounded-xl text-xs hover:opacity-80 transition-opacity flex items-center gap-1.5"
-                    style={{ color: 'var(--text-muted)' }}
-                    title="Toggle visualization mode">
-              {vizMode === 'lissajous' ? (
-                <>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M2 12 Q5 5 8 12 Q11 19 14 12 Q17 5 20 12 Q23 19 26 12" strokeLinecap="round" strokeLinejoin="round"/>
+            {/* Oscilloscope toggle — lives in the same row, immediately right of
+                the Cymatics button it belongs to, instead of floating below. */}
+            {sceneMode === 'frequency' && (
+              <>
+                <span aria-hidden style={{ width: 1, alignSelf: 'stretch', margin: '4px 1px', background: 'var(--border)' }} />
+                <button
+                  onClick={() => setVizMode(v => v === 'lissajous' ? 'waveform' : 'lissajous')}
+                  title={vizMode === 'lissajous' ? 'Switch to oscilloscope' : 'Switch to 3D cymatics'}
+                  aria-label={vizMode === 'lissajous' ? 'Switch to oscilloscope' : 'Switch to 3D cymatics'}
+                  aria-pressed={vizMode === 'waveform'}
+                  className="rounded-lg px-2 py-1.5 transition-all flex items-center justify-center"
+                  style={{
+                    background: vizMode === 'waveform' ? `${frequency.colorHex}22` : 'transparent',
+                    color: vizMode === 'waveform' ? frequency.colorHex : 'var(--t3)',
+                  }}>
+                  {/* Oscilloscope trace inside a screen */}
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                    <rect x="2.5" y="4.5" width="19" height="15" rx="2.5" />
+                    <path d="M5.5 12 Q7.5 7.5 9.5 12 Q11.5 16.5 13.5 12 Q15.5 7.5 18.5 12" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                  <span className="hidden sm:inline">Wave</span>
-                </>
-              ) : (
-                <>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M12 3 C18 3 21 8 21 12 C21 16 18 21 12 21 C6 21 3 16 3 12 C3 8 6 3 12 3 Z" strokeLinecap="round"/>
-                    <path d="M8 12 Q10 7 12 12 Q14 17 16 12" strokeLinecap="round"/>
-                  </svg>
-                  <span className="hidden sm:inline">3D</span>
-                </>
-              )}
-            </button>
-          )}
+                </button>
+              </>
+            )}
+          </div>
 
           {/* Fullscreen */}
           <button onClick={handleFullscreen}
@@ -1051,13 +1060,13 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
         {showAdjust && (
           <>
             <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
-              className="fixed inset-0 z-30" style={{ background:'rgba(0,0,0,0.5)' }}
+              className="fixed inset-0" style={{ zIndex: Z_SHEET_BACKDROP, background:'rgba(0,0,0,0.5)' }}
               onClick={() => setShowAdjust(false)} />
             <motion.div
               initial={{ y:'100%' }} animate={{ y:0 }} exit={{ y:'100%' }}
               transition={{ type:'spring', damping:30, stiffness:300 }}
-              className="fixed bottom-0 left-0 right-0 z-40 px-5 pt-5 pb-8 safe-bottom"
-              style={{ background:'#080813', borderTop:'1px solid rgba(255,255,255,0.1)', borderRadius:'24px 24px 0 0' }}>
+              className="fixed bottom-0 left-0 right-0 px-5 pt-5 pb-8 safe-bottom"
+              style={{ zIndex: Z_SHEET, background:'#080813', borderTop:'1px solid rgba(255,255,255,0.1)', borderRadius:'24px 24px 0 0' }}>
               <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background:'rgba(255,255,255,0.14)' }} />
               <h3 className="font-semibold mb-0.5 text-center">Adjust Session</h3>
               <p className="text-xs text-center mb-5" style={{ color:'var(--text-muted)' }}>
@@ -1140,13 +1149,13 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
         {showInfo && (
           <>
             <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
-              className="fixed inset-0 z-30" style={{ background:'rgba(0,0,0,0.55)' }}
+              className="fixed inset-0" style={{ zIndex: Z_SHEET_BACKDROP, background:'rgba(0,0,0,0.55)' }}
               onClick={() => setShowInfo(false)} />
             <motion.div
               initial={{ y:'100%' }} animate={{ y:0 }} exit={{ y:'100%' }}
               transition={{ type:'spring', damping:30, stiffness:300 }}
-              className="fixed bottom-0 left-0 right-0 z-40 px-5 pt-5 pb-8 safe-bottom"
-              style={{ background:'#080813', borderTop:'1px solid rgba(255,255,255,0.1)', borderRadius:'24px 24px 0 0', maxHeight:'80vh', overflowY:'auto' }}>
+              className="fixed bottom-0 left-0 right-0 px-5 pt-5 pb-8 safe-bottom"
+              style={{ zIndex: Z_SHEET, background:'#080813', borderTop:'1px solid rgba(255,255,255,0.1)', borderRadius:'24px 24px 0 0', maxHeight:'80vh', overflowY:'auto' }}>
               <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background:'rgba(255,255,255,0.14)' }} />
               <div className="flex justify-between items-start mb-3">
                 <div>
@@ -1180,7 +1189,7 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
         {showPaywall && (
           <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
             className="fixed inset-0 overflow-y-auto"
-            style={{ zIndex:100, background:'rgba(4,4,10,0.94)', backdropFilter:'blur(18px)', WebkitBackdropFilter:'blur(18px)' }}>
+            style={{ zIndex: Z_PAYWALL, background:'rgba(4,4,10,0.94)', backdropFilter:'blur(18px)', WebkitBackdropFilter:'blur(18px)' }}>
             <div className="min-h-full flex items-center justify-center px-6"
                  style={{ paddingTop:'calc(env(safe-area-inset-top) + 28px)', paddingBottom:'calc(env(safe-area-inset-bottom) + 32px)' }}>
               <motion.div
