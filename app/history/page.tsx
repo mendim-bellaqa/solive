@@ -9,7 +9,7 @@ import Header from '@/components/Header'
 import { FREQUENCIES, getOrCreateFrequency } from '@/lib/frequencies'
 import {
   useAuthUser, fetchSessions, rateSession, type SessionRecord,
-} from '@/lib/firebase/sessions'
+} from '@/lib/supabase/sessions'
 
 const RATING_OPTIONS = [
   { score: 1, emoji: '😞', label: 'Worse' },
@@ -69,7 +69,7 @@ export default function HistoryPage() {
       .then(rows => { setSessions(rows); setError(null) })
       .catch(err => {
         console.warn('[Solive] history load failed:', err)
-        setError('Could not load your sessions. Check your Firestore rules.')
+        setError('Could not load your sessions. Check the row-level security policies on the sessions table.')
       })
       .finally(() => setLoading(false))
   }, [])
@@ -77,7 +77,7 @@ export default function HistoryPage() {
   useEffect(() => {
     if (user === undefined) return
     if (user === null) { setLoading(false); return }
-    load(user.uid)
+    load(user.id)
   }, [user, load])
 
   async function submitRating(id: string, score: number) {

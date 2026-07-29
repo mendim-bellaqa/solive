@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/dashboard'
+  const next = searchParams.get('next') ?? '/history'
 
   // Prefer NEXT_PUBLIC_SITE_URL so Vercel production URLs work correctly
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || origin

@@ -49,20 +49,24 @@ export default function Header() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [handleScroll])
 
-  // Auth check — subscribe to Firebase auth state
+  // Auth check — subscribe to Supabase auth state
   useEffect(() => {
     let unsub = () => {}
-    Promise.all([
-      import('firebase/auth'),
-      import('@/lib/firebase/client'),
-    ]).then(([{ onAuthStateChanged }, { getFirebaseAuth }]) => {
-      const auth = getFirebaseAuth()
-      if (!auth) return
-      unsub = onAuthStateChanged(auth, (u) => {
-        setUser(u ? { email: u.email, name: u.displayName } : null)
+    let active = true
+    import('@/lib/supabase/client').then(({ getSupabase }) => {
+      const supabase = getSupabase()
+      if (!supabase) return
+      const toUser = (u: { email?: string | null; user_metadata?: Record<string, unknown> } | null) =>
+        u ? { email: u.email ?? null,
+              name: (u.user_metadata?.full_name as string) ?? (u.user_metadata?.name as string) ?? null }
+          : null
+      supabase.auth.getUser().then(({ data }) => { if (active) setUser(toUser(data.user)) })
+      const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+        setUser(toUser(session?.user ?? null))
       })
+      unsub = () => sub.subscription.unsubscribe()
     }).catch(() => {})
-    return () => unsub()
+    return () => { active = false; unsub() }
   }, [])
 
   // Hz cycle for logo
@@ -101,13 +105,11 @@ export default function Header() {
 
   async function handleSignOut() {
     setMenuOpen(false)
-    const [{ signOut }, { getFirebaseAuth }] = await Promise.all([
-      import('firebase/auth'),
-      import('@/lib/firebase/client'),
-    ])
-    const auth = getFirebaseAuth()
-    if (auth) await signOut(auth)
+    const { getSupabase } = await import('@/lib/supabase/client')
+    const supabase = getSupabase()
+    if (supabase) await supabase.auth.signOut()
     setUser(null)
+    // Full reload so any server-rendered view drops the session cookie too.
     window.location.href = '/'
   }
 

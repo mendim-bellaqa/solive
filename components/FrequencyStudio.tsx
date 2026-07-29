@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { BinauralBand, BINAURAL_PRESETS, FREQUENCIES, getOrCreateFrequency } from '@/lib/frequencies'
-import { startSession, updateSessionProgress, rateSession } from '@/lib/firebase/sessions'
+import { startSession, updateSessionProgress, rateSession } from '@/lib/supabase/sessions'
 import { usePlan, PLANS } from '@/lib/plan'
 import type { QuestionnaireAnswers } from '@/lib/recommendation'
 import dynamic from 'next/dynamic'
@@ -128,7 +128,7 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
   const barRef       = useRef<HTMLDivElement>(null)
   const scrubbingRef = useRef(false)
 
-  // Firestore session tracking. The doc is created on first play so a session
+  // Supabase session tracking. The row is created on first play so a session
   // still shows up in history if the user pauses and leaves without finishing.
   const sessionIdRef = useRef<string | null>(sessionId ?? null)
   const elapsedRef   = useRef(resumeFrom)   // readable from cleanup without re-subscribing

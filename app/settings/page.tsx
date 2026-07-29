@@ -6,9 +6,8 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { signOut } from 'firebase/auth'
-import { getFirebaseAuth } from '@/lib/firebase/client'
-import { useAuthUser } from '@/lib/firebase/sessions'
+import { getSupabase } from '@/lib/supabase/client'
+import { useAuthUser } from '@/lib/supabase/sessions'
 import { usePlan, PLANS } from '@/lib/plan'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
@@ -23,9 +22,10 @@ export default function SettingsPage() {
 
   async function handleSignOut() {
     setSigningOut(true)
-    const auth = getFirebaseAuth()
-    if (auth) { try { await signOut(auth) } catch { /* ignore */ } }
+    const supabase = getSupabase()
+    if (supabase) { try { await supabase.auth.signOut() } catch { /* ignore */ } }
     router.push('/')
+    router.refresh()
   }
 
   return (

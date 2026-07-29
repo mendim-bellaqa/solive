@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { usePlan, PLANS, type PlanId } from '@/lib/plan'
-import { useAuthUser } from '@/lib/firebase/sessions'
+import { useAuthUser } from '@/lib/supabase/sessions'
 
 function Check() {
   return (

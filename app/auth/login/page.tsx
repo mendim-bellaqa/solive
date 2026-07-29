@@ -6,8 +6,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth'
-import { getFirebaseAuth, isFirebaseConfigured } from '@/lib/firebase/client'
+import { getSupabase, isSupabaseConfigured } from '@/lib/supabase/client'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 
@@ -24,10 +23,10 @@ export default function LoginPage() {
     setLoading(true)
     setMessage(null)
 
-    const auth = getFirebaseAuth()
-    if (!isFirebaseConfigured || !auth) {
+    const supabase = getSupabase()
+    if (!isSupabaseConfigured || !supabase) {
       setMessage({
-        text: 'Auth isn’t configured for this deployment — the NEXT_PUBLIC_FIREBASE_* environment variables were missing when the site was built. Add them in your host and redeploy.',
+        text: 'Auth isn’t configured for this deployment — NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY were missing when the site was built. Add them in your host and redeploy.',
         isError: true,
       })
       setLoading(false)
@@ -36,31 +35,51 @@ export default function LoginPage() {
 
     try {
       if (mode === 'login') {
-        await signInWithEmailAndPassword(auth, email, password)
+        const { error } = await supabase.auth.signInWithPassword({ email, password })
+        if (error) throw error
+        router.push('/')
+        router.refresh()
       } else {
-        await createUserWithEmailAndPassword(auth, email, password)
-        // Firebase signs the user in immediately on account creation.
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=/history` },
+        })
+        if (error) throw error
+
+        // With "Confirm email" on, signUp returns a user but no session — the
+        // account is not usable until the link is clicked. Say so instead of
+        // redirecting to a page that will still show them as signed out.
+        if (!data.session) {
+          setMessage({
+            text: `Almost there — we sent a confirmation link to ${email}. Click it to finish creating your account.`,
+            isError: false,
+          })
+          setLoading(false)
+          return
+        }
+        router.push('/')
+        router.refresh()
       }
-      // Signed in — go home. onAuthStateChanged in the header picks up the user.
-      router.push('/')
-      router.refresh()
     } catch (err: unknown) {
-      const code = (err as { code?: string })?.code ?? ''
+      const e = err as { message?: string; code?: string; status?: number }
+      const code = e?.code ?? ''
+      const raw = e?.message ?? ''
       const friendly: Record<string, string> = {
-        'auth/invalid-credential': 'Incorrect email or password.',
-        'auth/wrong-password': 'Incorrect email or password.',
-        'auth/user-not-found': 'No account found with that email. Try creating one.',
-        'auth/invalid-email': 'That email address looks invalid.',
-        'auth/email-already-in-use': 'That email is already registered. Try signing in instead.',
-        'auth/weak-password': 'Password is too weak — use at least 6 characters.',
-        'auth/too-many-requests': 'Too many attempts. Please wait a moment and try again.',
-        'auth/network-request-failed': 'Network error — check your connection and try again.',
-        'auth/operation-not-allowed': 'Email/password sign-in is not enabled in Firebase yet.',
-        'auth/invalid-api-key': 'Invalid Firebase API key for this deployment. Check the NEXT_PUBLIC_FIREBASE_* env vars, then rebuild.',
-        'auth/configuration-not-found': 'Firebase Authentication isn’t set up for this project yet. Enable Email/Password in the Firebase console.',
-        'auth/unauthorized-domain': `This domain (${typeof window !== 'undefined' ? window.location.hostname : ''}) isn’t authorized in Firebase. Add it under Authentication → Settings → Authorized domains.`,
+        invalid_credentials: 'Incorrect email or password.',
+        email_not_confirmed: 'Check your inbox — you need to confirm your email address before signing in.',
+        user_already_exists: 'That email is already registered. Try signing in instead.',
+        weak_password: 'Password is too weak — use at least 6 characters.',
+        over_email_send_rate_limit: 'Too many emails sent. Please wait a few minutes and try again.',
+        over_request_rate_limit: 'Too many attempts. Please wait a moment and try again.',
+        validation_failed: 'That email address looks invalid.',
+        signup_disabled: 'New sign-ups are disabled for this project. Enable them under Authentication → Sign In / Providers.',
+        email_provider_disabled: 'Email sign-in is not enabled for this project yet. Turn it on under Authentication → Sign In / Providers.',
       }
-      setMessage({ text: friendly[code] || 'Something went wrong. Please try again.', isError: true })
+      const fallback = /fetch|network/i.test(raw)
+        ? 'Network error — check your connection and try again.'
+        : raw || 'Something went wrong. Please try again.'
+      setMessage({ text: friendly[code] || fallback, isError: true })
     }
     setLoading(false)
   }
