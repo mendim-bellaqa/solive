@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { getSupabase, isSupabaseConfigured } from '@/lib/supabase/client'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import WelcomeOverlay from '@/components/WelcomeOverlay'
 
 export default function LoginPage() {
   const [mode, setMode] = useState<'login' | 'register'>('login')
@@ -16,6 +17,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ text: string; isError: boolean } | null>(null)
+  // Set once the account exists — swaps the form for the welcome moment.
+  const [welcome, setWelcome] = useState<{ email: string; needsConfirmation: boolean } | null>(null)
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -47,19 +50,12 @@ export default function LoginPage() {
         })
         if (error) throw error
 
-        // With "Confirm email" on, signUp returns a user but no session — the
-        // account is not usable until the link is clicked. Say so instead of
-        // redirecting to a page that will still show them as signed out.
-        if (!data.session) {
-          setMessage({
-            text: `Almost there — we sent a confirmation link to ${email}. Click it to finish creating your account.`,
-            isError: false,
-          })
-          setLoading(false)
-          return
-        }
-        router.push('/')
-        router.refresh()
+        // signUp returns a session only when the project auto-confirms. If it
+        // doesn't, the account still exists — so celebrate either way and just
+        // mention the pending link rather than dead-ending on a notice.
+        setWelcome({ email, needsConfirmation: !data.session })
+        setLoading(false)
+        return
       }
     } catch (err: unknown) {
       const e = err as { message?: string; code?: string; status?: number }
@@ -95,6 +91,16 @@ export default function LoginPage() {
     outline: 'none',
     boxSizing: 'border-box',
     transition: 'border-color 0.2s, box-shadow 0.2s',
+  }
+
+  if (welcome) {
+    return (
+      <WelcomeOverlay
+        email={welcome.email}
+        needsConfirmation={welcome.needsConfirmation}
+        onDismiss={() => { router.push('/'); router.refresh() }}
+      />
+    )
   }
 
   return (
