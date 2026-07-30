@@ -256,12 +256,22 @@ export default function Header() {
                     // `position` must be inline: .glass-card sets `position: relative`
                     // in globals.css, which loads after Tailwind and would otherwise
                     // beat the `absolute` utility and drop the menu into normal flow.
+                    //
+                    // `background` is inline for a different reason: .glass-card is
+                    // only 3–7% white and leans entirely on backdrop-filter to hide
+                    // what's behind it. Nested inside the header — which sets its own
+                    // backdrop-filter once scrolled — Safari drops the effect, and the
+                    // page showed straight through the menu text. An opaque panel
+                    // doesn't depend on a filter that may never run.
                     style={{
                       position: 'absolute',
                       top: 'calc(100% + 8px)',
                       right: 0,
                       transformOrigin: 'top right',
                       zIndex: 60,
+                      background: '#0c0c16',
+                      backdropFilter: 'none',
+                      WebkitBackdropFilter: 'none',
                     }}
                   >
                     {/* User info */}
