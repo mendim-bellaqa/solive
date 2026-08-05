@@ -68,7 +68,7 @@ export default function HistoryPage() {
     return fetchSessions(uid)
       .then(rows => { setSessions(rows); setError(null) })
       .catch(err => {
-        console.warn('[Solive] history load failed:', err)
+        console.warn('[hzaura] history load failed:', err)
         setError('Could not load your sessions. Check the row-level security policies on the sessions table.')
       })
       .finally(() => setLoading(false))

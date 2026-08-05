@@ -3,20 +3,20 @@ import './globals.css'
 import ErrorBoundary from '@/components/ErrorBoundary'
 
 export const metadata: Metadata = {
-  title: 'Solive — Healing Frequency Studio',
+  title: 'hzaura — Healing Frequency Studio',
   description: 'Personalized healing frequencies based on your state. Real-time 3D cymatic visualization. Backed by sound therapy research.',
   keywords: ['healing frequencies', 'solfeggio', 'binaural beats', 'sound therapy', '3D visualization', 'meditation'],
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
-    title: 'Solive',
+    title: 'hzaura',
     statusBarStyle: 'black-translucent',
   },
   other: {
     'mobile-web-app-capable': 'yes',   // standard replacement for the deprecated apple- one
   },
   openGraph: {
-    title: 'Solive — Healing Frequency Studio',
+    title: 'hzaura — Healing Frequency Studio',
     description: 'Personalized sound healing sessions. Play any frequency, 1–20,000 Hz. Real-time 3D cymatic visualization.',
     type: 'website',
   },

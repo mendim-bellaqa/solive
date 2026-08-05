@@ -1,4 +1,4 @@
-import { BinauralBand, BINAURAL_PRESETS, FREQUENCIES, SoliveFrequency } from './frequencies'
+import { BinauralBand, BINAURAL_PRESETS, FREQUENCIES, HzauraFrequency } from './frequencies'
 
 // ─── Questionnaire types ───────────────────────────────────────────────────
 export interface QuestionnaireAnswers {
@@ -13,7 +13,7 @@ export interface QuestionnaireAnswers {
 }
 
 export interface FrequencyRecommendation {
-  frequency: SoliveFrequency
+  frequency: HzauraFrequency
   binauralBand: BinauralBand
   binauralHz: number
   carrierHz: number

@@ -96,7 +96,7 @@ export default function Footer() {
                   <path d="M1 11 Q4 5 7 11 Q10 17 13 11 Q16 5 19 11 Q20 13 21 11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
                 </svg>
               </span>
-              <span className="font-bold text-lg tracking-tight" style={{ color: 'var(--t1)' }}>Solive</span>
+              <span className="font-bold text-lg tracking-tight" style={{ color: 'var(--t1)' }}>hzaura</span>
             </Link>
             <h3 style={{ fontSize: '1.5rem', fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1.1, marginBottom: 10 }}>
               Every frequency<br /><span style={{ color: 'var(--t2)' }}>has a purpose.</span>
@@ -159,7 +159,7 @@ export default function Footer() {
         {/* Bottom bar */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-8" style={{ borderTop: '1px solid var(--border)' }}>
           <p style={{ fontSize: '0.75rem', color: 'var(--t4)' }}>
-            © {year} Solive · Not a substitute for medical care.
+            © {year} hzaura · Not a substitute for medical care.
           </p>
           <div className="flex items-center gap-2" style={{ fontSize: '0.75rem', color: 'var(--t4)' }}>
             <span className="live-dot" style={{ width: 5, height: 5, background: 'var(--accent)' }} />

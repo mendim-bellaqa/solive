@@ -18,7 +18,7 @@ export default class ErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    console.error('[Solive Error]', error, info)
+    console.error('[hzaura Error]', error, info)
   }
 
   render() {

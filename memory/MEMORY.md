@@ -1,8 +1,8 @@
-# Solive — Frequency App
+# hzaura — Frequency App
 
 ## Project Overview
 - Next.js 14 app (App Router) + Supabase auth + Three.js
-- Name: Solive
+- Name: hzaura
 - Purpose: Personalized healing frequency studio — questionnaire → AI frequency prescription → 3D cymatic visualization
 - **STATUS: ALL 6 PHASES COMPLETE**
 
@@ -56,7 +56,7 @@
 ## PWA + Polish (Phase 6)
 - public/manifest.json — standalone PWA
 - layout.tsx — Viewport export, theme-color #06060e, apple-web-app
-- OnboardingModal — 3 slides shown once (localStorage key: solive_onboarded_v1)
+- OnboardingModal — 3 slides shown once (localStorage key: hzaura_onboarded_v1)
 - globals.css — .skeleton class, focus-visible ring, ::selection color
 
 ## Supabase sessions table

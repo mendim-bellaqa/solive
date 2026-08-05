@@ -51,7 +51,7 @@ export default function WelcomeOverlay({
     <motion.div
       role="dialog"
       aria-modal="true"
-      aria-label="Welcome to Solive"
+      aria-label="Welcome to hzaura"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -113,7 +113,7 @@ export default function WelcomeOverlay({
 
         <motion.h1 {...rise(0.58)}
           style={{ fontSize: 'clamp(2rem, 7vw, 3.2rem)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.02, marginBottom: 14 }}>
-          Welcome to Solive,<br />
+          Welcome to hzaura,<br />
           <span style={{ color: 'var(--accent)' }}>{name}.</span>
         </motion.h1>
 

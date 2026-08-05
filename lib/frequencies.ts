@@ -2,7 +2,7 @@ export type FrequencyColorTheme = 'amber' | 'red' | 'emerald' | 'blue' | 'violet
 
 export type BinauralBand = 'delta' | 'theta' | 'alpha' | 'beta' | 'gamma'
 
-export interface SoliveFrequency {
+export interface HzauraFrequency {
   hz: number
   name: string
   tagline: string
@@ -23,7 +23,7 @@ export interface BinauralPreset {
 }
 
 // ─── Full Solfeggio frequency library ─────────────────────────────────────
-export const FREQUENCIES: Record<number, SoliveFrequency> = {
+export const FREQUENCIES: Record<number, HzauraFrequency> = {
   174: {
     hz: 174,
     name: 'Foundation',
@@ -216,7 +216,7 @@ export const BINAURAL_PRESETS: Record<BinauralBand, BinauralPreset> = {
   gamma: { band: 'gamma', hz: 40, carrierHz: 200, label: 'Gamma', state: 'Peak Cognition & High Performance' },
 }
 
-export function getFrequency(hz: number): SoliveFrequency | undefined {
+export function getFrequency(hz: number): HzauraFrequency | undefined {
   return FREQUENCIES[hz]
 }
 
@@ -268,10 +268,10 @@ function _taglineForHz(hz: number): string {
 }
 
 /**
- * Returns the known SoliveFrequency for a Solfeggio Hz, or generates
+ * Returns the known HzauraFrequency for a Solfeggio Hz, or generates
  * a dynamic entry for any custom frequency. Never returns undefined.
  */
-export function getOrCreateFrequency(hz: number): SoliveFrequency {
+export function getOrCreateFrequency(hz: number): HzauraFrequency {
   const known = FREQUENCIES[hz]
   if (known) return known
   return {

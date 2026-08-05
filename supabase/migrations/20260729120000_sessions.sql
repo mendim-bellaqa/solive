@@ -1,4 +1,4 @@
--- Solive session history.
+-- hzaura session history.
 -- Run in the Supabase dashboard → SQL Editor, or let the GitHub integration
 -- apply it from supabase/migrations.
 --

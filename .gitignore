@@ -37,3 +37,6 @@ next-env.d.ts
 
 # Local Netlify folder
 .netlify
+
+# Claude Code local settings (personal permissions, machine-specific paths)
+.claude/settings.local.json

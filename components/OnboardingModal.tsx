@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
-const STORAGE_KEY = 'solive_onboarded_v1'
+const STORAGE_KEY = 'hzaura_onboarded_v1'
 
 const SLIDES = [
   {
@@ -16,8 +16,8 @@ const SLIDES = [
       </svg>
     ),
     accent: '#10b981',
-    title: 'Welcome to Solive',
-    body: 'Personalized sound healing backed by research. Answer 5 questions about how you feel right now — Solive prescribes the exact Solfeggio frequency and binaural beat for your current state.',
+    title: 'Welcome to hzaura',
+    body: 'Personalized sound healing backed by research. Answer 5 questions about how you feel right now — hzaura prescribes the exact Solfeggio frequency and binaural beat for your current state.',
   },
   {
     icon: (

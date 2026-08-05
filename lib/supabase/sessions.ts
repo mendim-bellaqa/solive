@@ -126,7 +126,7 @@ export async function startSession(input: {
     if (error) throw error
     return data.id as string
   } catch (err) {
-    console.warn('[Solive] Could not start session:', err)
+    console.warn('[hzaura] Could not start session:', err)
     return null
   }
 }
@@ -146,7 +146,7 @@ export async function updateSessionProgress(
       .eq('id', id)
     if (error) throw error
   } catch (err) {
-    console.warn('[Solive] Could not update session:', err)
+    console.warn('[hzaura] Could not update session:', err)
   }
 }
 
@@ -161,7 +161,7 @@ export async function rateSession(id: string, afterScore: number): Promise<void>
       .eq('id', id)
     if (error) throw error
   } catch (err) {
-    console.warn('[Solive] Could not save feedback:', err)
+    console.warn('[hzaura] Could not save feedback:', err)
   }
 }
 
@@ -183,7 +183,7 @@ export async function fetchSessions(uid: string): Promise<SessionRecord[]> {
     if (error) throw error
     return (data as SessionRow[]).map(toRecord)
   } catch (err) {
-    console.warn('[Solive] Could not load sessions:', err)
+    console.warn('[hzaura] Could not load sessions:', err)
     return []
   }
 }

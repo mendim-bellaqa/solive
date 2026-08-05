@@ -2,8 +2,8 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { getSupabase, isSupabaseConfigured } from '@/lib/supabase/client'
@@ -11,7 +11,7 @@ import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import WelcomeOverlay from '@/components/WelcomeOverlay'
 
-export default function LoginPage() {
+function LoginForm() {
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -20,6 +20,12 @@ export default function LoginPage() {
   // Set once the account exists — swaps the form for the welcome moment.
   const [welcome, setWelcome] = useState<{ email: string; needsConfirmation: boolean } | null>(null)
   const router = useRouter()
+  const params = useSearchParams()
+
+  // Where to go after auth (e.g. back to checkout). Only same-site paths —
+  // an absolute URL here would be an open redirect.
+  const rawNext = params.get('next')
+  const next = rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : null
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -40,13 +46,13 @@ export default function LoginPage() {
       if (mode === 'login') {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
-        router.push('/')
+        router.push(next ?? '/')
         router.refresh()
       } else {
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=/history` },
+          options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next ?? '/history')}` },
         })
         if (error) throw error
 
@@ -98,7 +104,7 @@ export default function LoginPage() {
       <WelcomeOverlay
         email={welcome.email}
         needsConfirmation={welcome.needsConfirmation}
-        onDismiss={() => { router.push('/'); router.refresh() }}
+        onDismiss={() => { router.push(next ?? '/'); router.refresh() }}
       />
     )
   }
@@ -129,7 +135,7 @@ export default function LoginPage() {
                   <path d="M1 11 Q4 5 7 11 Q10 17 13 11 Q16 5 19 11 Q20 13 21 11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
                 </svg>
               </span>
-              <span className="font-bold text-xl tracking-tight" style={{ color: 'var(--t1)' }}>Solive</span>
+              <span className="font-bold text-xl tracking-tight" style={{ color: 'var(--t1)' }}>hzaura</span>
             </Link>
             <p style={{ fontSize: '0.82rem', color: 'var(--t3)' }}>
               {mode === 'login' ? 'Welcome back. Sign in to save your sessions.' : 'Create an account to track your progress.'}
@@ -226,5 +232,18 @@ export default function LoginPage() {
 
       <Footer />
     </>
+  )
+}
+
+// useSearchParams requires a Suspense boundary during prerender.
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center" style={{ color: 'var(--t3)' }}>
+        <p className="text-sm">Loading…</p>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   )
 }

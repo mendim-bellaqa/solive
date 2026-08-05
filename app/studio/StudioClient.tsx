@@ -22,7 +22,7 @@ export default function StudioClient() {
 
   useEffect(() => {
     try {
-      const saved = sessionStorage.getItem('solive_answers')
+      const saved = sessionStorage.getItem('hzaura_answers')
       if (saved) setAnswers(JSON.parse(saved))
     } catch { /* private browsing */ }
   }, [])

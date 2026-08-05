@@ -47,12 +47,12 @@ const COMPARE: { label: string; free: string | boolean; plus: string | boolean; 
 ]
 
 const FAQ = [
-  { q: 'Is Solive a medical treatment?', a: 'No. Solive is built for relaxation, focus and curiosity. Brainwave entrainment and binaural beats are real, studied phenomena, but this is not a substitute for professional medical care.' },
+  { q: 'Is hzaura a medical treatment?', a: 'No. hzaura is built for relaxation, focus and curiosity. Brainwave entrainment and binaural beats are real, studied phenomena, but this is not a substitute for professional medical care.' },
   { q: 'Do I need headphones?', a: 'For binaural beats, yes — the effect relies on a slightly different tone in each ear. Everything else (pure tones, cymatics) works on any speaker.' },
   { q: 'What frequencies can I play?', a: 'Any frequency from 1 to 20,000 Hz on every plan — type a number and press play. Free gives you a 30-second preview of any session; Plus and Pro remove the limit so you can listen for as long as you like.' },
-  { q: 'Can I cancel anytime?', a: 'Yes. Plans are month-to-month (or annual) and you can cancel whenever you like — you keep access until the period ends.' },
+  { q: 'Can I cancel anytime?', a: 'There’s nothing to cancel. Plans are prepaid passes — a monthly purchase unlocks 30 days, an annual one 365 days. Nothing renews on its own; when your time is up you simply drop back to Free, and you can extend whenever you like.' },
   { q: 'Is my data private?', a: 'Always. There are no ads, and your sessions and history stay yours. You can use most of the app with no account at all.' },
-  { q: 'How does billing work?', a: 'Billing isn’t connected in this build yet — selecting a plan unlocks it locally so you can preview the paid experience. Connect a payment provider (e.g. Stripe) to charge real cards.' },
+  { q: 'How does billing work?', a: 'You pay with cryptocurrency — Bitcoin, Ethereum, USDT and more — processed by NOWPayments. Pick a plan, choose your coin, and send the exact amount shown; your plan activates automatically once the network confirms. No card required, and nothing auto-renews.' },
 ]
 
 function Check({ on, color }: { on: boolean; color: string }) {
@@ -182,7 +182,7 @@ export default function PricingPage() {
             })}
           </div>
           <p style={{ color: 'var(--t4)', fontSize: '0.75rem', textAlign: 'center', marginTop: 18 }}>
-            Cancel anytime · No ads · Not a substitute for medical care
+            Pay with crypto · No auto-renew · No ads · Not a substitute for medical care
           </p>
         </section>
 

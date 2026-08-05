@@ -15,7 +15,7 @@ import Footer from '@/components/Footer'
 export default function SettingsPage() {
   const router = useRouter()
   const user = useAuthUser()
-  const { plan } = usePlan()
+  const { plan, expiresAt } = usePlan()
   const [signingOut, setSigningOut] = useState(false)
 
   const currentPlan = PLANS.find(p => p.id === plan) ?? PLANS[0]
@@ -109,19 +109,26 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
+                  {plan !== 'free' && expiresAt && (
+                    <p className="text-xs mb-4 px-3 py-2 rounded-lg text-center"
+                       style={{ background: 'var(--accent-dim)', border: '1px solid var(--accent-mid)', color: 'var(--accent)' }}>
+                      Active until {expiresAt.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+                    </p>
+                  )}
+
                   {plan === 'free' ? (
                     <Link href="/pricing" className="btn-primary w-full text-center block">
                       Upgrade your plan →
                     </Link>
                   ) : (
                     <div className="flex gap-2.5">
-                      <Link href="/pricing" className="btn-ghost flex-1 text-center text-sm">Change plan</Link>
+                      <Link href="/pricing" className="btn-ghost flex-1 text-center text-sm">Extend / change plan</Link>
                       <Link href="/history" className="btn-ghost flex-1 text-center text-sm">View history</Link>
                     </div>
                   )}
                   {plan !== 'free' && (
                     <p className="text-[0.68rem] mt-3 text-center" style={{ color: 'var(--text-muted)' }}>
-                      Billing isn’t connected yet — this is a demo activation.
+                      Paid with crypto — nothing auto-renews. Extend any time from Pricing.
                     </p>
                   )}
                 </div>

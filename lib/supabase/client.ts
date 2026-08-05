@@ -23,7 +23,7 @@ export function getSupabase(): SupabaseClient | null {
     try {
       browserClient = createBrowserClient(url!, anonKey!)
     } catch (err) {
-      console.warn('[Solive] Supabase unavailable:', err)
+      console.warn('[hzaura] Supabase unavailable:', err)
       return null
     }
   }

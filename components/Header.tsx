@@ -152,7 +152,7 @@ export default function Header() {
             </svg>
           </motion.div>
           <span className="font-bold text-base tracking-tight" style={{ color: 'var(--text-primary)' }}>
-            Solive
+            hzaura
           </span>
         </Link>
 

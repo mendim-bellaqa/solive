@@ -296,7 +296,7 @@ export default function SciencePage() {
                 <span style={{ color: 'var(--t2)', fontWeight: 700 }}>A note on evidence:</span>{' '}
                 Brainwave entrainment, binaural beats and cymatics are real, measurable phenomena. Many specific
                 healing claims around individual frequencies are still being explored and aren&apos;t a substitute for
-                medical care. Solive is built for relaxation, focus and curiosity — use it as a tool, not a treatment.
+                medical care. hzaura is built for relaxation, focus and curiosity — use it as a tool, not a treatment.
               </p>
             </div>
           </Reveal>

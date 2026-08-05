@@ -161,7 +161,7 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
   const initAudio = useCallback(() => {
     if (audioReadyRef.current) return
     if (typeof AudioContext === 'undefined' && typeof (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext === 'undefined') {
-      console.warn('[Solive] Web Audio API not supported')
+      console.warn('[hzaura] Web Audio API not supported')
       return
     }
     const AudioCtx = (window.AudioContext ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)!
@@ -527,7 +527,7 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
       updateSessionProgress(id, elapsedRef.current, 'completed')
       rateSession(id, finalAfter)
     }
-    try { sessionStorage.removeItem('solive_answers') } catch { /* ignore */ }
+    try { sessionStorage.removeItem('hzaura_answers') } catch { /* ignore */ }
   }
 
   function fmt(s: number) {

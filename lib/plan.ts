@@ -1,80 +1,16 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { getSupabase } from './supabase/client'
+import { PLAN_LIMITS, type PlanId } from './plan-data'
 
-export type PlanId = 'free' | 'plus' | 'pro'
+// The catalog itself lives in plan-data.ts so server code (payment routes)
+// can price plans without pulling in this client module. Re-exported here so
+// existing `@/lib/plan` imports keep working unchanged.
+export * from './plan-data'
 
-export interface Plan {
-  id: PlanId
-  name: string
-  price: number          // monthly USD
-  tagline: string
-  features: string[]
-  highlight?: boolean
-  cta: string
-}
-
-export const PLANS: Plan[] = [
-  {
-    id: 'free',
-    name: 'Free',
-    price: 0,
-    tagline: 'Get a taste of every experience.',
-    features: [
-      '30-second preview of any session',
-      'All 3 visual experiences to try',
-      'Any frequency, 1–20,000 Hz',
-      'No account required',
-    ],
-    cta: 'Start free',
-  },
-  {
-    id: 'plus',
-    name: 'Plus',
-    price: 6.99,
-    tagline: 'The full sound-healing studio.',
-    highlight: true,
-    features: [
-      'Unlimited session length',
-      'All 3D experiences — Brain, Aura & Cymatics',
-      'Any frequency + curated library',
-      'Fullscreen immersive mode',
-      'Schumann & undertone layers',
-    ],
-    cta: 'Get Plus',
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
-    price: 12.99,
-    tagline: 'For daily practice & tracking.',
-    features: [
-      'Everything in Plus',
-      'Save & track your session history',
-      'Before/after progress insights',
-      'Downloadable sessions (soon)',
-      'Early access to new visualizations',
-    ],
-    cta: 'Get Pro',
-  },
-]
-
-export interface PlanLimits {
-  previewSeconds: number // audio cut-off for the free teaser; Infinity = unlimited
-  maxMinutes: number     // Infinity for unlimited
-  allViz: boolean        // Brain & Aura unlocked
-  history: boolean       // session history / tracking
-}
-
-export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
-  // Free = a 30-second taste of everything, then the paywall.
-  free: { previewSeconds: 30, maxMinutes: Infinity, allViz: true, history: true },
-  plus: { previewSeconds: Infinity, maxMinutes: Infinity, allViz: true, history: true },
-  pro:  { previewSeconds: Infinity, maxMinutes: Infinity, allViz: true, history: true },
-}
-
-const KEY = 'solive_plan'
-const EVT = 'solive-plan-change'
+const KEY = 'hzaura_plan'
+const EVT = 'hzaura-plan-change'
 
 export function getStoredPlan(): PlanId {
   if (typeof window === 'undefined') return 'free'
@@ -88,22 +24,61 @@ export function setStoredPlan(id: PlanId) {
   window.dispatchEvent(new Event(EVT))
 }
 
-/** React hook — current plan, its limits, and a setter (kept in sync across the app). */
+/**
+ * React hook — current plan, its limits, and a setter (kept in sync across
+ * the app). localStorage answers instantly and keeps signed-out/demo mode
+ * working; for signed-in users the server-side `entitlements` row (written
+ * only by the payment webhook) is the source of truth and is mirrored back
+ * into localStorage so every consumer and the cross-tab event stay in sync.
+ * `expiresAt` is null on free (or while the entitlement is still loading).
+ */
 export function usePlan() {
   const [plan, setPlan] = useState<PlanId>('free')
+  const [expiresAt, setExpiresAt] = useState<Date | null>(null)
 
   useEffect(() => {
     setPlan(getStoredPlan())
     const sync = () => setPlan(getStoredPlan())
     window.addEventListener(EVT, sync)
     window.addEventListener('storage', sync)
+
+    const supabase = getSupabase()
+    let cancelled = false
+
+    async function refresh() {
+      if (!supabase) return
+      const { data: { user } } = await supabase.auth.getUser()
+      if (cancelled) return
+      if (!user) { setExpiresAt(null); return }
+
+      const { data, error } = await supabase
+        .from('entitlements')
+        .select('plan_id, plan_expires_at')
+        .eq('user_id', user.id)
+        .maybeSingle()
+      if (cancelled || error) return
+
+      const until = data ? new Date(data.plan_expires_at) : null
+      const active = until !== null && until.getTime() > Date.now()
+      const effective: PlanId =
+        active && (data!.plan_id === 'plus' || data!.plan_id === 'pro') ? data!.plan_id : 'free'
+      setExpiresAt(active ? until : null)
+      if (getStoredPlan() !== effective) setStoredPlan(effective)
+      setPlan(effective)
+    }
+
+    refresh()
+    const sub = supabase?.auth.onAuthStateChange(() => { refresh() })
+
     return () => {
+      cancelled = true
       window.removeEventListener(EVT, sync)
       window.removeEventListener('storage', sync)
+      sub?.data.subscription.unsubscribe()
     }
   }, [])
 
   const choosePlan = useCallback((id: PlanId) => { setStoredPlan(id); setPlan(id) }, [])
 
-  return { plan, limits: PLAN_LIMITS[plan], choosePlan }
+  return { plan, limits: PLAN_LIMITS[plan], choosePlan, expiresAt }
 }
