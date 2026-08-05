@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
-import { getMerchantCoins, isNowPaymentsConfigured } from '@/lib/nowpayments'
+import { getMerchantCurrencies, isNowPaymentsConfigured } from '@/lib/nowpayments'
 
 export const dynamic = 'force-dynamic'
 
 /** Coins available in the checkout picker — exactly what the owner enabled
- *  in the NOWPayments dashboard. */
+ *  in the NOWPayments dashboard, with the names, chains and logos the picker
+ *  renders. */
 export async function GET() {
   if (!isNowPaymentsConfigured()) {
     return NextResponse.json(
@@ -13,7 +14,7 @@ export async function GET() {
     )
   }
   try {
-    const currencies = await getMerchantCoins()
+    const currencies = await getMerchantCurrencies()
     return NextResponse.json({ currencies })
   } catch {
     return NextResponse.json(

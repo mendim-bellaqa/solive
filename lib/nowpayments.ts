@@ -69,6 +69,119 @@ export async function getMerchantCoins(): Promise<string[]> {
   return (data.selectedCurrencies ?? []).map(c => c.toLowerCase())
 }
 
+// ─── Coin catalog (names, networks, logos) ───────────────────────────────────
+
+interface NpCurrency {
+  code: string
+  name: string
+  network?: string | null
+  logo_url?: string | null
+  is_popular?: boolean
+  is_stable?: boolean
+  priority?: number
+}
+
+/** One row of the checkout picker. */
+export interface CoinMeta {
+  code: string        // ticker as NOWPayments wants it back, lowercased
+  name: string        // human asset name, e.g. "Tether USD"
+  network: string     // human chain name, e.g. "Tron" ('' when unknown)
+  logo: string | null // absolute URL of the official coin mark
+  popular: boolean
+  priority: number
+}
+
+const NETWORK_LABELS: Record<string, string> = {
+  btc: 'Bitcoin', eth: 'Ethereum', bsc: 'BNB Smart Chain', trx: 'Tron',
+  sol: 'Solana', matic: 'Polygon', pol: 'Polygon', arbitrum: 'Arbitrum One',
+  op: 'Optimism', avaxc: 'Avalanche C-Chain', avax: 'Avalanche', algo: 'Algorand',
+  celo: 'Celo', ton: 'TON', ltc: 'Litecoin', doge: 'Dogecoin', xrp: 'XRP Ledger',
+  ada: 'Cardano', dot: 'Polkadot', xmr: 'Monero', bch: 'Bitcoin Cash',
+  near: 'NEAR', ftm: 'Fantom', base: 'Base', zksync: 'zkSync Era',
+}
+
+/** NOWPayments names the same asset several ways across chains — one name wins. */
+const CANONICAL_NAMES: Array<[RegExp, string]> = [
+  [/^tether/i, 'Tether USD'],
+  [/^usd\s?coin/i, 'USD Coin'],
+  [/^first digital/i, 'First Digital USD'],
+  [/^trueusd/i, 'TrueUSD'],
+  [/^binance coin/i, 'BNB'],
+  [/^gram\b/i, 'Toncoin'],
+]
+
+/** Codes whose upstream "name" is just the ticker again. */
+const NAME_FALLBACKS: Record<string, string> = {
+  daiarb: 'Dai', dai: 'Dai', usdd: 'USDD', usddtrc20: 'USDD',
+}
+
+function prettyName(code: string, raw: string, networkLabel: string): string {
+  let name = (raw ?? '').replace(/\s*\([^)]*\)\s*$/, '').trim() // drop "(Solana)" suffixes
+  // "USD Coin Arbitrum One" → "USD Coin", but never strip a coin down to
+  // nothing: Bitcoin's own name matches its network label exactly.
+  if (networkLabel && name.toLowerCase().endsWith(networkLabel.toLowerCase())) {
+    const stripped = name.slice(0, -networkLabel.length).trim()
+    if (stripped) name = stripped
+  }
+  for (const [pattern, canonical] of CANONICAL_NAMES) {
+    if (pattern.test(name)) return canonical
+  }
+  if (!name || name.toLowerCase() === code.toLowerCase()) {
+    return NAME_FALLBACKS[code] ?? code.toUpperCase()
+  }
+  return name
+}
+
+let catalogCache: { at: number; byCode: Map<string, NpCurrency> } | null = null
+let catalogInFlight: Promise<Map<string, NpCurrency>> | null = null
+const CATALOG_TTL_MS = 60 * 60 * 1000
+
+async function getCurrencyCatalog(): Promise<Map<string, NpCurrency>> {
+  if (catalogCache && Date.now() - catalogCache.at < CATALOG_TTL_MS) return catalogCache.byCode
+  if (catalogInFlight) return catalogInFlight
+
+  catalogInFlight = npFetch<{ currencies?: NpCurrency[] }>('/full-currencies')
+    .then(data => {
+      const byCode = new Map<string, NpCurrency>()
+      for (const c of data.currencies ?? []) byCode.set(c.code.toLowerCase(), c)
+      catalogCache = { at: Date.now(), byCode }
+      return byCode
+    })
+    .finally(() => { catalogInFlight = null })
+
+  return catalogInFlight
+}
+
+/**
+ * The enabled coins, dressed with the names, chains and logos the picker shows.
+ * The catalog is decoration, so a failure there degrades to bare tickers rather
+ * than taking checkout down with it.
+ */
+export async function getMerchantCurrencies(): Promise<CoinMeta[]> {
+  const codes = await getMerchantCoins()
+  let catalog: Map<string, NpCurrency>
+  try {
+    catalog = await getCurrencyCatalog()
+  } catch {
+    catalog = new Map()
+  }
+
+  return codes
+    .map<CoinMeta>(code => {
+      const meta = catalog.get(code)
+      const network = meta?.network ? (NETWORK_LABELS[meta.network] ?? meta.network.toUpperCase()) : ''
+      return {
+        code,
+        name: prettyName(code, meta?.name ?? '', network),
+        network,
+        logo: meta?.logo_url ? new URL(meta.logo_url, 'https://nowpayments.io').toString() : null,
+        popular: Boolean(meta?.is_popular),
+        priority: typeof meta?.priority === 'number' ? meta.priority : 999,
+      }
+    })
+    .sort((a, b) => a.priority - b.priority || a.name.localeCompare(b.name) || a.code.localeCompare(b.code))
+}
+
 /**
  * Smallest accepted payment for a coin, in USD. Advisory only — returns null
  * when the endpoint has no answer, and POST /payment stays the final word.

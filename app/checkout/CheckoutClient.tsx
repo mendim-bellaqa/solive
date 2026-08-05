@@ -7,23 +7,11 @@ import { motion, AnimatePresence } from 'framer-motion'
 import QRCode from 'react-qr-code'
 import { usePlan, PLANS, priceUsd, planDurationDays, type PlanId, type Billing } from '@/lib/plan'
 import { useAuthUser } from '@/lib/supabase/sessions'
+import CoinPicker, { type Coin } from './CoinPicker'
 
 // ─── Small helpers ────────────────────────────────────────────────────────────
 
 const PENDING_KEY = 'hzaura_pending_payment'
-
-const COIN_NAMES: Record<string, string> = {
-  btc: 'Bitcoin', eth: 'Ethereum', sol: 'Solana', ltc: 'Litecoin',
-  doge: 'Dogecoin', xrp: 'XRP', ada: 'Cardano', trx: 'Tron', ton: 'Toncoin',
-  bnb: 'BNB', bnbbsc: 'BNB (BSC)', matic: 'Polygon', avax: 'Avalanche',
-  xmr: 'Monero', dot: 'Polkadot', bch: 'Bitcoin Cash',
-  usdttrc20: 'USDT (Tron)', usdterc20: 'USDT (Ethereum)', usdtbsc: 'USDT (BSC)',
-  usdtsol: 'USDT (Solana)', usdc: 'USD Coin', usdcsol: 'USDC (Solana)',
-}
-
-function coinLabel(c: string) {
-  return COIN_NAMES[c] ?? c.toUpperCase()
-}
 
 function fmtDate(d: Date) {
   return d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
@@ -64,7 +52,7 @@ export default function CheckoutClient() {
   const urlAnnual = params.get('billing') === 'annual'
 
   const [step, setStep] = useState<Step>('summary')
-  const [coins, setCoins] = useState<string[] | null>(null)
+  const [coins, setCoins] = useState<Coin[] | null>(null)
   const [coinsError, setCoinsError] = useState<string | null>(null)
   const [creatingCoin, setCreatingCoin] = useState<string | null>(null)
   const [payment, setPayment] = useState<PaymentInfo | null>(null)
@@ -338,25 +326,7 @@ export default function CheckoutClient() {
             No currencies are enabled yet — enable some in the NOWPayments dashboard.
           </p>
         ) : (
-          <div className="grid grid-cols-2 gap-2.5">
-            {coins.map(c => (
-              <button key={c} onClick={() => startPayment(c)} disabled={creatingCoin !== null}
-                className="rounded-xl px-3.5 py-3 text-left transition-all"
-                style={{
-                  background: creatingCoin === c ? 'var(--accent-dim)' : 'rgba(255,255,255,0.045)',
-                  border: `1px solid ${creatingCoin === c ? 'var(--accent)' : 'var(--border-mid)'}`,
-                  opacity: creatingCoin && creatingCoin !== c ? 0.45 : 1,
-                  cursor: creatingCoin ? 'wait' : 'pointer',
-                }}>
-                <span className="block text-sm font-bold" style={{ color: 'var(--t1)' }}>
-                  {creatingCoin === c ? 'Preparing…' : c.toUpperCase()}
-                </span>
-                <span className="block text-[0.68rem] mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                  {coinLabel(c)}
-                </span>
-              </button>
-            ))}
-          </div>
+          <CoinPicker coins={coins} creating={creatingCoin} onPick={startPayment} />
         )}
       </>
     )
@@ -390,14 +360,24 @@ export default function CheckoutClient() {
         sending: 'Confirmed — finalizing…',
         partially_paid: 'Partial payment received',
       }
+      // Known only when the picker was used this visit — a resumed payment
+      // shows the plain ticker rather than triggering another fetch.
+      const payCoin = coins?.find(c => c.code === payment.payCurrency.toLowerCase())
       panel = (
         <>
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-[0.65rem] font-bold tracking-[0.12em]" style={{ color: 'var(--text-muted)' }}>
-              SEND {payment.payCurrency.toUpperCase()}
-            </p>
+          <div className="flex items-start justify-between gap-3 mb-4">
+            <div>
+              <p className="text-[0.65rem] font-bold tracking-[0.12em]" style={{ color: 'var(--text-muted)' }}>
+                SEND {payment.payCurrency.toUpperCase()}
+              </p>
+              {payCoin?.network && (
+                <p className="text-[0.72rem] mt-1" style={{ color: 'var(--text-secondary)' }}>
+                  {payCoin.name} on the <strong style={{ color: 'var(--t1)' }}>{payCoin.network}</strong> network
+                </p>
+              )}
+            </div>
             {remaining !== null && (
-              <span className="text-[0.7rem] font-bold px-2 py-1 rounded-md"
+              <span className="text-[0.7rem] font-bold px-2 py-1 rounded-md flex-shrink-0 whitespace-nowrap"
                     style={{
                       background: remaining > 0 ? 'rgba(255,255,255,0.05)' : 'rgba(224,80,80,0.12)',
                       border: `1px solid ${remaining > 0 ? 'var(--border-mid)' : 'rgba(224,80,80,0.3)'}`,
