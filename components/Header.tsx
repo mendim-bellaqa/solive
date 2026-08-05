@@ -4,10 +4,15 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
+import { usePlan, PLANS } from '@/lib/plan'
 
 interface UserInfo {
   email: string | null
   name: string | null
+}
+
+function fmtDate(d: Date) {
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 export default function Header() {
@@ -19,6 +24,9 @@ export default function Header() {
   const ticking                       = useRef(false)
   const menuRef                       = useRef<HTMLDivElement>(null)
   const pathname                      = usePathname()
+  const { plan, expiresAt }           = usePlan()
+
+  const planName = PLANS.find(p => p.id === plan)?.name ?? 'Free'
 
   // Pointless to offer "Start Session" while building or already in one.
   const inSessionFlow = pathname === '/session' || pathname === '/studio'
@@ -203,6 +211,16 @@ export default function Header() {
           </Link>
           )}
 
+          {/* Which plan you're on, always in view. Paid plans wear the accent;
+              free is quiet but still a live link to the upgrade. */}
+          {(user || plan !== 'free') && (
+            <Link href="/pricing" className="plan-badge plan-badge-header" data-plan={plan}
+                  aria-label={`Current plan: ${planName}. View plans.`}>
+              <span className="plan-badge-dot" aria-hidden />
+              {planName}
+            </Link>
+          )}
+
           {/* Auth section */}
           {user ? (
             /* Logged-in user with dropdown */
@@ -280,6 +298,34 @@ export default function Header() {
                       {user.email && (
                         <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--text-muted)' }}>{user.email}</p>
                       )}
+                    </div>
+
+                    {/* Plan — what you have, until when, and the way up */}
+                    <div className="px-4 py-3 border-b" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="plan-badge" data-plan={plan}>
+                          <span className="plan-badge-dot" aria-hidden />
+                          {planName}
+                        </span>
+                        {plan === 'free' ? (
+                          <Link href="/pricing" onClick={() => setMenuOpen(false)}
+                                className="text-xs font-bold" style={{ color: 'var(--accent)' }}>
+                            Upgrade →
+                          </Link>
+                        ) : (
+                          <Link href="/pricing" onClick={() => setMenuOpen(false)}
+                                className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                            Extend →
+                          </Link>
+                        )}
+                      </div>
+                      <p className="text-[0.68rem] mt-2" style={{ color: 'var(--text-muted)', lineHeight: 1.45 }}>
+                        {plan === 'free'
+                          ? 'Sessions play a 30-second preview.'
+                          : expiresAt
+                            ? `Active until ${fmtDate(expiresAt)}.`
+                            : 'Active — unlimited session length.'}
+                      </p>
                     </div>
 
                     {/* Menu items */}
@@ -432,6 +478,26 @@ export default function Header() {
                 ))}
 
                 <div className="my-2" style={{ height: 1, background: 'rgba(255,255,255,0.07)' }} />
+
+                <Link
+                  href="/pricing"
+                  onClick={() => setNavOpen(false)}
+                  className="flex items-center justify-between px-3 py-3 rounded-xl"
+                  style={{ background: 'rgba(255,255,255,0.03)' }}
+                >
+                  <span className="flex items-center gap-2.5">
+                    <span className="plan-badge" data-plan={plan}>
+                      <span className="plan-badge-dot" aria-hidden />
+                      {planName}
+                    </span>
+                    <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                      {plan === 'free' ? 'Your plan' : expiresAt ? `Until ${fmtDate(expiresAt)}` : 'Active'}
+                    </span>
+                  </span>
+                  <span className="text-xs font-bold" style={{ color: plan === 'free' ? 'var(--accent)' : 'var(--text-muted)' }}>
+                    {plan === 'free' ? 'Upgrade →' : 'Extend →'}
+                  </span>
+                </Link>
 
                 {!inSessionFlow && (
                   <Link

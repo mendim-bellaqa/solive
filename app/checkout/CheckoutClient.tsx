@@ -146,20 +146,33 @@ export default function CheckoutClient() {
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
+  async function loadCoins() {
+    const res = await fetch('/api/crypto/currencies')
+    const body = await res.json()
+    if (!res.ok) throw new Error(body.message ?? 'Unavailable')
+    setCoins(body.currencies as Coin[])
+  }
+
   async function openCoinPicker() {
     setStep('coins')
     setError(null)
     if (coins) return
     setCoinsError(null)
     try {
-      const res = await fetch('/api/crypto/currencies')
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.message ?? 'Unavailable')
-      setCoins(body.currencies)
+      await loadCoins()
     } catch (err) {
       setCoinsError(err instanceof Error ? err.message : 'Could not load currencies.')
     }
   }
+
+  // A payment resumed from a previous visit lands straight on the pay screen
+  // without the picker ever running — and that screen has to name the network,
+  // so fetch the catalog for it.
+  useEffect(() => {
+    if (step !== 'pay' || coins) return
+    loadCoins().catch(() => { /* the ticker alone still identifies the coin */ })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, coins])
 
   async function startPayment(coin: string) {
     if (creatingCoin) return
@@ -370,10 +383,8 @@ export default function CheckoutClient() {
               <p className="text-[0.65rem] font-bold tracking-[0.12em]" style={{ color: 'var(--text-muted)' }}>
                 SEND {payment.payCurrency.toUpperCase()}
               </p>
-              {payCoin?.network && (
-                <p className="text-[0.72rem] mt-1" style={{ color: 'var(--text-secondary)' }}>
-                  {payCoin.name} on the <strong style={{ color: 'var(--t1)' }}>{payCoin.network}</strong> network
-                </p>
+              {payCoin && (
+                <p className="text-[0.72rem] mt-1" style={{ color: 'var(--text-secondary)' }}>{payCoin.name}</p>
               )}
             </div>
             {remaining !== null && (
@@ -408,6 +419,11 @@ export default function CheckoutClient() {
               <QRCode value={payment.payAddress} size={164} />
             </div>
           </div>
+
+          {/* The network gets a field of its own. It is the one detail a wallet
+              asks for that this page used to leave the user to infer from a
+              ticker, and getting it wrong is what actually loses funds. */}
+          <NetworkRow coin={payCoin} code={payment.payCurrency} />
 
           <CopyRow
             label={`Amount — send exactly this much ${payment.payCurrency.toUpperCase()}`}
@@ -545,6 +561,34 @@ function Notice({ tone, children }: { tone: 'accent' | 'warn' | 'error'; childre
     <div className="mb-5 px-3.5 py-3 rounded-xl text-[0.76rem] leading-snug"
          style={{ background: palette.bg, border: `1px solid ${palette.border}`, color: palette.color }}>
       {children}
+    </div>
+  )
+}
+
+function NetworkRow({ coin, code }: { coin: Coin | undefined; code: string }) {
+  return (
+    <div className="mb-3">
+      <p className="text-[0.66rem] font-semibold tracking-wide mb-1.5" style={{ color: 'var(--text-muted)' }}>
+        Network — send only over this chain
+      </p>
+      <div className="w-full rounded-xl px-3.5 py-3 flex items-center gap-3"
+           style={{ background: 'rgba(232,160,32,0.06)', border: '1px solid rgba(232,160,32,0.28)' }}>
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#e8c48a" strokeWidth="2"
+             style={{ flexShrink: 0 }} aria-hidden>
+          <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" strokeLinejoin="round" />
+          <path d="M12 9v4M12 17h.01" strokeLinecap="round" />
+        </svg>
+        <div style={{ minWidth: 0 }}>
+          <p className="text-[0.86rem] font-bold" style={{ color: 'var(--t1)' }}>
+            {coin?.network || `${code.toUpperCase()} network`}
+          </p>
+          <p className="text-[0.68rem] mt-0.5" style={{ color: '#e8c48a' }}>
+            {coin
+              ? `Choose ${coin.network} in your wallet — coins sent over any other chain are lost.`
+              : 'Send on the network this ticker belongs to — coins sent over another chain are lost.'}
+          </p>
+        </div>
+      </div>
     </div>
   )
 }

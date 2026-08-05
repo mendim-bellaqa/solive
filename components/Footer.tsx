@@ -4,6 +4,7 @@ import { useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion, useInView } from 'framer-motion'
+import { useAuthUser } from '@/lib/supabase/sessions'
 
 // Animated waveform ribbon across the top of the footer
 function WaveRibbon() {
@@ -68,6 +69,7 @@ function FLink({ href, children }: { href: string; children: React.ReactNode }) 
 
 export default function Footer() {
   const router = useRouter()
+  const user = useAuthUser()
   const ref = useRef<HTMLDivElement>(null)
   const inView = useInView(ref, { once: true, margin: '-80px' })
   const year = new Date().getFullYear()
@@ -144,7 +146,12 @@ export default function Footer() {
           </Col>
 
           <Col title="ACCOUNT">
-            <FLink href="/auth/login">Sign in</FLink>
+            {/* `undefined` means auth is still resolving — showing "Sign in" to
+                someone who is already signed in is worse than showing nothing
+                for a beat. */}
+            {user === null && <FLink href="/auth/login">Sign in</FLink>}
+            {user && <FLink href="/settings">Settings</FLink>}
+            {user && <FLink href="/pricing">Your plan</FLink>}
             <FLink href="/history">My sessions</FLink>
             <FLink href="/session">Get matched</FLink>
           </Col>

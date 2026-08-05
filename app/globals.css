@@ -772,10 +772,10 @@ button { font-family: inherit; cursor: pointer; }
 .tap-card.selected { border-color: var(--border-hi); background: var(--glass-2); }
 
 /* ══════════════════════════════════════════════════════════════════════════ */
-/*  COIN PICKER (checkout)                                                    */
+/*  LIST PICKER (checkout coins, session frequencies)                        */
 /* ══════════════════════════════════════════════════════════════════════════ */
 
-.coin-search {
+.pick-search {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -787,13 +787,13 @@ button { font-family: inherit; cursor: pointer; }
   transition: border-color 0.2s, box-shadow 0.2s, color 0.2s;
 }
 
-.coin-search:focus-within {
+.pick-search:focus-within {
   border-color: var(--accent);
   color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-dim);
 }
 
-.coin-search input {
+.pick-search input {
   flex: 1;
   min-width: 0;
   background: transparent;
@@ -806,10 +806,10 @@ button { font-family: inherit; cursor: pointer; }
   letter-spacing: -0.01em;
 }
 
-.coin-search input::placeholder { color: var(--t4); font-weight: 400; }
-.coin-search input::-webkit-search-cancel-button { -webkit-appearance: none; }
+.pick-search input::placeholder { color: var(--t4); font-weight: 400; }
+.pick-search input::-webkit-search-cancel-button { -webkit-appearance: none; }
 
-.coin-search-clear {
+.pick-search-clear {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -823,9 +823,9 @@ button { font-family: inherit; cursor: pointer; }
   transition: background 0.18s, color 0.18s;
 }
 
-.coin-search-clear:hover { background: var(--border-hi); color: var(--t1); }
+.pick-search-clear:hover { background: var(--border-hi); color: var(--t1); }
 
-.coin-count {
+.pick-count {
   margin: 10px 2px 6px;
   font-size: 0.66rem;
   font-weight: 600;
@@ -833,7 +833,7 @@ button { font-family: inherit; cursor: pointer; }
   color: var(--t4);
 }
 
-.coin-scroll {
+.pick-scroll {
   max-height: min(46vh, 380px);
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -844,22 +844,22 @@ button { font-family: inherit; cursor: pointer; }
 
 /* Rows fade out where the list keeps going — the cue that it scrolls — and
    only there, so nothing looks half-cut once you reach an end. */
-.coin-scroll[data-fade='bottom'] {
+.pick-scroll[data-fade='bottom'] {
   -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent 100%);
   mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent 100%);
 }
 
-.coin-scroll[data-fade='top'] {
+.pick-scroll[data-fade='top'] {
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 32px);
   mask-image: linear-gradient(to bottom, transparent 0, #000 32px);
 }
 
-.coin-scroll[data-fade='both'] {
+.pick-scroll[data-fade='both'] {
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 32px, #000 calc(100% - 40px), transparent 100%);
   mask-image: linear-gradient(to bottom, transparent 0, #000 32px, #000 calc(100% - 40px), transparent 100%);
 }
 
-.coin-group {
+.pick-group {
   padding: 12px 8px 6px;
   font-size: 0.6rem;
   font-weight: 700;
@@ -867,9 +867,9 @@ button { font-family: inherit; cursor: pointer; }
   color: var(--t4);
 }
 
-.coin-group:first-child { padding-top: 2px; }
+.pick-group:first-child { padding-top: 2px; }
 
-.coin-row {
+.pick-row {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -883,24 +883,24 @@ button { font-family: inherit; cursor: pointer; }
   transition: background 0.16s, border-color 0.16s, opacity 0.16s, transform 0.12s;
 }
 
-.coin-row + .coin-row { margin-top: 2px; }
+.pick-row + .pick-row { margin-top: 2px; }
 
-.coin-row:hover:not(:disabled) {
+.pick-row:hover:not(:disabled) {
   background: var(--glass-1);
   border-color: var(--border);
 }
 
-.coin-row:active:not(:disabled) { transform: scale(0.985); }
+.pick-row:active:not(:disabled) { transform: scale(0.985); }
 
-.coin-row:focus-visible {
+.pick-row:focus-visible {
   outline: none;
   border-color: var(--accent);
   background: var(--accent-dim);
 }
 
-.coin-row[data-dimmed] { opacity: 0.35; cursor: wait; }
+.pick-row[data-dimmed] { opacity: 0.35; cursor: wait; }
 
-.coin-row[data-busy] {
+.pick-row[data-busy] {
   background: var(--accent-dim);
   border-color: var(--accent-mid);
   cursor: wait;
@@ -934,9 +934,9 @@ button { font-family: inherit; cursor: pointer; }
   color: rgba(255,255,255,0.92);
 }
 
-.coin-text { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+.pick-text { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
 
-.coin-name {
+.pick-name {
   font-size: 0.86rem;
   font-weight: 700;
   letter-spacing: -0.01em;
@@ -946,7 +946,7 @@ button { font-family: inherit; cursor: pointer; }
   text-overflow: ellipsis;
 }
 
-.coin-sub {
+.pick-sub {
   font-size: 0.67rem;
   font-weight: 500;
   letter-spacing: 0.01em;
@@ -956,10 +956,10 @@ button { font-family: inherit; cursor: pointer; }
   text-overflow: ellipsis;
 }
 
-.coin-chevron { flex-shrink: 0; color: var(--t4); opacity: 0.55; }
-.coin-row:hover:not(:disabled) .coin-chevron { opacity: 1; color: var(--t2); }
+.pick-chevron { flex-shrink: 0; color: var(--t4); opacity: 0.55; }
+.pick-row:hover:not(:disabled) .pick-chevron { opacity: 1; color: var(--t2); }
 
-.coin-busy {
+.pick-busy {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -969,7 +969,7 @@ button { font-family: inherit; cursor: pointer; }
   color: var(--accent);
 }
 
-.coin-spinner {
+.pick-spinner {
   width: 12px;
   height: 12px;
   border-radius: 999px;
@@ -980,7 +980,7 @@ button { font-family: inherit; cursor: pointer; }
 
 @keyframes spin-cw { to { transform: rotate(360deg); } }
 
-.coin-empty {
+.pick-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -992,6 +992,352 @@ button { font-family: inherit; cursor: pointer; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .coin-spinner { animation-duration: 2s; }
-  .coin-row:active:not(:disabled) { transform: none; }
+  .pick-spinner { animation-duration: 2s; }
+  .pick-row:active:not(:disabled) { transform: none; }
+}
+
+/* Selected row in a picker that stays open (the frequency library). */
+.pick-row[data-on] {
+  background: var(--glass-2);
+  border-color: var(--border-mid);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  FREQUENCY LIBRARY SHEET (session setup)                                   */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+.freq-sheet {
+  position: fixed;
+  z-index: 81;
+  /* Centred by margin, not by transform: the entrance animation owns the
+     element's transform and would drop a translateX(-50%) on the floor. */
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+  width: min(520px, 100vw);
+  /* Bottom sheet on phones, floating panel from `sm` up. */
+  bottom: 0;
+  top: max(6vh, env(safe-area-inset-top));
+  display: flex;
+}
+
+.freq-sheet-inner {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+  padding: 18px 16px calc(16px + env(safe-area-inset-bottom));
+  background: #0b0b15;
+  border: 1px solid var(--border-mid);
+  border-bottom: none;
+  border-radius: 24px 24px 0 0;
+  box-shadow: 0 -20px 70px rgba(0,0,0,0.7);
+}
+
+@media (min-width: 640px) {
+  .freq-sheet { top: 8vh; bottom: 8vh; }
+  .freq-sheet-inner {
+    border-bottom: 1px solid var(--border-mid);
+    border-radius: 24px;
+    padding-bottom: 16px;
+  }
+}
+
+.freq-sheet-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.freq-sheet-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid var(--border-mid);
+  background: var(--glass-1);
+  color: var(--t2);
+  transition: background 0.18s, color 0.18s;
+}
+
+.freq-sheet-close:hover { background: var(--glass-2); color: var(--t1); }
+
+.freq-cats {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 10px -16px 0;
+  padding: 0 16px 2px;
+}
+
+.freq-cats::-webkit-scrollbar { display: none; }
+
+.freq-cat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--glass-1);
+  color: var(--t3);
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: background 0.16s, border-color 0.16s, color 0.16s;
+}
+
+.freq-cat:hover { color: var(--t1); border-color: var(--border-mid); }
+.freq-cat[data-on] { color: var(--t1); border-color: var(--border-hi); background: var(--glass-2); }
+
+/* The list is the tall part of the sheet: it takes whatever height is left. */
+.freq-scroll { flex: 1; min-height: 120px; max-height: none; }
+
+.freq-hz {
+  flex-shrink: 0;
+  width: 68px;
+  font-size: 0.92rem;
+  font-weight: 900;
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.16s;
+}
+
+.freq-hz-unit {
+  font-size: 0.58rem;
+  font-weight: 600;
+  color: var(--t4);
+  margin-left: 2px;
+}
+
+.freq-tag {
+  flex-shrink: 0;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.freq-custom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.freq-custom-input {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 4px 4px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border-mid);
+  background: var(--glass-1);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.freq-custom-input:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+.freq-custom-input[data-error] { border-color: #e05050; }
+
+.freq-custom-input input {
+  width: 78px;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--t1);
+  /* 16px so iOS doesn't zoom the sheet when this gets focus. */
+  font-size: 1rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  -moz-appearance: textfield;
+}
+
+.freq-custom-input input::-webkit-outer-spin-button,
+.freq-custom-input input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+.freq-custom-unit { font-size: 0.7rem; font-weight: 700; color: var(--t4); }
+
+.freq-custom-input button {
+  margin-left: 4px;
+  padding: 9px 16px;
+  border: none;
+  border-radius: 11px;
+  background: var(--t1);
+  color: var(--bg);
+  font-size: 0.76rem;
+  font-weight: 800;
+  transition: opacity 0.18s;
+}
+
+.freq-custom-input button:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  SESSION SETUP CELLS                                                       */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+.band-cell,
+.len-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 4px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--glass-1);
+  text-align: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.16s, border-color 0.16s, transform 0.12s;
+}
+
+.len-cell { padding: 11px 8px; gap: 3px; }
+
+.band-cell:hover,
+.len-cell:hover { background: var(--glass-2); border-color: var(--border-mid); }
+
+.band-cell:active,
+.len-cell:active { transform: scale(0.97); }
+
+/* The dot marking the pairing curated for the selected tone. */
+.band-star {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+}
+
+/* ── Saved setups ────────────────────────────────────────────────────────── */
+
+.preset-chip {
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  border: 1px solid var(--border-mid);
+  border-radius: 14px;
+  background: var(--glass-1);
+  overflow: hidden;
+  transition: background 0.16s, border-color 0.16s;
+}
+
+.preset-chip:hover { background: var(--glass-2); border-color: var(--border-hi); }
+
+.preset-chip-main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 8px 6px 8px 12px;
+  background: none;
+  border: none;
+  text-align: left;
+  max-width: 210px;
+}
+
+.preset-chip-name {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--t1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 190px;
+}
+
+.preset-chip-meta { font-size: 0.62rem; color: var(--t4); white-space: nowrap; }
+
+.preset-chip-x {
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  border: none;
+  background: none;
+  color: var(--t4);
+  transition: color 0.16s, background 0.16s;
+}
+
+.preset-chip-x:hover { color: #f0a0a0; background: rgba(224,80,80,0.10); }
+
+.preset-name-input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border-mid);
+  background: var(--glass-1);
+  color: var(--t1);
+  /* 16px so iOS doesn't zoom when the dialog opens. */
+  font-size: 1rem;
+  font-weight: 600;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.preset-name-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+.preset-name-input::placeholder { color: var(--t4); font-weight: 400; }
+
+/* ── Plan badge (header) ─────────────────────────────────────────────────── */
+
+.plan-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border-mid);
+  background: var(--glass-1);
+  color: var(--t3);
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.plan-badge:hover { border-color: var(--border-hi); color: var(--t1); }
+
+.plan-badge[data-plan='plus'] {
+  color: var(--accent);
+  border-color: var(--accent-mid);
+  background: var(--accent-dim);
+}
+
+.plan-badge[data-plan='pro'] {
+  color: #fff;
+  border-color: rgba(139,92,246,0.45);
+  background: linear-gradient(120deg, rgba(92,232,220,0.20), rgba(139,92,246,0.28));
+  box-shadow: 0 0 14px rgba(139,92,246,0.18);
+}
+
+.plan-badge-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.plan-badge[data-plan='pro'] .plan-badge-dot,
+.plan-badge[data-plan='plus'] .plan-badge-dot { box-shadow: 0 0 8px currentColor; }
+
+/* On the narrowest phones the bar already carries a logo, an account control
+   and the menu — the badge steps aside there and stays in the menu instead. */
+@media (max-width: 359px) {
+  .plan-badge-header { display: none; }
 }

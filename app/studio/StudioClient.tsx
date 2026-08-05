@@ -36,7 +36,11 @@ export default function StudioClient() {
   const hz           = sanitizeHz(hzRaw)
   const binauralBand: BinauralBand = VALID_BANDS.includes(bandRaw) ? bandRaw : 'alpha'
   const initialScene: SceneMode = VALID_SCENES.includes(vizRaw) ? vizRaw : 'frequency'
-  const duration     = [15, 30, 45, 9999].includes(durationRaw) ? durationRaw : 30
+  // 9999 is the open-ended sentinel; anything else is minutes, and the builder
+  // offers more lengths than the original four.
+  const duration     = durationRaw === 9999
+    ? 9999
+    : (Number.isFinite(durationRaw) && durationRaw >= 1 && durationRaw <= 600 ? Math.round(durationRaw) : 30)
   const secondaryHz  = sanitizeHz(secondaryRaw) !== 528 || secondaryRaw !== 528
     ? (secondaryRaw !== hz && secondaryRaw >= 1 && secondaryRaw <= 20000 ? secondaryRaw : undefined)
     : undefined

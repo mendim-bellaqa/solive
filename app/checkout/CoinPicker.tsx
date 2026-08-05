@@ -45,7 +45,7 @@ function CoinMark({ coin }: { coin: Coin }) {
 
 function Chevron() {
   return (
-    <svg className="coin-chevron" width="15" height="15" viewBox="0 0 24 24" fill="none"
+    <svg className="pick-chevron" width="15" height="15" viewBox="0 0 24 24" fill="none"
          stroke="currentColor" strokeWidth="2.2" aria-hidden>
       <path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
@@ -97,7 +97,7 @@ export default function CoinPicker({ coins, creating, onPick }: {
 
   return (
     <div>
-      <div className="coin-search">
+      <div className="pick-search">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
              strokeWidth="2.2" aria-hidden>
           <circle cx="11" cy="11" r="7" />
@@ -115,7 +115,7 @@ export default function CoinPicker({ coins, creating, onPick }: {
           enterKeyHint="search"
         />
         {query && (
-          <button type="button" className="coin-search-clear" onClick={() => setQuery('')} aria-label="Clear search">
+          <button type="button" className="pick-search-clear" onClick={() => setQuery('')} aria-label="Clear search">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6">
               <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
             </svg>
@@ -123,22 +123,22 @@ export default function CoinPicker({ coins, creating, onPick }: {
         )}
       </div>
 
-      <p className="coin-count">
+      <p className="pick-count">
         {q
           ? `${matches.length} ${matches.length === 1 ? 'match' : 'matches'}`
           : `${coins.length} coins accepted`}
       </p>
 
       {matches.length === 0 ? (
-        <div className="coin-empty">
+        <div className="pick-empty">
           <p>No coin matches “{query.trim()}”.</p>
           <button type="button" onClick={() => setQuery('')} className="btn-ghost text-sm">Clear search</button>
         </div>
       ) : (
-        <div className="coin-scroll" ref={scrollRef} onScroll={updateFade} data-fade={fade}>
+        <div className="pick-scroll" ref={scrollRef} onScroll={updateFade} data-fade={fade}>
           {groups.map(group => (
             <div key={group.label ?? 'results'}>
-              {group.label && <p className="coin-group">{group.label}</p>}
+              {group.label && <p className="pick-group">{group.label}</p>}
               {group.items.map(coin => {
                 const busy = creating === coin.code
                 // "BTC · Bitcoin" and "TON · TON" say the same thing twice — a
@@ -152,21 +152,21 @@ export default function CoinPicker({ coins, creating, onPick }: {
                     type="button"
                     onClick={() => onPick(coin.code)}
                     disabled={creating !== null}
-                    className="coin-row"
+                    className="pick-row"
                     data-busy={busy || undefined}
                     data-dimmed={creating !== null && !busy ? true : undefined}
                   >
                     <CoinMark coin={coin} />
-                    <span className="coin-text">
-                      <span className="coin-name">{coin.name}</span>
-                      <span className="coin-sub">
+                    <span className="pick-text">
+                      <span className="pick-name">{coin.name}</span>
+                      <span className="pick-sub">
                         {coin.code.toUpperCase()}
                         {chain && <> · {chain}</>}
                       </span>
                     </span>
                     {busy ? (
-                      <span className="coin-busy">
-                        <span className="coin-spinner" aria-hidden />
+                      <span className="pick-busy">
+                        <span className="pick-spinner" aria-hidden />
                         Preparing…
                       </span>
                     ) : (

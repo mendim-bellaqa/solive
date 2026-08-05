@@ -216,8 +216,63 @@ export const BINAURAL_PRESETS: Record<BinauralBand, BinauralPreset> = {
   gamma: { band: 'gamma', hz: 40, carrierHz: 200, label: 'Gamma', state: 'Peak Cognition & High Performance' },
 }
 
+/**
+ * What each band actually is, in the words a first-time user needs before
+ * choosing one. The picker shows this next to the choice — the band changes
+ * what a session does more than the carrier tone does, and it used to be
+ * selected silently on the user's behalf.
+ */
+export const BAND_DETAIL: Record<BinauralBand, {
+  range: string
+  what: string
+  best: string
+}> = {
+  delta: {
+    range: '0.5 – 4 Hz',
+    what: 'The rhythm of dreamless sleep, when the body does its repair work. Slow enough that you stop tracking it within a minute.',
+    best: 'Sleep, naps, recovery, pain that keeps you awake',
+  },
+  theta: {
+    range: '4 – 8 Hz',
+    what: 'The edge between awake and asleep — where imagery drifts in and emotional material surfaces with the guard down.',
+    best: 'Meditation, creative wandering, processing something heavy',
+  },
+  alpha: {
+    range: '8 – 13 Hz',
+    what: 'The resting rhythm of a calm, awake mind. Relaxed but still present — the most studied band for stress.',
+    best: 'Winding down, gentle focus, everyday stress',
+  },
+  beta: {
+    range: '13 – 30 Hz',
+    what: 'Ordinary alert attention, aimed outward. Effective for work, and tiring if you leave it running all day.',
+    best: 'Deep work, study, anything that needs holding together',
+  },
+  gamma: {
+    range: '30 – 50 Hz',
+    what: 'The fastest rhythm here, tied to binding separate streams of thought into one. The 40 Hz point is the most researched in the library.',
+    best: 'Short bursts before demanding cognitive work',
+  },
+}
+
 export function getFrequency(hz: number): HzauraFrequency | undefined {
   return FREQUENCIES[hz]
+}
+
+/** Every catalog entry at this exact Hz — 256 Hz, for one, is both a tuning
+ *  reference and the root of the chakra scale. */
+export function catalogEntriesFor(hz: number): CatalogEntry[] {
+  return FREQ_CATALOG.filter(e => e.hz === hz)
+}
+
+/** The entry the session setup describes when a tone appears in several
+ *  categories: the first listed wins, which is the curated order. */
+export function primaryCatalogEntry(hz: number): CatalogEntry | undefined {
+  return FREQ_CATALOG.find(e => e.hz === hz)
+}
+
+/** The band a tone is curated with, falling back to the range it sits in. */
+export function suggestedBandFor(hz: number): BinauralBand {
+  return primaryCatalogEntry(hz)?.band ?? SUGGESTED_BAND[hz] ?? 'alpha'
 }
 
 export function getColorThemeClass(color: FrequencyColorTheme): string {
