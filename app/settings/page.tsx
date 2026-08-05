@@ -2,23 +2,108 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { getSupabase } from '@/lib/supabase/client'
-import { useAuthUser } from '@/lib/supabase/sessions'
-import { usePlan, PLANS } from '@/lib/plan'
+import { useAuthUser, displayNameOf, fetchSessions, type SessionRecord } from '@/lib/supabase/sessions'
+import { usePlan, PLANS, planDurationDays } from '@/lib/plan'
+import { useSessionPresets } from '@/lib/presets'
+import { useSessionDefaults, DEFAULT_PREFS } from '@/lib/prefs'
+import { BINAURAL_PRESETS, type BinauralBand } from '@/lib/frequencies'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+
+const VIZ_LABELS: Record<string, string> = { brain: 'Brain', aura: 'Body Aura', frequency: 'Cymatics' }
+const LENGTHS = [10, 15, 30, 45, 60, 9999]
+const BANDS: (BinauralBand | 'suggested')[] = ['suggested', 'delta', 'theta', 'alpha', 'beta', 'gamma']
+
+function lengthLabel(m: number) { return m === 9999 ? 'Open' : `${m} min` }
+
+function fmtDate(d: Date) {
+  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
+}
+
+function daysLeft(d: Date) {
+  return Math.max(0, Math.ceil((d.getTime() - Date.now()) / 86_400_000))
+}
 
 export default function SettingsPage() {
   const router = useRouter()
   const user = useAuthUser()
   const { plan, expiresAt } = usePlan()
+  const { presets, scope, remove } = useSessionPresets()
+  const { prefs, update } = useSessionDefaults()
+
   const [signingOut, setSigningOut] = useState(false)
+  const [name, setName] = useState('')
+  const [nameStatus, setNameStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [pw1, setPw1] = useState('')
+  const [pw2, setPw2] = useState('')
+  const [pwStatus, setPwStatus] = useState<{ tone: 'ok' | 'err'; msg: string } | null>(null)
+  const [pwBusy, setPwBusy] = useState(false)
+  const [sessions, setSessions] = useState<SessionRecord[] | null>(null)
+  const [wipe, setWipe] = useState<'idle' | 'confirm' | 'busy' | 'done'>('idle')
 
   const currentPlan = PLANS.find(p => p.id === plan) ?? PLANS[0]
+
+  useEffect(() => { setName(displayNameOf(user) ?? '') }, [user])
+
+  useEffect(() => {
+    if (!user) return
+    fetchSessions(user.id).then(setSessions).catch(() => setSessions([]))
+  }, [user])
+
+  async function saveName() {
+    const supabase = getSupabase()
+    if (!supabase) return
+    setNameStatus('saving')
+    const { error } = await supabase.auth.updateUser({ data: { full_name: name.trim() } })
+    setNameStatus(error ? 'error' : 'saved')
+    setTimeout(() => setNameStatus('idle'), 2600)
+  }
+
+  async function changePassword() {
+    const supabase = getSupabase()
+    if (!supabase) return
+    if (pw1.length < 6) { setPwStatus({ tone: 'err', msg: 'Use at least 6 characters.' }); return }
+    if (pw1 !== pw2)    { setPwStatus({ tone: 'err', msg: 'Those two do not match.' }); return }
+    setPwBusy(true)
+    const { error } = await supabase.auth.updateUser({ password: pw1 })
+    setPwBusy(false)
+    if (error) { setPwStatus({ tone: 'err', msg: error.message }); return }
+    setPw1(''); setPw2('')
+    setPwStatus({ tone: 'ok', msg: 'Password updated.' })
+  }
+
+  const exportData = useCallback(() => {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      account: { email: user?.email ?? null, name: displayNameOf(user) },
+      plan: { id: plan, expiresAt: expiresAt?.toISOString() ?? null },
+      sessionDefaults: prefs,
+      savedSessions: presets ?? [],
+      sessions: sessions ?? [],
+    }
+    const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `hzaura-data-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }, [user, plan, expiresAt, prefs, presets, sessions])
+
+  async function clearHistory() {
+    const supabase = getSupabase()
+    if (!supabase || !user) return
+    setWipe('busy')
+    const { error } = await supabase.from('sessions').delete().eq('user_id', user.id)
+    if (error) { setWipe('idle'); return }
+    setSessions([])
+    setWipe('done')
+    setTimeout(() => setWipe('idle'), 2600)
+  }
 
   async function handleSignOut() {
     setSigningOut(true)
@@ -28,6 +113,8 @@ export default function SettingsPage() {
     router.refresh()
   }
 
+  const listened = (sessions ?? []).reduce((n, s) => n + s.elapsedSeconds, 0)
+
   return (
     <>
       <Header />
@@ -36,105 +123,238 @@ export default function SettingsPage() {
       </div>
 
       <main className="relative z-10 px-5 mx-auto"
-            style={{ maxWidth: 560, paddingTop: 'calc(env(safe-area-inset-top) + 104px)', paddingBottom: 80 }}>
+            style={{ maxWidth: 620, paddingTop: 'calc(env(safe-area-inset-top) + 104px)', paddingBottom: 80 }}>
 
         <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
           <h1 className="text-2xl font-black mb-1" style={{ letterSpacing: '-0.02em' }}>Settings</h1>
-          <p className="text-sm mb-8" style={{ color: 'var(--text-muted)' }}>
-            Manage your account and plan.
+          <p className="text-sm mb-8" style={{ color: 'var(--t3)' }}>
+            Your account, your plan, and what a new session starts as.
           </p>
 
-          {/* Not signed in */}
-          {user === null ? (
+          {user === undefined ? (
+            <div className="glass rounded-3xl p-8 text-center text-sm" style={{ color: 'var(--t3)' }}>Loading…</div>
+
+          ) : user === null ? (
             <div className="glass-card grain p-8 rounded-3xl text-center">
               <div className="shimmer-overlay" />
               <div className="relative z-[2]">
                 <h2 className="text-lg font-bold mb-2">You’re signed out</h2>
-                <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)' }}>
-                  Sign in to manage your account, plan, and session history.
+                <p className="text-sm mb-6" style={{ color: 'var(--t2)' }}>
+                  Sign in to manage your account, plan and history. Session defaults below still work — they
+                  live in this browser.
                 </p>
                 <Link href="/auth/login" className="btn-primary inline-block">Sign in / Register</Link>
               </div>
             </div>
-          ) : user === undefined ? (
-            <div className="glass rounded-3xl p-8 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
-              Loading…
-            </div>
+
           ) : (
             <div className="flex flex-col gap-4">
 
-              {/* Account card */}
-              <section className="glass-card grain p-6 rounded-3xl">
-                <div className="shimmer-overlay" />
-                <div className="relative z-[2]">
-                  <p className="text-[0.65rem] font-bold tracking-[0.12em] mb-4" style={{ color: 'var(--text-muted)' }}>
-                    ACCOUNT
-                  </p>
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold flex-shrink-0"
-                         style={{ background: 'var(--accent-dim)', border: '1.5px solid var(--accent-mid)', color: 'var(--accent)' }}>
-                      {(user.email ?? '?').charAt(0).toUpperCase()}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-sm truncate">{user.email}</p>
-                      <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                        Signed in with email
-                      </p>
-                    </div>
+              {/* ── Profile ──────────────────────────────────────────────── */}
+              <Section label="PROFILE">
+                <div className="flex items-center gap-4 mb-5">
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold flex-shrink-0"
+                       style={{ background: 'var(--glass-2)', border: '1px solid var(--border-mid)', color: 'var(--t1)' }}>
+                    {(name || user.email || '?').charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-sm truncate">{user.email}</p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--t4)' }}>
+                      Signed in with email · joined {new Date(user.created_at).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}
+                    </p>
                   </div>
                 </div>
-              </section>
 
-              {/* Plan card */}
-              <section className="glass-card grain p-6 rounded-3xl">
-                <div className="shimmer-overlay" />
-                <div className="relative z-[2]">
-                  <p className="text-[0.65rem] font-bold tracking-[0.12em] mb-4" style={{ color: 'var(--text-muted)' }}>
-                    YOUR PLAN
+                <Field label="Display name">
+                  <div className="flex gap-2">
+                    <input value={name} onChange={e => setName(e.target.value)} maxLength={60}
+                           placeholder="What should we call you?" className="set-input flex-1"
+                           aria-label="Display name" />
+                    <button onClick={saveName} disabled={nameStatus === 'saving'} className="btn-ghost text-sm px-4">
+                      {nameStatus === 'saving' ? 'Saving…' : nameStatus === 'saved' ? 'Saved ✓' : 'Save'}
+                    </button>
+                  </div>
+                  {nameStatus === 'error' && <Note tone="err">Could not save that name.</Note>}
+                </Field>
+
+                <Field label="Password">
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <input type="password" value={pw1} onChange={e => setPw1(e.target.value)}
+                           placeholder="New password" autoComplete="new-password"
+                           className="set-input flex-1" aria-label="New password" />
+                    <input type="password" value={pw2} onChange={e => setPw2(e.target.value)}
+                           placeholder="Repeat it" autoComplete="new-password"
+                           className="set-input flex-1" aria-label="Repeat new password" />
+                    <button onClick={changePassword} disabled={pwBusy || !pw1} className="btn-ghost text-sm px-4">
+                      {pwBusy ? 'Updating…' : 'Update'}
+                    </button>
+                  </div>
+                  {pwStatus && <Note tone={pwStatus.tone === 'ok' ? 'ok' : 'err'}>{pwStatus.msg}</Note>}
+                </Field>
+              </Section>
+
+              {/* ── Plan ─────────────────────────────────────────────────── */}
+              <Section label="YOUR PLAN">
+                <div className="flex items-start justify-between gap-4 mb-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-black text-lg">{currentPlan.name}</span>
+                      <span className="plan-badge" data-plan={plan}>
+                        <span className="plan-badge-dot" aria-hidden />
+                        {plan === 'free' ? 'Free' : 'Active'}
+                      </span>
+                    </div>
+                    <p className="text-xs mt-1" style={{ color: 'var(--t4)' }}>{currentPlan.tagline}</p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <span className="font-black text-xl">${currentPlan.price}</span>
+                    <span className="text-xs" style={{ color: 'var(--t4)' }}>/mo</span>
+                  </div>
+                </div>
+
+                {plan !== 'free' && expiresAt && (
+                  <div className="mb-4">
+                    <div className="flex items-baseline justify-between mb-2">
+                      <p className="text-xs" style={{ color: 'var(--t3)' }}>Active until {fmtDate(expiresAt)}</p>
+                      <p className="text-xs font-bold">{daysLeft(expiresAt)} days left</p>
+                    </div>
+                    {/* Over 40 days left can only be an annual window. */}
+                    <Meter value={daysLeft(expiresAt) / planDurationDays(daysLeft(expiresAt) > 40 ? 'annual' : 'monthly')} />
+                  </div>
+                )}
+
+                <ul className="flex flex-col gap-1.5 mb-4">
+                  {currentPlan.features.map(f => (
+                    <li key={f} className="flex items-start gap-2 text-[0.78rem]" style={{ color: 'var(--t3)' }}>
+                      <span style={{ color: 'var(--t4)' }}>—</span>{f}
+                    </li>
+                  ))}
+                </ul>
+
+                {plan === 'free' ? (
+                  <Link href="/pricing" className="btn-primary w-full text-center block">Upgrade your plan →</Link>
+                ) : (
+                  <div className="flex gap-2.5">
+                    <Link href="/pricing" className="btn-ghost flex-1 text-center text-sm">Extend</Link>
+                    <Link href="/history" className="btn-ghost flex-1 text-center text-sm">History</Link>
+                  </div>
+                )}
+                {plan !== 'free' && (
+                  <p className="text-[0.68rem] mt-3 text-center" style={{ color: 'var(--t4)' }}>
+                    Paid with crypto — nothing auto-renews.
                   </p>
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-black text-lg">{currentPlan.name}</span>
-                        {currentPlan.id !== 'free' && (
-                          <span className="text-[0.55rem] font-bold px-1.5 py-0.5 rounded"
-                                style={{ background: 'var(--accent)', color: '#04140f' }}>ACTIVE</span>
-                        )}
+                )}
+              </Section>
+
+              {/* ── Session defaults ─────────────────────────────────────── */}
+              <Section label="SESSION DEFAULTS"
+                       hint="What the builder is already set to when you open it. Stored on this device.">
+                <Field label="Visual">
+                  <div className="set-row">
+                    {(['brain', 'aura', 'frequency'] as const).map(v => (
+                      <button key={v} onClick={() => update({ viz: v })} className="set-chip" data-on={prefs.viz === v || undefined}>
+                        {VIZ_LABELS[v]}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
+
+                <Field label="Length">
+                  <div className="set-row">
+                    {LENGTHS.map(m => (
+                      <button key={m} onClick={() => update({ minutes: m })} className="set-chip" data-on={prefs.minutes === m || undefined}>
+                        {lengthLabel(m)}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
+
+                <Field label="Brainwave band">
+                  <div className="set-row">
+                    {BANDS.map(b => (
+                      <button key={b} onClick={() => update({ band: b })} className="set-chip" data-on={prefs.band === b || undefined}>
+                        {b === 'suggested' ? 'Follow the tone' : BINAURAL_PRESETS[b].label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[0.7rem] mt-2" style={{ color: 'var(--t4)' }}>
+                    {prefs.band === 'suggested'
+                      ? 'Each tone brings its own curated pairing.'
+                      : `Every session starts on ${BINAURAL_PRESETS[prefs.band].label} — ${BINAURAL_PRESETS[prefs.band].state.toLowerCase()}.`}
+                  </p>
+                </Field>
+
+                {(prefs.viz !== DEFAULT_PREFS.viz || prefs.minutes !== DEFAULT_PREFS.minutes || prefs.band !== DEFAULT_PREFS.band) && (
+                  <button onClick={() => update(DEFAULT_PREFS)}
+                          className="text-[0.72rem] underline" style={{ color: 'var(--t4)' }}>
+                    Reset to the standard defaults
+                  </button>
+                )}
+              </Section>
+
+              {/* ── Saved sessions ───────────────────────────────────────── */}
+              <Section label="SAVED SESSIONS"
+                       hint={scope === 'account' ? 'Stored on your account.' : 'Stored in this browser.'}>
+                {!presets || presets.length === 0 ? (
+                  <p className="text-sm" style={{ color: 'var(--t3)' }}>
+                    None yet. Build a session you like and tap the bookmark next to Begin —{' '}
+                    <Link href="/session" style={{ color: 'var(--accent)' }}>start one</Link>.
+                  </p>
+                ) : (
+                  <div className="flex flex-col gap-1">
+                    {presets.map(p => (
+                      <div key={p.id} className="set-list-row">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold truncate">{p.name}</p>
+                          <p className="text-[0.7rem]" style={{ color: 'var(--t4)' }}>
+                            {p.hz} Hz · {BINAURAL_PRESETS[p.band].label} · {VIZ_LABELS[p.viz]} · {lengthLabel(p.minutes)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <Link href={`/studio?hz=${p.hz}&binaural=${p.band}&duration=${p.minutes}&viz=${p.viz}`}
+                                className="set-mini">Play</Link>
+                          <button onClick={() => remove(p.id)} className="set-mini set-mini-danger">Delete</button>
+                        </div>
                       </div>
-                      <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{currentPlan.tagline}</p>
-                    </div>
-                    <div className="text-right">
-                      <span className="font-black text-xl">${currentPlan.price}</span>
-                      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>/mo</span>
-                    </div>
+                    ))}
                   </div>
+                )}
+              </Section>
 
-                  {plan !== 'free' && expiresAt && (
-                    <p className="text-xs mb-4 px-3 py-2 rounded-lg text-center"
-                       style={{ background: 'var(--accent-dim)', border: '1px solid var(--accent-mid)', color: 'var(--accent)' }}>
-                      Active until {expiresAt.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+              {/* ── Data ─────────────────────────────────────────────────── */}
+              <Section label="YOUR DATA">
+                <div className="set-list-row">
+                  <div>
+                    <p className="text-sm font-semibold">Export everything</p>
+                    <p className="text-[0.7rem]" style={{ color: 'var(--t4)' }}>
+                      {sessions === null ? 'Counting…' : `${sessions.length} sessions · ${Math.round(listened / 60)} minutes listened`}
+                      {presets ? ` · ${presets.length} saved setups` : ''}
                     </p>
-                  )}
+                  </div>
+                  <button onClick={exportData} className="set-mini flex-shrink-0">JSON</button>
+                </div>
 
-                  {plan === 'free' ? (
-                    <Link href="/pricing" className="btn-primary w-full text-center block">
-                      Upgrade your plan →
-                    </Link>
-                  ) : (
-                    <div className="flex gap-2.5">
-                      <Link href="/pricing" className="btn-ghost flex-1 text-center text-sm">Extend / change plan</Link>
-                      <Link href="/history" className="btn-ghost flex-1 text-center text-sm">View history</Link>
+                <div className="set-list-row">
+                  <div className="min-w-0 pr-3">
+                    <p className="text-sm font-semibold">Clear session history</p>
+                    <p className="text-[0.7rem]" style={{ color: 'var(--t4)' }}>
+                      Deletes every session row on your account. Saved setups and your plan stay.
+                    </p>
+                  </div>
+                  {wipe === 'confirm' ? (
+                    <div className="flex gap-1 flex-shrink-0">
+                      <button onClick={() => setWipe('idle')} className="set-mini">Keep</button>
+                      <button onClick={clearHistory} className="set-mini set-mini-danger">Delete all</button>
                     </div>
-                  )}
-                  {plan !== 'free' && (
-                    <p className="text-[0.68rem] mt-3 text-center" style={{ color: 'var(--text-muted)' }}>
-                      Paid with crypto — nothing auto-renews. Extend any time from Pricing.
-                    </p>
+                  ) : (
+                    <button onClick={() => setWipe('confirm')} disabled={wipe === 'busy'}
+                            className="set-mini set-mini-danger flex-shrink-0">
+                      {wipe === 'busy' ? 'Deleting…' : wipe === 'done' ? 'Cleared ✓' : 'Clear'}
+                    </button>
                   )}
                 </div>
-              </section>
+              </Section>
 
-              {/* Sign out */}
               <button
                 onClick={handleSignOut}
                 disabled={signingOut}
@@ -147,10 +367,75 @@ export default function SettingsPage() {
               </button>
             </div>
           )}
+
+          {/* Signed-out visitors still get their device defaults. */}
+          {user === null && (
+            <div className="mt-4">
+              <Section label="SESSION DEFAULTS" hint="Stored in this browser.">
+                <Field label="Visual">
+                  <div className="set-row">
+                    {(['brain', 'aura', 'frequency'] as const).map(v => (
+                      <button key={v} onClick={() => update({ viz: v })} className="set-chip" data-on={prefs.viz === v || undefined}>
+                        {VIZ_LABELS[v]}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
+                <Field label="Length">
+                  <div className="set-row">
+                    {LENGTHS.map(m => (
+                      <button key={m} onClick={() => update({ minutes: m })} className="set-chip" data-on={prefs.minutes === m || undefined}>
+                        {lengthLabel(m)}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
+              </Section>
+            </div>
+          )}
         </motion.div>
       </main>
 
       <Footer />
     </>
+  )
+}
+
+// ─── Bits ─────────────────────────────────────────────────────────────────────
+
+function Section({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <section className="glass rounded-3xl p-6">
+      <p className="text-[0.62rem] font-bold tracking-[0.14em]" style={{ color: 'var(--t4)' }}>{label}</p>
+      {hint && <p className="text-[0.72rem] mt-1.5" style={{ color: 'var(--t4)', lineHeight: 1.5 }}>{hint}</p>}
+      <div className="mt-4">{children}</div>
+    </section>
+  )
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="mb-5 last:mb-0">
+      <p className="text-[0.7rem] font-semibold mb-2" style={{ color: 'var(--t3)' }}>{label}</p>
+      {children}
+    </div>
+  )
+}
+
+function Note({ tone, children }: { tone: 'ok' | 'err'; children: React.ReactNode }) {
+  return (
+    <p className="text-[0.72rem] mt-2" style={{ color: tone === 'ok' ? 'var(--accent)' : '#f0a0a0' }}>
+      {children}
+    </p>
+  )
+}
+
+function Meter({ value }: { value: number }) {
+  const pct = Math.max(0, Math.min(100, value * 100))
+  return (
+    <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
+      <motion.div className="h-full rounded-full" initial={{ width: 0 }} animate={{ width: `${pct}%` }}
+                  transition={{ duration: 0.6 }} style={{ background: 'var(--t2)' }} />
+    </div>
   )
 }

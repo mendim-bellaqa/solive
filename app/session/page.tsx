@@ -12,6 +12,7 @@ import {
 import Header from '@/components/Header'
 import { usePlan } from '@/lib/plan'
 import { useSessionPresets, type SessionPreset } from '@/lib/presets'
+import { useSessionDefaults } from '@/lib/prefs'
 import FrequencyPicker from './FrequencyPicker'
 
 const Biofield = dynamic(() => import('@/components/Biofield'), { ssr: false })
@@ -103,6 +104,18 @@ export default function SessionPage() {
   useEffect(() => {
     if (!bandTouched) setBand(suggested)
   }, [suggested, bandTouched])
+
+  // Whatever the user set as their defaults in Settings, applied once the
+  // browser has handed them over.
+  const { prefs, loaded: prefsLoaded } = useSessionDefaults()
+  const [prefsApplied, setPrefsApplied] = useState(false)
+  useEffect(() => {
+    if (!prefsLoaded || prefsApplied) return
+    setViz(prefs.viz)
+    setMinutes(prefs.minutes)
+    if (prefs.band !== 'suggested') { setBand(prefs.band); setBandTouched(true) }
+    setPrefsApplied(true)
+  }, [prefsLoaded, prefsApplied, prefs])
 
   const title = entry?.name ?? freq.name
   const blurb = entry?.benefit ?? freq.tagline
