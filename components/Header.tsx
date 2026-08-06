@@ -31,6 +31,10 @@ export default function Header() {
   // Pointless to offer "Start Session" while building or already in one.
   const inSessionFlow = pathname === '/session' || pathname === '/studio'
 
+  /** Nested routes count as their section, so /frequencies/528 still lights
+   *  Frequencies. */
+  const isCurrent = (href: string) => pathname === href || pathname.startsWith(`${href}/`)
+
   const NAV = [
     { label: 'Frequencies', href: '/frequencies' },
     { label: 'Science',     href: '/science' },
@@ -170,8 +174,9 @@ export default function Header() {
             <Link
               key={label}
               href={href}
-              className="px-3 py-1.5 rounded-lg text-sm transition-all hover:bg-white/[0.06]"
-              style={{ color: 'var(--text-secondary)' }}
+              className="nav-link"
+              data-on={isCurrent(href) || undefined}
+              aria-current={isCurrent(href) ? 'page' : undefined}
             >
               {label}
             </Link>
@@ -472,9 +477,10 @@ export default function Header() {
                       href={href}
                       onClick={() => setNavOpen(false)}
                       className="mnav-link"
-                      data-on={pathname === href || undefined}
+                      data-on={isCurrent(href) || undefined}
+                      aria-current={isCurrent(href) ? 'page' : undefined}
                     >
-                      {label}
+                      <span className="mnav-label">{label}</span>
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                            strokeWidth="2" aria-hidden>
                         <path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />

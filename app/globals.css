@@ -1386,6 +1386,64 @@ button { font-family: inherit; cursor: pointer; }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════ */
+/*  HEADER NAV — CURRENT PAGE                                                 */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+.nav-link {
+  position: relative;
+  padding: 6px 12px;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  color: var(--t2);
+  transition: color 0.18s, background 0.18s;
+}
+
+.nav-link:hover { color: var(--t1); background: rgba(255,255,255,0.06); }
+.nav-link[data-on] { color: var(--t1); font-weight: 600; }
+
+/* The line that says "you are here": white, lit, drawn from the middle out. */
+.nav-link[data-on]::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: -7px;
+  height: 2px;
+  border-radius: 2px;
+  background: #fff;
+  box-shadow: 0 0 10px rgba(255,255,255,0.55), 0 0 3px rgba(255,255,255,0.9);
+  transform-origin: center;
+  animation: nav-underline 0.34s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes nav-underline {
+  from { transform: scaleX(0); opacity: 0; }
+  to   { transform: scaleX(1); opacity: 1; }
+}
+
+/* Same mark in the mobile panel, sized to the word rather than the row. */
+.mnav-label { position: relative; display: inline-block; }
+
+.mnav-link[data-on] .mnav-label::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -6px;
+  height: 2px;
+  border-radius: 2px;
+  background: #fff;
+  box-shadow: 0 0 10px rgba(255,255,255,0.55), 0 0 3px rgba(255,255,255,0.9);
+  transform-origin: left;
+  animation: nav-underline 0.34s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-link[data-on]::after,
+  .mnav-link[data-on] .mnav-label::after { animation: none; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════ */
 /*  BACK LINK                                                                 */
 /* ══════════════════════════════════════════════════════════════════════════ */
 
