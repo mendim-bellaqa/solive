@@ -48,6 +48,14 @@ function lengthLabel(minutes: number) {
   return LENGTHS.find(l => l.minutes === minutes)?.label ?? `${minutes} min`
 }
 
+/** "1-minute" reads better than "60-second" once the teaser reaches a minute. */
+function previewLabel(seconds: number) {
+  if (!Number.isFinite(seconds)) return 'full-length'
+  return seconds >= 60 && seconds % 60 === 0
+    ? `${seconds / 60}-minute`
+    : `${seconds}-second`
+}
+
 /** Open-ended (9999) needs an unlimited plan; everything else needs the cap. */
 function allows(plan: PlanId, minutes: number) {
   const max = PLAN_LIMITS[plan].maxMinutes
@@ -432,7 +440,7 @@ export default function SessionPage() {
                      background: 'var(--accent-dim)', border: '1px solid var(--accent-mid)' }}>
             {plan === 'free' ? (
               <>
-                Free plays a <strong style={{ color: 'var(--t1)' }}>{limits.previewSeconds}-second</strong> audio
+                Free plays a <strong style={{ color: 'var(--t1)' }}>{previewLabel(limits.previewSeconds)}</strong> audio
                 preview and caps sessions at {limits.maxMinutes} minutes — the visuals keep running either way.
                 Plus plays full sessions up to 60 minutes; Pro runs open-ended. <span style={{ color: 'var(--accent)' }}>See plans →</span>
               </>

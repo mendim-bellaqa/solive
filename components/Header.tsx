@@ -321,7 +321,7 @@ export default function Header() {
                       </div>
                       <p className="text-[0.68rem] mt-2" style={{ color: 'var(--text-muted)', lineHeight: 1.45 }}>
                         {plan === 'free'
-                          ? 'Sessions play a 30-second preview.'
+                          ? 'Sessions play a 1-minute preview.'
                           : expiresAt
                             ? `Active until ${fmtDate(expiresAt)}.`
                             : 'Active — unlimited session length.'}

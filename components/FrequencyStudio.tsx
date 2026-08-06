@@ -479,7 +479,7 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
 
   function play()   {
     // Same guard as resume(): once the free preview is spent, starting over
-    // must re-open the paywall rather than grant another 30 seconds.
+    // must re-open the paywall rather than grant another free minute.
     if (gatedRef.current) { setShowPaywall(true); return }
     try { initAudio() } catch { /* unsupported */ }
     setPlayerState('playing')
@@ -509,7 +509,7 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
       setAfterScore(null)
       setShowPaywall(false)
       // gatedRef is deliberately NOT reset: on the free plan, restarting from
-      // zero would otherwise hand out another 30 seconds every time.
+      // zero would otherwise hand out another free minute every time.
       if (previewSeconds === Infinity) gatedRef.current = false
     }
   }
@@ -1254,7 +1254,7 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
           `fixed` at z-index 100 so it sits above the site header (z-50) and
           the transport controls. When it was scoped to the visualiser box the
           controls underneath stayed live, so a stray tap on stop() wiped the
-          gate and handed out a fresh 30 seconds. */}
+          gate and handed out a fresh minute. */}
       <AnimatePresence>
         {showPaywall && (
           <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
@@ -1282,7 +1282,7 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
                   Keep the sound going
                 </h2>
                 <p className="text-sm mb-6" style={{ color:'var(--text-secondary)', lineHeight:1.55 }}>
-                  Free sessions stop after 30 seconds. Upgrade to play any frequency for as long as you like — uninterrupted.
+                  Free sessions stop after a minute. Upgrade to play any frequency for as long as you like — uninterrupted.
                 </p>
 
                 {/* Plan choices.

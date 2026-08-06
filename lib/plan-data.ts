@@ -21,7 +21,7 @@ export const PLANS: Plan[] = [
     price: 0,
     tagline: 'Get a taste of every experience.',
     features: [
-      '30-second audio preview of any session',
+      '1-minute audio preview of any session',
       'Sessions up to 15 minutes',
       'All 3 visual experiences to try',
       'Any frequency, 1–20,000 Hz',
@@ -35,7 +35,7 @@ export const PLANS: Plan[] = [
     tagline: 'The full sound-healing studio.',
     highlight: true,
     features: [
-      'Full-length audio — no 30-second cut-off',
+      'Full-length audio — no 1-minute cut-off',
       'Sessions up to 60 minutes',
       'Star your favourite sessions',
       'All 3D experiences — Brain, Aura & Cymatics',
@@ -75,7 +75,7 @@ export interface PlanLimits {
  * open-ended sessions are allowed.
  */
 export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
-  free: { previewSeconds: 30, maxMinutes: 15, allViz: true, history: true, favorites: false },
+  free: { previewSeconds: 60, maxMinutes: 15, allViz: true, history: true, favorites: false },
   plus: { previewSeconds: Infinity, maxMinutes: 60, allViz: true, history: true, favorites: true },
   pro:  { previewSeconds: Infinity, maxMinutes: Infinity, allViz: true, history: true, favorites: true },
 }

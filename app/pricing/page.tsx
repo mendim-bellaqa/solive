@@ -34,7 +34,7 @@ const BENEFITS = [
 ]
 
 const COMPARE: { label: string; free: string | boolean; plus: string | boolean; pro: string | boolean }[] = [
-  { label: 'Session length',              free: '30 sec preview', plus: 'Unlimited', pro: 'Unlimited' },
+  { label: 'Session length',              free: '1 min preview', plus: 'Up to 60 min', pro: 'Unlimited & open-ended' },
   { label: 'Any frequency (1–20,000 Hz)', free: true,     plus: true,        pro: true },
   { label: 'Curated frequency library',   free: true,     plus: true,        pro: true },
   { label: 'Binaural beats',              free: true,     plus: true,        pro: true },
@@ -43,6 +43,7 @@ const COMPARE: { label: string; free: string | boolean; plus: string | boolean; 
   { label: 'Fullscreen immersive mode',   free: false,    plus: true,        pro: true },
   { label: 'Schumann & undertone layers', free: false,    plus: true,        pro: true },
   { label: 'Session history & tracking',  free: false,    plus: true,        pro: true },
+  { label: 'Favourite sessions',          free: false,    plus: true,        pro: true },
   { label: 'Before/after insights',       free: false,    plus: false,       pro: true },
   { label: 'Downloadable sessions',       free: false,    plus: false,       pro: 'Soon' },
 ]
@@ -50,7 +51,7 @@ const COMPARE: { label: string; free: string | boolean; plus: string | boolean; 
 const FAQ = [
   { q: 'Is hzaura a medical treatment?', a: 'No. hzaura is built for relaxation, focus and curiosity. Brainwave entrainment and binaural beats are real, studied phenomena, but this is not a substitute for professional medical care.' },
   { q: 'Do I need headphones?', a: 'For binaural beats, yes — the effect relies on a slightly different tone in each ear. Everything else (pure tones, cymatics) works on any speaker.' },
-  { q: 'What frequencies can I play?', a: 'Any frequency from 1 to 20,000 Hz on every plan — type a number and press play. Free gives you a 30-second preview of any session; Plus and Pro remove the limit so you can listen for as long as you like.' },
+  { q: 'What frequencies can I play?', a: 'Any frequency from 1 to 20,000 Hz on every plan — type a number and press play. Free gives you a 1-minute preview of any session; Plus and Pro remove the limit so you can listen for as long as you like.' },
   { q: 'Can I cancel anytime?', a: 'There’s nothing to cancel. Plans are prepaid passes — a monthly purchase unlocks 30 days, an annual one 365 days. Nothing renews on its own; when your time is up you simply drop back to Free, and you can extend whenever you like.' },
   { q: 'Is my data private?', a: 'Always. There are no ads, and your sessions and history stay yours. You can use most of the app with no account at all.' },
   { q: 'How does billing work?', a: 'You pay with cryptocurrency — Bitcoin, Ethereum, USDT and more — processed by NOWPayments. Pick a plan, choose your coin, and send the exact amount shown; your plan activates automatically once the network confirms. No card required, and nothing auto-renews.' },
