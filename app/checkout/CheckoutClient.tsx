@@ -8,6 +8,7 @@ import QRCode from 'react-qr-code'
 import { usePlan, PLANS, priceUsd, planDurationDays, type PlanId, type Billing } from '@/lib/plan'
 import { useAuthUser } from '@/lib/supabase/sessions'
 import CoinPicker, { type Coin } from './CoinPicker'
+import BackLink from '@/components/BackLink'
 
 // ─── Small helpers ────────────────────────────────────────────────────────────
 
@@ -565,13 +566,7 @@ export default function CheckoutClient() {
       <main className="relative z-10 px-5 mx-auto"
             style={{ maxWidth: 900, paddingTop: 'calc(env(safe-area-inset-top) + 104px)', paddingBottom: 80 }}>
 
-        <Link href="/pricing" className="text-sm flex items-center gap-1.5 mb-6 transition-opacity hover:opacity-80"
-              style={{ color: 'var(--text-muted)' }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M19 12H5M12 19l-7-7 7-7" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          Back to plans
-        </Link>
+        <div className="mb-6"><BackLink fallback="/pricing" fallbackLabel="Back to plans" /></div>
 
         <h1 className="text-2xl font-black mb-8" style={{ letterSpacing: '-0.02em' }}>
           {renewingSame ? `Extend your ${plan.name} plan` : 'Complete your upgrade'}

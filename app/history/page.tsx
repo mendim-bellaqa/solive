@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import Header from '@/components/Header'
+import BackLink from '@/components/BackLink'
 import { FREQUENCIES, getOrCreateFrequency, primaryCatalogEntry, BINAURAL_PRESETS } from '@/lib/frequencies'
 import { useSessionPresets } from '@/lib/presets'
 import {
@@ -137,13 +138,7 @@ export default function HistoryPage() {
         {/* Header row */}
         <div className="flex items-end justify-between mb-8 gap-4">
           <div>
-            <Link href="/" className="text-sm flex items-center gap-1.5 mb-3 transition-opacity hover:opacity-80"
-                  style={{ color: 'var(--t4)' }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M19 12H5M12 19l-7-7 7-7" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              Home
-            </Link>
+            <div className="mb-3"><BackLink fallbackLabel="Home" /></div>
             <h1 className="text-2xl font-black" style={{ letterSpacing: '-0.025em' }}>My Sessions</h1>
             {sessions.length > 0 && (
               <p className="text-sm mt-1" style={{ color: 'var(--t4)' }}>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import BackLink from '@/components/BackLink'
 import {
   FREQ_CATALOG, FREQ_CATEGORIES, CategoryId, CatalogEntry, BINAURAL_PRESETS,
 } from '@/lib/frequencies'
@@ -389,6 +390,7 @@ export default function FrequenciesPage() {
       <main className="relative z-10 max-w-6xl mx-auto px-5 pb-24" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 7rem)' }}>
         {/* Title */}
         <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="mb-7">
+          <div className="mb-5"><BackLink fallbackLabel="Home" /></div>
           <p style={{ color: 'var(--t4)', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.1em', marginBottom: 12 }}>FREQUENCY LIBRARY</p>
           <h1 style={{ fontSize: 'clamp(2rem, 5vw, 3.4rem)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.02, marginBottom: 14 }}>
             Play any frequency.{' '}<span style={{ color: 'var(--t2)' }}>One tap.</span>

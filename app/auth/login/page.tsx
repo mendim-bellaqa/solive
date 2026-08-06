@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic'
 import { Suspense, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import BackLink from '@/components/BackLink'
 import { motion, AnimatePresence } from 'framer-motion'
 import { getSupabase, isSupabaseConfigured } from '@/lib/supabase/client'
 import Header from '@/components/Header'
@@ -127,6 +128,8 @@ function LoginForm() {
           transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
           style={{ width: '100%', maxWidth: 420 }}
         >
+          <div style={{ marginBottom: 20, display: 'flex' }}><BackLink fallbackLabel="Home" /></div>
+
           {/* Logo */}
           <div style={{ textAlign: 'center', marginBottom: 28 }}>
             <Link href="/" className="inline-flex items-center gap-2.5 mb-3">

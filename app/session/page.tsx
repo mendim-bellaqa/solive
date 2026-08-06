@@ -10,6 +10,7 @@ import {
   type BinauralBand, type CatalogEntry,
 } from '@/lib/frequencies'
 import Header from '@/components/Header'
+import BackLink from '@/components/BackLink'
 import { usePlan, planForMinutes, PLAN_LIMITS, type PlanId } from '@/lib/plan'
 import { useSessionPresets, type SessionPreset } from '@/lib/presets'
 import { useSessionDefaults } from '@/lib/prefs'
@@ -172,6 +173,8 @@ export default function SessionPage() {
       </div>
 
       <main style={{ maxWidth: 640, margin: '0 auto', padding: 'calc(env(safe-area-inset-top) + 88px) 16px 150px', position: 'relative' }}>
+
+        <div style={{ marginBottom: 18 }}><BackLink fallbackLabel="Home" /></div>
 
         {/* Title */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}

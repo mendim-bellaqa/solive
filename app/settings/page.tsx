@@ -14,6 +14,7 @@ import { useSessionDefaults, DEFAULT_PREFS } from '@/lib/prefs'
 import { BINAURAL_PRESETS, type BinauralBand } from '@/lib/frequencies'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import BackLink from '@/components/BackLink'
 
 const VIZ_LABELS: Record<string, string> = { brain: 'Brain', aura: 'Body Aura', frequency: 'Cymatics' }
 const LENGTHS = [10, 15, 30, 45, 60, 9999]
@@ -126,6 +127,7 @@ export default function SettingsPage() {
             style={{ maxWidth: 620, paddingTop: 'calc(env(safe-area-inset-top) + 104px)', paddingBottom: 80 }}>
 
         <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+          <div className="mb-5"><BackLink fallbackLabel="Home" /></div>
           <h1 className="text-2xl font-black mb-1" style={{ letterSpacing: '-0.02em' }}>Settings</h1>
           <p className="text-sm mb-8" style={{ color: 'var(--t3)' }}>
             Your account, your plan, and what a new session starts as.

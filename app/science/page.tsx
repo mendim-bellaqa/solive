@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { motion, useInView } from 'framer-motion'
 import dynamic from 'next/dynamic'
 import Header from '@/components/Header'
+import BackLink from '@/components/BackLink'
 
 const ThreeVisualizer = dynamic(() => import('@/components/ThreeVisualizer'), { ssr: false })
 
@@ -121,6 +122,7 @@ export default function SciencePage() {
                  style={{ paddingTop: 'calc(env(safe-area-inset-top) + 8rem)' }}>
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div>
+              <div style={{ marginBottom: 20 }}><BackLink fallbackLabel="Home" /></div>
               <motion.p
                 initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
                 style={{ color: 'var(--t4)', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.12em', marginBottom: 16 }}>

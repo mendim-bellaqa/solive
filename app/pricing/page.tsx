@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence, useInView } from 'framer-motion'
 import dynamic from 'next/dynamic'
 import Header from '@/components/Header'
+import BackLink from '@/components/BackLink'
 import Footer from '@/components/Footer'
 import { PLANS, PlanId, usePlan } from '@/lib/plan'
 
@@ -96,6 +97,9 @@ export default function PricingPage() {
             <HeroOrb />
           </div>
           <div className="relative z-10 max-w-2xl mx-auto text-center">
+            {/* Left-aligned inside a centred hero — a back control belongs on
+                the edge you came from, not floating in the middle. */}
+            <div style={{ marginBottom: 18, display: 'flex' }}><BackLink fallbackLabel="Home" /></div>
             <motion.p initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
               style={{ color: 'var(--t4)', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.12em', marginBottom: 14 }}>
               PLANS & PRICING

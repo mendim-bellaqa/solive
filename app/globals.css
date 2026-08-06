@@ -1386,6 +1386,36 @@ button { font-family: inherit; cursor: pointer; }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════ */
+/*  BACK LINK                                                                 */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px 8px 11px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--glass-1);
+  color: var(--t3);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.16s, border-color 0.16s, color 0.16s, transform 0.14s;
+}
+
+.back-link:hover {
+  background: var(--glass-2);
+  border-color: var(--border-mid);
+  color: var(--t1);
+}
+
+.back-link:hover svg { transform: translateX(-2px); }
+.back-link:active { transform: scale(0.97); }
+.back-link svg { transition: transform 0.16s; }
+
+/* ══════════════════════════════════════════════════════════════════════════ */
 /*  MOBILE NAV PANEL                                                          */
 /* ══════════════════════════════════════════════════════════════════════════ */
 
