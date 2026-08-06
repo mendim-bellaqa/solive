@@ -5,7 +5,10 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { BinauralBand, BINAURAL_PRESETS, FREQUENCIES, getOrCreateFrequency } from '@/lib/frequencies'
-import { startSession, updateSessionProgress, rateSession } from '@/lib/supabase/sessions'
+import {
+  startSession, updateSessionProgress, rateSession,
+  setSessionFavorite, getSessionFavorite, useAuthUser,
+} from '@/lib/supabase/sessions'
 import { usePlan, PLANS } from '@/lib/plan'
 import type { QuestionnaireAnswers } from '@/lib/recommendation'
 import dynamic from 'next/dynamic'
@@ -131,11 +134,14 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
   // Supabase session tracking. The row is created on first play so a session
   // still shows up in history if the user pauses and leaves without finishing.
   const sessionIdRef = useRef<string | null>(sessionId ?? null)
+  const [favorite, setFavorite] = useState(false)
+  const favoriteRef = useRef(false)          // readable from ensureSessionDoc
   const elapsedRef   = useRef(resumeFrom)   // readable from cleanup without re-subscribing
   const playerStateRef = useRef<PlayerState>('idle')
 
   const router = useRouter()
   const { limits, plan } = usePlan()
+  const authUser = useAuthUser()
   const planName = PLANS.find(p => p.id === plan)?.name ?? 'Free'
 
   // Free-plan gating: cap session length; Brain & Aura are a paid experience
@@ -145,6 +151,18 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
   const totalSeconds = cappedMinutes === Infinity ? Infinity : cappedMinutes * 60
   const vizLocked = !limits.allViz && sceneMode !== 'frequency'
   const previewSeconds = limits.previewSeconds   // Infinity for paid plans
+
+  // A session resumed from history may already be starred — show that.
+  useEffect(() => {
+    if (!sessionId) return
+    let active = true
+    getSessionFavorite(sessionId).then(on => {
+      if (!active || !on) return
+      setFavorite(true)
+      favoriteRef.current = true
+    })
+    return () => { active = false }
+  }, [sessionId])
 
   // Warm the checkout routes while the free preview is still playing, so the
   // paywall's plan links resolve instantly instead of waiting on a slow
@@ -428,7 +446,30 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
       plannedSeconds: totalSeconds === Infinity ? 0 : totalSeconds,
       beforeScore: inferBeforeScore(answers),
     })
-    if (id) sessionIdRef.current = id
+    if (!id) return
+    sessionIdRef.current = id
+    // Starred before there was a row to star — carry the intent over.
+    if (favoriteRef.current) setSessionFavorite(id, true)
+  }
+
+  /**
+   * Star this session. Tapping before playback has created the row is allowed:
+   * the intent is remembered and written the moment the row exists, so nobody
+   * has to press play first to say they liked something.
+   */
+  async function toggleFavorite() {
+    if (!limits.favorites) { router.push('/pricing'); return }
+    // A favourite lives on a session row, and a signed-out visit never gets
+    // one — better to say so than to fill the star and quietly drop it.
+    if (authUser === null) { router.push('/auth/login?next=/history'); return }
+    const next = !favorite
+    setFavorite(next)
+    favoriteRef.current = next
+
+    const id = sessionIdRef.current
+    if (!id) return
+    const ok = await setSessionFavorite(id, next)
+    if (!ok) { setFavorite(!next); favoriteRef.current = !next }
   }
 
   function saveProgress(status: 'in_progress' | 'completed') {
@@ -1032,7 +1073,34 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
             </div>
 
             {/* Right column — mirrors the left, hugging the centre cluster */}
-            <div className="flex items-center justify-start flex-1">
+            <div className="flex items-center justify-start flex-1 gap-1">
+              {/* Favourite */}
+              <button onClick={toggleFavorite}
+                      aria-pressed={favorite}
+                      aria-label={limits.favorites
+                        ? (favorite ? 'Remove from favourites' : 'Add to favourites')
+                        : 'Favourites are available on paid plans'}
+                      title={limits.favorites ? undefined : 'Favourites are a Plus feature'}
+                      className="relative flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all min-w-[52px] hover:bg-white/[0.06]"
+                      style={{
+                        background: 'transparent',
+                        color: favorite ? frequency.colorHex : 'var(--text-muted)',
+                        opacity: limits.favorites ? 1 : 0.65,
+                      }}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill={favorite ? 'currentColor' : 'none'}
+                     stroke="currentColor" strokeWidth="1.5">
+                  <path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.7l5.9-.9L12 3.5z"
+                        strokeLinejoin="round" />
+                </svg>
+                <span className="text-xs">{favorite ? 'Saved' : 'Favourite'}</span>
+                {!limits.favorites && (
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"
+                       aria-hidden style={{ position: 'absolute', top: 8, right: 8 }}>
+                    <rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                  </svg>
+                )}
+              </button>
+
               {/* Headphones */}
               <div className="flex flex-col items-center gap-1 px-3 py-2 min-w-[52px]" style={{ color:'var(--text-muted)' }}>
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">

@@ -190,6 +190,23 @@ export async function setSessionFavorite(id: string, favorite: boolean): Promise
   }
 }
 
+/** Is this session starred? Used when the studio resumes an existing one. */
+export async function getSessionFavorite(id: string): Promise<boolean> {
+  const supabase = getSupabase()
+  if (!supabase || !id) return false
+  try {
+    const { data, error } = await supabase
+      .from('sessions')
+      .select('is_favorite')
+      .eq('id', id)
+      .maybeSingle()
+    if (error) throw error
+    return Boolean((data as { is_favorite?: boolean } | null)?.is_favorite)
+  } catch {
+    return false
+  }
+}
+
 /**
  * Fetch the signed-in user's sessions, newest first. RLS already restricts
  * rows to the owner; the explicit user_id filter keeps the query index-friendly
