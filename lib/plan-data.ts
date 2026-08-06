@@ -21,10 +21,10 @@ export const PLANS: Plan[] = [
     price: 0,
     tagline: 'Get a taste of every experience.',
     features: [
-      '30-second preview of any session',
+      '30-second audio preview of any session',
+      'Sessions up to 15 minutes',
       'All 3 visual experiences to try',
       'Any frequency, 1–20,000 Hz',
-      'No account required',
     ],
     cta: 'Start free',
   },
@@ -35,11 +35,11 @@ export const PLANS: Plan[] = [
     tagline: 'The full sound-healing studio.',
     highlight: true,
     features: [
-      'Unlimited session length',
+      'Full-length audio — no 30-second cut-off',
+      'Sessions up to 60 minutes',
       'All 3D experiences — Brain, Aura & Cymatics',
       'Any frequency + curated library',
       'Fullscreen immersive mode',
-      'Schumann & undertone layers',
     ],
     cta: 'Get Plus',
   },
@@ -50,9 +50,9 @@ export const PLANS: Plan[] = [
     tagline: 'For daily practice & tracking.',
     features: [
       'Everything in Plus',
+      'Open-ended sessions — run until you stop them',
       'Save & track your session history',
       'Before/after progress insights',
-      'Downloadable sessions (soon)',
       'Early access to new visualizations',
     ],
     cta: 'Get Pro',
@@ -66,11 +66,25 @@ export interface PlanLimits {
   history: boolean       // session history / tracking
 }
 
+/**
+ * Session length is the ladder between the three plans: free is a taste, Plus
+ * is a real practice, Pro is the one that never stops. `maxMinutes` is what the
+ * session builder offers and what the studio enforces — Infinity also means
+ * open-ended sessions are allowed.
+ */
 export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
-  // Free = a 30-second taste of everything, then the paywall.
-  free: { previewSeconds: 30, maxMinutes: Infinity, allViz: true, history: true },
-  plus: { previewSeconds: Infinity, maxMinutes: Infinity, allViz: true, history: true },
+  free: { previewSeconds: 30, maxMinutes: 15, allViz: true, history: true },
+  plus: { previewSeconds: Infinity, maxMinutes: 60, allViz: true, history: true },
   pro:  { previewSeconds: Infinity, maxMinutes: Infinity, allViz: true, history: true },
+}
+
+/** The cheapest plan that allows a session of this many minutes (9999 = open). */
+export function planForMinutes(minutes: number): PlanId {
+  const order: PlanId[] = ['free', 'plus', 'pro']
+  return order.find(id => {
+    const max = PLAN_LIMITS[id].maxMinutes
+    return minutes === 9999 ? max === Infinity : minutes <= max
+  }) ?? 'pro'
 }
 
 /**

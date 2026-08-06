@@ -10,7 +10,7 @@ import {
   type BinauralBand, type CatalogEntry,
 } from '@/lib/frequencies'
 import Header from '@/components/Header'
-import { usePlan } from '@/lib/plan'
+import { usePlan, planForMinutes, PLAN_LIMITS, type PlanId } from '@/lib/plan'
 import { useSessionPresets, type SessionPreset } from '@/lib/presets'
 import { useSessionDefaults } from '@/lib/prefs'
 import FrequencyPicker from './FrequencyPicker'
@@ -45,6 +45,19 @@ function fmtHz(hz: number) {
 
 function lengthLabel(minutes: number) {
   return LENGTHS.find(l => l.minutes === minutes)?.label ?? `${minutes} min`
+}
+
+/** Open-ended (9999) needs an unlimited plan; everything else needs the cap. */
+function allows(plan: PlanId, minutes: number) {
+  const max = PLAN_LIMITS[plan].maxMinutes
+  return minutes === 9999 ? max === Infinity : minutes <= max
+}
+
+/** The longest length this plan can actually run, for clamping. */
+function clampMinutes(plan: PlanId, minutes: number) {
+  if (allows(plan, minutes)) return minutes
+  const allowed = LENGTHS.filter(l => allows(plan, l.minutes)).map(l => l.minutes)
+  return allowed.length ? Math.max(...allowed) : 10
 }
 
 // Small animated glyph per mode (SVG, no WebGL — keeps the card grid light)
@@ -85,7 +98,7 @@ export default function SessionPage() {
   const [viz, setViz]         = useState<VizMode>('brain')
   const [hz, setHz]           = useState<number>(528)
   const [band, setBand]       = useState<BinauralBand>(suggestedBandFor(528))
-  const [minutes, setMinutes] = useState<number>(30)
+  const [desiredMinutes, setDesiredMinutes] = useState<number>(30)
   const [bandTouched, setBandTouched] = useState(false)
   const [pickerOpen, setPickerOpen]   = useState(false)
   const [saveOpen, setSaveOpen]       = useState(false)
@@ -97,6 +110,9 @@ export default function SessionPage() {
   const alsoIn = useMemo(() => catalogEntriesFor(hz).slice(1), [hz])
   const suggested = suggestedBandFor(hz)
   const color = entry ? CATEGORY_COLOR[entry.category] : freq.colorHex
+  // Derived rather than clamped in place: a Pro user's 60-minute default must
+  // survive the moment before the plan has resolved from storage.
+  const minutes = clampMinutes(plan, desiredMinutes)
   const isPlusViz = (v: VizMode) => v === 'brain' || v === 'aura'
 
   // The suggested band follows the tone until the user overrides it — after
@@ -112,7 +128,7 @@ export default function SessionPage() {
   useEffect(() => {
     if (!prefsLoaded || prefsApplied) return
     setViz(prefs.viz)
-    setMinutes(prefs.minutes)
+    setDesiredMinutes(prefs.minutes)
     if (prefs.band !== 'suggested') { setBand(prefs.band); setBandTouched(true) }
     setPrefsApplied(true)
   }, [prefsLoaded, prefsApplied, prefs])
@@ -125,7 +141,7 @@ export default function SessionPage() {
     setBand(p.band)
     setBandTouched(true)
     setViz(p.viz)
-    setMinutes(p.minutes)
+    setDesiredMinutes(p.minutes)
   }
 
   function begin() {
@@ -375,10 +391,21 @@ export default function SessionPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 12 }}>
           {LENGTHS.map(l => {
             const on = minutes === l.minutes
+            const need = planForMinutes(l.minutes)
+            const locked = !allows(plan, l.minutes)
             return (
-              <button key={l.minutes} onClick={() => setMinutes(l.minutes)}
-                className="len-cell" data-on={on || undefined}
+              <button key={l.minutes}
+                onClick={() => (locked ? router.push('/pricing') : setDesiredMinutes(l.minutes))}
+                className="len-cell" data-on={on || undefined} data-locked={locked || undefined}
                 style={on ? { borderColor: color, background: `${color}18` } : undefined}>
+                {locked && (
+                  <span className="len-lock">
+                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" aria-hidden>
+                      <rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                    </svg>
+                    {need.toUpperCase()}
+                  </span>
+                )}
                 <span style={{ fontSize: '0.84rem', fontWeight: 800, color: on ? 'var(--t1)' : 'var(--t2)' }}>{l.label}</span>
                 <span style={{ fontSize: '0.6rem', color: 'var(--t4)', lineHeight: 1.35 }}>{l.note}</span>
               </button>
@@ -386,11 +413,25 @@ export default function SessionPage() {
           })}
         </div>
 
-        {plan === 'free' && Number.isFinite(limits.previewSeconds) && (
-          <p style={{ fontSize: '0.72rem', lineHeight: 1.6, color: 'var(--t3)', padding: '10px 12px', borderRadius: 10, background: 'var(--accent-dim)', border: '1px solid var(--accent-mid)' }}>
-            On the free plan the audio stops after {limits.previewSeconds} seconds — the visuals keep
-            running. Any paid plan plays the full {lengthLabel(minutes).toLowerCase()}.
-          </p>
+        {/* What the current plan gives you, and what the next one adds. */}
+        {plan !== 'pro' && (
+          <button onClick={() => router.push('/pricing')}
+            style={{ display: 'block', width: '100%', textAlign: 'left', fontSize: '0.72rem', lineHeight: 1.6,
+                     color: 'var(--t3)', padding: '10px 12px', borderRadius: 10,
+                     background: 'var(--accent-dim)', border: '1px solid var(--accent-mid)' }}>
+            {plan === 'free' ? (
+              <>
+                Free plays a <strong style={{ color: 'var(--t1)' }}>{limits.previewSeconds}-second</strong> audio
+                preview and caps sessions at {limits.maxMinutes} minutes — the visuals keep running either way.
+                Plus plays full sessions up to 60 minutes; Pro runs open-ended. <span style={{ color: 'var(--accent)' }}>See plans →</span>
+              </>
+            ) : (
+              <>
+                Plus runs full sessions up to <strong style={{ color: 'var(--t1)' }}>{limits.maxMinutes} minutes</strong>.
+                Pro adds open-ended sessions that run until you stop them. <span style={{ color: 'var(--accent)' }}>See Pro →</span>
+              </>
+            )}
+          </button>
         )}
       </main>
 

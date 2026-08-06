@@ -56,6 +56,8 @@ export default function CheckoutClient() {
   const [coinsError, setCoinsError] = useState<string | null>(null)
   const [creatingCoin, setCreatingCoin] = useState<string | null>(null)
   const [payment, setPayment] = useState<PaymentInfo | null>(null)
+  /** An unfinished payment from an earlier visit — offered, never forced. */
+  const [resumable, setResumable] = useState<PaymentInfo | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState<'address' | 'amount' | null>(null)
   const [now, setNow] = useState(() => Date.now())
@@ -101,8 +103,10 @@ export default function CheckoutClient() {
         } else if (['failed', 'refunded', 'expired'].includes(s.status)) {
           window.localStorage.removeItem(PENDING_KEY)
         } else {
-          setPayment(info)
-          setStep('pay')
+          // Offer it. Jumping straight to the pay screen used to yank people
+          // out of the coin picker a second after they opened it, and left
+          // them on a currency they had already moved on from.
+          setResumable(info)
         }
       })
       .catch(() => { /* stale id or signed out — leave the normal flow alone */ })
@@ -206,7 +210,20 @@ export default function CheckoutClient() {
     // funds, the webhook still grants the plan regardless of what the UI does.
     window.localStorage.removeItem(PENDING_KEY)
     setPayment(null)
+    setResumable(null)
     setStep('coins')
+  }
+
+  function resumePayment() {
+    if (!resumable) return
+    setPayment(resumable)
+    setResumable(null)
+    setStep('pay')
+  }
+
+  function discardResumable() {
+    window.localStorage.removeItem(PENDING_KEY)
+    setResumable(null)
   }
 
   async function copy(text: string, what: 'address' | 'amount') {
@@ -497,6 +514,28 @@ export default function CheckoutClient() {
             className="glass-card grain rounded-3xl p-6">
             <div className="shimmer-overlay" />
             <div className="relative z-[2]">
+              {/* An unfinished payment is an offer, not a redirect. */}
+              {resumable && step !== 'pay' && (
+                <div className="rounded-2xl p-4 mb-5"
+                     style={{ background: 'rgba(232,160,32,0.07)', border: '1px solid rgba(232,160,32,0.28)' }}>
+                  <p className="text-[0.62rem] font-bold tracking-[0.12em] mb-1.5" style={{ color: '#e8c48a' }}>
+                    PAYMENT ALREADY OPEN
+                  </p>
+                  <p className="text-[0.8rem] mb-3" style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                    You started a <strong style={{ color: 'var(--t1)' }}>{resumable.payCurrency.toUpperCase()}</strong> payment
+                    for {PLANS.find(p => p.id === resumable.planId)?.name ?? resumable.planId}
+                    {' '}(${Number(resumable.priceUsd).toFixed(2)}) and never finished it.
+                  </p>
+                  <div className="flex gap-2">
+                    <button onClick={resumePayment} className="btn-ghost text-xs flex-1 justify-center">
+                      Show that payment
+                    </button>
+                    <button onClick={discardResumable} className="btn-ghost text-xs flex-1 justify-center">
+                      Pay with something else
+                    </button>
+                  </div>
+                </div>
+              )}
               <AnimatePresence mode="wait">
                 <motion.div key={step + (payment?.status ?? '')}
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}

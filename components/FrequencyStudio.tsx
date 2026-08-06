@@ -135,7 +135,8 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
   const playerStateRef = useRef<PlayerState>('idle')
 
   const router = useRouter()
-  const { limits } = usePlan()
+  const { limits, plan } = usePlan()
+  const planName = PLANS.find(p => p.id === plan)?.name ?? 'Free'
 
   // Free-plan gating: cap session length; Brain & Aura are a paid experience
   const requestedMinutes = duration === 9999 ? Infinity : duration
@@ -879,7 +880,8 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
             <button onClick={() => router.push('/pricing')} className="mb-2 w-full flex items-center justify-center gap-2 rounded-xl"
                     style={{ padding: '7px 12px', background: 'var(--accent-dim)', border: '1px solid var(--accent-mid)', color: 'var(--accent)', fontSize: '0.72rem', fontWeight: 600 }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
-              Free plan · {limits.maxMinutes}-min sessions — Upgrade for unlimited →
+              {planName} plan · {limits.maxMinutes}-min sessions —{' '}
+              {plan === 'free' ? 'upgrade for full length' : 'Pro runs open-ended'} →
             </button>
           )}
 

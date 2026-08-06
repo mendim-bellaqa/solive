@@ -1213,6 +1213,27 @@ button { font-family: inherit; cursor: pointer; }
 .band-cell:active,
 .len-cell:active { transform: scale(0.97); }
 
+/* A length this plan cannot run: still tappable, but it goes to pricing. */
+.len-cell[data-locked] { opacity: 0.5; }
+.len-cell[data-locked]:hover { opacity: 0.75; border-color: var(--accent-mid); background: var(--accent-dim); }
+
+.len-lock {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 5px;
+  border-radius: 999px;
+  border: 1px solid var(--accent-mid);
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-size: 0.48rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
 /* The dot marking the pairing curated for the selected tone. */
 .band-star {
   position: absolute;
