@@ -37,6 +37,7 @@ export const PLANS: Plan[] = [
     features: [
       'Full-length audio — no 30-second cut-off',
       'Sessions up to 60 minutes',
+      'Star your favourite sessions',
       'All 3D experiences — Brain, Aura & Cymatics',
       'Any frequency + curated library',
       'Fullscreen immersive mode',
@@ -64,6 +65,7 @@ export interface PlanLimits {
   maxMinutes: number     // Infinity for unlimited
   allViz: boolean        // Brain & Aura unlocked
   history: boolean       // session history / tracking
+  favorites: boolean     // star a session and keep it to hand
 }
 
 /**
@@ -73,9 +75,9 @@ export interface PlanLimits {
  * open-ended sessions are allowed.
  */
 export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
-  free: { previewSeconds: 30, maxMinutes: 15, allViz: true, history: true },
-  plus: { previewSeconds: Infinity, maxMinutes: 60, allViz: true, history: true },
-  pro:  { previewSeconds: Infinity, maxMinutes: Infinity, allViz: true, history: true },
+  free: { previewSeconds: 30, maxMinutes: 15, allViz: true, history: true, favorites: false },
+  plus: { previewSeconds: Infinity, maxMinutes: 60, allViz: true, history: true, favorites: true },
+  pro:  { previewSeconds: Infinity, maxMinutes: Infinity, allViz: true, history: true, favorites: true },
 }
 
 /** The cheapest plan that allows a session of this many minutes (9999 = open). */

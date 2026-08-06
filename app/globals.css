@@ -1605,6 +1605,41 @@ button { font-family: inherit; cursor: pointer; }
 
 .hist-bar-fill { height: 100%; border-radius: 999px; background: var(--t2); }
 
+/* ── Favourite star ──────────────────────────────────────────────────────── */
+
+.hist-star {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: none;
+  color: var(--t4);
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.16s, background 0.16s, border-color 0.16s, transform 0.14s;
+}
+
+.hist-star:hover { color: var(--t1); background: var(--glass-2); border-color: var(--border); }
+.hist-star:active { transform: scale(0.92); }
+
+/* Starred: the one place on this page that earns a colour. */
+.hist-star[data-on] { color: var(--accent); }
+.hist-star[data-on]:hover { color: var(--accent); background: var(--accent-dim); border-color: var(--accent-mid); }
+
+.hist-star[data-locked] { color: var(--t-decor); }
+.hist-star[data-locked]:hover { color: var(--accent); background: var(--accent-dim); border-color: var(--accent-mid); }
+
+.hist-star-lock {
+  position: absolute;
+  right: 2px;
+  bottom: 3px;
+  color: inherit;
+}
+
 /* ── Five-point scale ────────────────────────────────────────────────────── */
 
 .hist-dots { display: inline-flex; gap: 3px; }

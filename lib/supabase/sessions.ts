@@ -52,6 +52,8 @@ export interface SessionRecord {
   beforeScore: number | null
   /** null means the user hasn't left feedback yet. */
   afterScore: number | null
+  /** Starred by the user — a paid-plan feature. */
+  favorite: boolean
   createdAt: Date
 }
 
@@ -66,6 +68,7 @@ interface SessionRow {
   status: SessionStatus | null
   before_score: number | null
   after_score: number | null
+  is_favorite: boolean | null
   created_at: string | null
 }
 
@@ -82,6 +85,7 @@ function toRecord(row: SessionRow): SessionRecord {
     status: row.status ?? 'completed',
     beforeScore: row.before_score,
     afterScore: row.after_score,
+    favorite: row.is_favorite ?? false,
     createdAt: row.created_at ? new Date(row.created_at) : new Date(),
   }
 }
@@ -166,22 +170,55 @@ export async function rateSession(id: string, afterScore: number): Promise<void>
 }
 
 /**
+ * Star (or unstar) a session. Returns false when the write was rejected —
+ * which is also what happens if the favourites migration hasn't been applied
+ * yet, so callers can roll their optimistic update back.
+ */
+export async function setSessionFavorite(id: string, favorite: boolean): Promise<boolean> {
+  const supabase = getSupabase()
+  if (!supabase || !id) return false
+  try {
+    const { error } = await supabase
+      .from('sessions')
+      .update({ is_favorite: favorite })
+      .eq('id', id)
+    if (error) throw error
+    return true
+  } catch (err) {
+    console.warn('[hzaura] Could not update favorite:', err)
+    return false
+  }
+}
+
+/**
  * Fetch the signed-in user's sessions, newest first. RLS already restricts
  * rows to the owner; the explicit user_id filter keeps the query index-friendly
  * and makes the intent obvious at the call site.
  */
+const BASE_COLUMNS =
+  'id, hz, band, viz, planned_seconds, elapsed_seconds, status, before_score, after_score, created_at'
+
 export async function fetchSessions(uid: string): Promise<SessionRecord[]> {
   const supabase = getSupabase()
   if (!supabase) return []
+
+  const query = (columns: string) => supabase
+    .from('sessions')
+    .select(columns)
+    .eq('user_id', uid)
+    .order('created_at', { ascending: false })
+    .limit(300)
+
   try {
-    const { data, error } = await supabase
-      .from('sessions')
-      .select('id, hz, band, viz, planned_seconds, elapsed_seconds, status, before_score, after_score, created_at')
-      .eq('user_id', uid)
-      .order('created_at', { ascending: false })
-      .limit(300)
+    let { data, error } = await query(`${BASE_COLUMNS}, is_favorite`)
+    if (error) {
+      // The favourites migration may not have been applied to this project
+      // yet. History matters more than the star, so ask again without it.
+      console.warn('[hzaura] Retrying history without is_favorite:', error.message)
+      ;({ data, error } = await query(BASE_COLUMNS))
+    }
     if (error) throw error
-    return (data as SessionRow[]).map(toRecord)
+    return (data as unknown as SessionRow[]).map(toRecord)
   } catch (err) {
     console.warn('[hzaura] Could not load sessions:', err)
     return []

@@ -4,14 +4,16 @@ export const dynamic = 'force-dynamic'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import Header from '@/components/Header'
 import BackLink from '@/components/BackLink'
 import { FREQUENCIES, getOrCreateFrequency, primaryCatalogEntry, BINAURAL_PRESETS } from '@/lib/frequencies'
 import { useSessionPresets } from '@/lib/presets'
 import {
-  useAuthUser, fetchSessions, rateSession, type SessionRecord,
+  useAuthUser, fetchSessions, rateSession, setSessionFavorite, type SessionRecord,
 } from '@/lib/supabase/sessions'
+import { usePlan } from '@/lib/plan'
 
 // A five-point scale reads better as a scale than as five faces: same
 // information, none of the noise.
@@ -67,6 +69,12 @@ function toneName(hz: number) {
   return primaryCatalogEntry(hz)?.name ?? (FREQUENCIES[hz] ?? getOrCreateFrequency(hz)).name
 }
 
+/** Play this session's setup again from the top. */
+function playHref(s: SessionRecord) {
+  const minutes = s.plannedSeconds > 0 ? Math.round(s.plannedSeconds / 60) : 30
+  return `/studio?hz=${s.hz}&binaural=${s.band}&duration=${minutes}&viz=${s.viz}`
+}
+
 /** Seconds listened per day, keyed YYYY-MM-DD. */
 function dailyTotals(sessions: SessionRecord[]) {
   const map = new Map<string, number>()
@@ -79,7 +87,9 @@ function dailyTotals(sessions: SessionRecord[]) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function HistoryPage() {
+  const router = useRouter()
   const user = useAuthUser()
+  const { limits } = usePlan()
   const { presets, scope, remove } = useSessionPresets()
   const [sessions, setSessions] = useState<SessionRecord[]>([])
   const [loading, setLoading] = useState(true)
@@ -109,6 +119,15 @@ export default function HistoryPage() {
     await rateSession(id, score)
   }
 
+  /** Starring is a paid feature — free plans get sent to the plans page. */
+  async function toggleFavorite(s: SessionRecord) {
+    if (!limits.favorites) { router.push('/pricing'); return }
+    const next = !s.favorite
+    setSessions(prev => prev.map(x => (x.id === s.id ? { ...x, favorite: next } : x)))
+    const ok = await setSessionFavorite(s.id, next)
+    if (!ok) setSessions(prev => prev.map(x => (x.id === s.id ? { ...x, favorite: !next } : x)))
+  }
+
   // ── Aggregates ────────────────────────────────────────────────────────────
   const completed    = sessions.filter(s => s.status === 'completed')
   const inProgress   = sessions.filter(s => s.status === 'in_progress')
@@ -121,6 +140,7 @@ export default function HistoryPage() {
   const topFreqs     = topFrequencies(sessions)
   const maxFreqCount = topFreqs[0]?.count || 1
   const awaitingFeedback = completed.filter(s => s.afterScore === null)
+  const favorites    = sessions.filter(s => s.favorite)
   const days = useMemo(() => dailyTotals(sessions), [sessions])
 
   const savedRow = presets && presets.length > 0
@@ -285,6 +305,33 @@ export default function HistoryPage() {
               </section>
             )}
 
+            {/* ── Favourites ───────────────────────────────────────────── */}
+            {favorites.length > 0 && (
+              <section className="mt-7">
+                <div className="flex items-baseline justify-between mb-2.5">
+                  <p className="hist-eyebrow">Favourites</p>
+                  <p className="text-[0.62rem]" style={{ color: 'var(--t4)' }}>
+                    {favorites.length} starred
+                  </p>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  {favorites.map(s => (
+                    <div key={s.id} className="hist-row">
+                      <span className="hist-hz">{fmtHz(s.hz)}<span className="hist-hz-unit">Hz</span></span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold truncate">{toneName(s.hz)}</p>
+                        <p className="text-[0.7rem]" style={{ color: 'var(--t4)' }}>
+                          {s.band} · {s.plannedSeconds > 0 ? fmtDuration(s.plannedSeconds) : 'open-ended'} · {s.viz}
+                        </p>
+                      </div>
+                      <Link href={playHref(s)} className="hist-action">Play again</Link>
+                      <Star on onClick={() => toggleFavorite(s)} label={`Unstar ${toneName(s.hz)}`} />
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
             {/* ── Most played ──────────────────────────────────────────── */}
             {topFreqs.length > 1 && (
               <section className="mt-7">
@@ -320,6 +367,17 @@ export default function HistoryPage() {
                   </p>
                 )}
               </div>
+
+              {/* Say what the locked star is for, once, rather than on every row. */}
+              {!limits.favorites && (
+                <button onClick={() => router.push('/pricing')}
+                  className="w-full text-left mb-2.5"
+                  style={{ fontSize: '0.72rem', lineHeight: 1.55, color: 'var(--t3)', padding: '9px 12px',
+                           borderRadius: 10, background: 'var(--glass-1)', border: '1px solid var(--border)' }}>
+                  Star a session to keep it at the top of this page — favourites come with any paid plan.{' '}
+                  <span style={{ color: 'var(--accent)', fontWeight: 700 }}>See plans →</span>
+                </button>
+              )}
               <div className="flex flex-col gap-1.5">
                 {sessions.slice(0, 60).map((s, i) => {
                   const isRating = ratingFor === s.id
@@ -348,7 +406,7 @@ export default function HistoryPage() {
                           </p>
                         </div>
 
-                        <div className="flex-shrink-0">
+                        <div className="flex items-center gap-2 flex-shrink-0">
                           {rating ? (
                             <span className="hist-score" title={`${rating.score} of 5`}>
                               <Dots score={rating.score} />
@@ -358,9 +416,13 @@ export default function HistoryPage() {
                             <button onClick={() => setRatingFor(isRating ? null : s.id)} className="hist-action">
                               {isRating ? 'Cancel' : 'Rate'}
                             </button>
-                          ) : (
-                            <span className="text-[0.66rem]" style={{ color: 'var(--t4)' }}>—</span>
-                          )}
+                          ) : null}
+                          <Star
+                            on={s.favorite}
+                            locked={!limits.favorites}
+                            onClick={() => toggleFavorite(s)}
+                            label={s.favorite ? `Unstar ${toneName(s.hz)}` : `Star ${toneName(s.hz)}`}
+                          />
                         </div>
                       </div>
 
@@ -406,6 +468,43 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
       <p className="hist-stat-label">{label}</p>
       {sub && <p className="hist-stat-sub">{sub}</p>}
     </div>
+  )
+}
+
+/**
+ * The star. Filled when the session is a favourite, outlined when it isn't,
+ * and wearing a small lock on the free plan — where it stays visible and
+ * tappable, because a control you cannot see is not an upsell.
+ */
+function Star({ on, locked, onClick, label }: {
+  on: boolean
+  locked?: boolean
+  onClick: () => void
+  label: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="hist-star"
+      data-on={on || undefined}
+      data-locked={locked || undefined}
+      aria-label={locked ? `${label} — available on paid plans` : label}
+      aria-pressed={on}
+      title={locked ? 'Favourites are a Plus feature' : label}
+    >
+      <svg width="15" height="15" viewBox="0 0 24 24" fill={on ? 'currentColor' : 'none'}
+           stroke="currentColor" strokeWidth="1.8" aria-hidden>
+        <path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.7l5.9-.9L12 3.5z"
+              strokeLinejoin="round" />
+      </svg>
+      {locked && (
+        <svg className="hist-star-lock" width="8" height="8" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" strokeWidth="3" aria-hidden>
+          <rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" />
+        </svg>
+      )}
+    </button>
   )
 }
 
