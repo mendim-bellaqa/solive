@@ -40,6 +40,14 @@
   --accent-dim:    rgba(92,232,220,0.08);
   --accent-mid:    rgba(92,232,220,0.18);
 
+  /* Spectral band palette — one hue per brainwave band, used by the homepage
+     science modules so a colour always means the same state everywhere. */
+  --delta:         #6b8cff;
+  --theta:         #8b5cf6;
+  --alpha:         #5CE8DC;
+  --beta:          #4a90e8;
+  --gamma:         #ffd166;
+
   /* Legacy compat */
   --bg-void:       var(--bg);
   --bg-primary:    var(--bg);
@@ -1841,3 +1849,486 @@ button { font-family: inherit; cursor: pointer; }
 .set-mini:hover { background: var(--t1); color: var(--bg); border-color: var(--t1); }
 .set-mini-danger { color: #e8a0a0; border-color: rgba(224,80,80,0.30); }
 .set-mini-danger:hover { background: #e05050; color: #fff; border-color: #e05050; }
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  HOMEPAGE                                                                  */
+/*  The landing page carries the heaviest type and the only 3D-forward        */
+/*  layouts in the app, so it gets its own scale rather than bending the      */
+/*  shared utility classes out of shape.                                      */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Type scale ─────────────────────────────────────────────────────────── */
+
+.eyebrow {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--t4);
+}
+
+.display {
+  font-weight: 900;
+  letter-spacing: -0.045em;
+  line-height: 0.94;
+  text-wrap: balance;
+}
+
+.h-section {
+  font-size: clamp(1.9rem, 4.4vw, 3.1rem);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  line-height: 1.02;
+  text-wrap: balance;
+}
+
+/* The second clause of a headline, set back so the first clause lands first. */
+.h-quiet { color: var(--t3); }
+
+.lede {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--t2);
+  max-width: 34rem;
+  text-wrap: pretty;
+}
+
+/* Gradient wash for the one or two words per page that carry the concept. */
+.spectral {
+  background: linear-gradient(100deg, var(--alpha), var(--theta) 55%, var(--gamma));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ─── Section rhythm ─────────────────────────────────────────────────────── */
+
+.section {
+  position: relative;
+  padding: clamp(72px, 11vw, 140px) 20px;
+}
+
+.wrap    { width: 100%; max-width: 1120px; margin: 0 auto; }
+.wrap-sm { width: 100%; max-width: 880px;  margin: 0 auto; }
+
+/* A hairline that fades at both ends — separates sections without boxing. */
+.rule {
+  height: 1px;
+  border: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.09) 20%, rgba(255,255,255,0.09) 80%, transparent);
+}
+
+/* ─── Hero ───────────────────────────────────────────────────────────────── */
+
+/* Perspective floor grid receding to the horizon — the depth cue that makes
+   the hero read as a space rather than a page. */
+.hero-floor {
+  position: absolute;
+  left: 50%;
+  bottom: -10%;
+  width: 300%;
+  height: 60%;
+  transform: translateX(-50%) perspective(320px) rotateX(64deg);
+  transform-origin: 50% 100%;
+  background-image:
+    linear-gradient(to right,  rgba(92,232,220,0.16) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(92,232,220,0.16) 1px, transparent 1px);
+  background-size: 56px 56px;
+  -webkit-mask-image: radial-gradient(ellipse 50% 62% at 50% 100%, #000, transparent 72%);
+  mask-image: radial-gradient(ellipse 50% 62% at 50% 100%, #000, transparent 72%);
+  animation: floor-run 7s linear infinite;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+@keyframes floor-run {
+  from { background-position: 0 0; }
+  to   { background-position: 0 56px; }
+}
+
+/* ─── Cards ──────────────────────────────────────────────────────────────── */
+
+/* The homepage card: quieter than .glass-card (no heavy shadow stack) so a
+   grid of eight doesn't turn into eight competing objects. */
+.card {
+  position: relative;
+  height: 100%;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: linear-gradient(160deg, rgba(255,255,255,0.055), rgba(255,255,255,0.018));
+  overflow: hidden;
+  transition: border-color 0.25s, background 0.25s, transform 0.25s;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 14%; right: 14%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.30) 50%, transparent);
+}
+
+.card:hover {
+  border-color: var(--border-mid);
+  background: linear-gradient(160deg, rgba(255,255,255,0.075), rgba(255,255,255,0.026));
+}
+
+/* A card whose subject has a colour — the tint comes in on --tone. */
+.card-tone { border-color: color-mix(in srgb, var(--tone) 26%, transparent); }
+.card-tone:hover { border-color: color-mix(in srgb, var(--tone) 46%, transparent); }
+
+/* ─── 3D viewport frame ──────────────────────────────────────────────────── */
+
+.viewport {
+  position: relative;
+  border-radius: 26px;
+  overflow: hidden;
+  border: 1px solid var(--border-mid);
+  background: #05050c;
+  box-shadow: 0 40px 90px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.10);
+}
+
+/* Corner ticks — reads as an instrument readout, not a photo frame. */
+.viewport-ticks {
+  position: absolute;
+  inset: 12px;
+  pointer-events: none;
+  z-index: 4;
+  opacity: 0.5;
+}
+
+.viewport-ticks::before,
+.viewport-ticks::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--t3);
+}
+
+.viewport-ticks::before { top: 0; left: 0; border-right: 0; border-bottom: 0; }
+.viewport-ticks::after  { bottom: 0; right: 0; border-left: 0; border-top: 0; }
+
+.viewport-label {
+  position: absolute;
+  left: 20px;
+  bottom: 18px;
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* ─── Band rail (delta → gamma selector) ─────────────────────────────────── */
+
+.band-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.band-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 13px 16px;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  background: rgba(255,255,255,0.022);
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.25s, border-color 0.25s, transform 0.18s;
+}
+
+.band-btn:hover { background: rgba(255,255,255,0.05); }
+
+.band-btn[data-on] {
+  background: color-mix(in srgb, var(--tone) 12%, transparent);
+  border-color: color-mix(in srgb, var(--tone) 50%, transparent);
+}
+
+.band-glyph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: rgba(255,255,255,0.05);
+  color: var(--t3);
+  font-size: 1.15rem;
+  font-weight: 700;
+  transition: background 0.25s, color 0.25s;
+}
+
+.band-btn[data-on] .band-glyph {
+  background: color-mix(in srgb, var(--tone) 22%, transparent);
+  color: var(--tone);
+}
+
+.band-name  { font-size: 0.9rem;  font-weight: 700; color: var(--t2); transition: color 0.25s; }
+.band-state { font-size: 0.72rem; color: var(--t4); }
+.band-btn[data-on] .band-name { color: var(--t1); }
+
+.band-hz {
+  flex-shrink: 0;
+  margin-left: auto;
+  font-size: 0.76rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--t4);
+  transition: color 0.25s;
+}
+
+.band-btn[data-on] .band-hz { color: var(--tone); }
+
+/* ─── Listen control ─────────────────────────────────────────────────────── */
+
+.listen-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 13px 24px;
+  border: 1px solid color-mix(in srgb, var(--tone) 55%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tone) 14%, transparent);
+  color: var(--tone);
+  font-size: 0.86rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.2s, box-shadow 0.2s, transform 0.14s;
+}
+
+.listen-btn:hover  { background: color-mix(in srgb, var(--tone) 24%, transparent); box-shadow: 0 0 30px -8px var(--tone); }
+.listen-btn:active { transform: scale(0.97); }
+
+.listen-btn[data-on] {
+  background: var(--tone);
+  color: #06060e;
+  box-shadow: 0 0 38px -10px var(--tone);
+}
+
+/* Equaliser bars that only move while audio is actually running. */
+.eq { display: inline-flex; align-items: flex-end; gap: 2.5px; height: 13px; }
+
+.eq span {
+  width: 2.5px;
+  height: 100%;
+  border-radius: 2px;
+  background: currentColor;
+  transform-origin: bottom;
+  animation: eq-bounce 0.9s ease-in-out infinite;
+}
+
+.eq span:nth-child(2) { animation-delay: 0.18s; }
+.eq span:nth-child(3) { animation-delay: 0.36s; }
+.eq span:nth-child(4) { animation-delay: 0.09s; }
+
+@keyframes eq-bounce {
+  0%, 100% { transform: scaleY(0.28); }
+  50%      { transform: scaleY(1); }
+}
+
+/* ─── Pathway diagram (headphones vs speakers) ───────────────────────────── */
+
+.seg-toggle {
+  display: inline-flex;
+  padding: 4px;
+  border: 1px solid var(--border-mid);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.035);
+}
+
+.seg-btn {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--t3);
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: color 0.2s;
+}
+
+.seg-btn[data-on] { color: #06060e; }
+
+/* Signal travelling along a nerve path — dashes marching in the stroke's own
+   direction, so the arrow of causality is legible without any arrowheads. */
+.flow-line {
+  stroke-dasharray: 5 13;
+  animation: flow-dash 1.05s linear infinite;
+}
+
+.flow-rev { animation-direction: reverse; }
+
+@keyframes flow-dash {
+  to { stroke-dashoffset: -18; }
+}
+
+/* The olivary node emitting the beat it just computed. */
+.soc-ring {
+  transform-origin: 380px 330px;
+  animation: soc-emit 1.65s ease-out infinite;
+  opacity: 0;
+}
+
+@keyframes soc-emit {
+  0%   { transform: scale(1);   opacity: 0.75; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+
+/* ─── Data readout ───────────────────────────────────────────────────────── */
+
+.readout {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.025);
+}
+
+.readout-value {
+  font-size: 1.35rem;
+  font-weight: 900;
+  letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--t1);
+}
+
+.readout-label {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--t4);
+}
+
+/* ─── Range slider (carrier ceiling) ─────────────────────────────────────── */
+
+.hz-range {
+  width: 100%;
+  height: 26px;
+  background: none;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: grab;
+}
+
+.hz-range:active { cursor: grabbing; }
+
+.hz-range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--alpha), var(--theta) 42%, rgba(255,255,255,0.10) 62%);
+}
+
+.hz-range::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--alpha), var(--theta) 42%, rgba(255,255,255,0.10) 62%);
+}
+
+.hz-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: -8px;
+  border: 2px solid #06060e;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.5), 0 4px 14px rgba(0,0,0,0.6);
+}
+
+.hz-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #06060e;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.5), 0 4px 14px rgba(0,0,0,0.6);
+}
+
+.hz-range:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px var(--accent-mid); }
+.hz-range:focus-visible::-moz-range-thumb     { box-shadow: 0 0 0 4px var(--accent-mid); }
+
+/* ─── Verdict chip ───────────────────────────────────────────────────────── */
+
+.verdict {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border: 1px solid color-mix(in srgb, var(--tone) 45%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tone) 13%, transparent);
+  color: var(--tone);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* ─── Numbered facts ─────────────────────────────────────────────────────── */
+
+.fact-index {
+  font-size: 0.68rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.1em;
+  color: var(--t-decor);
+}
+
+.fact-source {
+  display: inline-block;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 0.68rem;
+  color: var(--t4);
+}
+
+/* ─── Scroll progress ────────────────────────────────────────────────────── */
+
+.scroll-progress {
+  position: fixed;
+  top: 60px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  transform-origin: 0 50%;
+  background: linear-gradient(90deg, var(--alpha), var(--theta) 60%, var(--gamma));
+  z-index: 99;
+  pointer-events: none;
+}
+
+/* ─── Motion opt-out ─────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-floor,
+  .eq span,
+  .marquee-track,
+  .ambient-orb,
+  .breathe-ring,
+  .flow-line,
+  .soc-ring,
+  .spin-slow { animation: none; }
+
+  /* The node still needs to read as "active", just without the pulse. */
+  .soc-ring { opacity: 0.25; }
+}
