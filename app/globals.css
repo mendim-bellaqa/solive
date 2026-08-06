@@ -1343,6 +1343,85 @@ button { font-family: inherit; cursor: pointer; }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════ */
+/*  MOBILE NAV PANEL                                                          */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+.mnav {
+  display: flex;
+  flex-direction: column;
+  /* The panel hangs off the top bar, so the bottom needs the room that a
+     screen edge would otherwise give it. */
+  padding: 6px 20px calc(26px + env(safe-area-inset-bottom));
+}
+
+.mnav-links {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 6px;
+}
+
+.mnav-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 15px 2px;
+  font-size: 1.02rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--t2);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.16s, padding-left 0.16s;
+}
+
+.mnav-link svg { color: var(--t-decor); transition: color 0.16s, transform 0.16s; }
+.mnav-link:active { color: var(--t1); padding-left: 6px; }
+.mnav-link:active svg { color: var(--t3); transform: translateX(2px); }
+.mnav-link[data-on] { color: var(--t1); }
+.mnav-link[data-on] svg { color: var(--t3); }
+
+/* The plan strip and the CTA are one block, set apart from the link list. */
+.mnav-plan {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 13px 14px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--glass-1);
+}
+
+.mnav-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin-top: 10px;
+  padding: 15px;
+  border: 1px solid rgba(255,255,255,0.85);
+  border-radius: 16px;
+  color: #fff;
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.18s, color 0.18s;
+}
+
+.mnav-cta:active { background: #fff; color: var(--bg); }
+
+.mnav-signin {
+  margin-top: 12px;
+  padding: 4px;
+  text-align: center;
+  font-size: 0.84rem;
+  color: var(--t3);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════ */
 /*  HISTORY                                                                   */
 /*  Deliberately monochrome. Frequency colours belong to the studio, where    */
 /*  one tone is playing; a list of thirty sessions in six hues is just noise. */

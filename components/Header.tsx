@@ -464,48 +464,47 @@ export default function Header() {
                 paddingRight: 'env(safe-area-inset-right)',
               }}
             >
-              <div className="px-5 py-4 flex flex-col gap-1">
-                {NAV.map(({ label, href }) => (
-                  <Link
-                    key={label}
-                    href={href}
-                    onClick={() => setNavOpen(false)}
-                    className="px-3 py-3 rounded-xl text-base font-medium transition-colors"
-                    style={{ color: 'var(--text-secondary)' }}
-                  >
-                    {label}
-                  </Link>
-                ))}
-
-                <div className="my-2" style={{ height: 1, background: 'rgba(255,255,255,0.07)' }} />
+              <div className="mnav">
+                <nav className="mnav-links">
+                  {NAV.map(({ label, href }) => (
+                    <Link
+                      key={label}
+                      href={href}
+                      onClick={() => setNavOpen(false)}
+                      className="mnav-link"
+                      data-on={pathname === href || undefined}
+                    >
+                      {label}
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                           strokeWidth="2" aria-hidden>
+                        <path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </Link>
+                  ))}
+                </nav>
 
                 <Link
                   href="/pricing"
                   onClick={() => setNavOpen(false)}
-                  className="flex items-center justify-between px-3 py-3 rounded-xl"
-                  style={{ background: 'rgba(255,255,255,0.03)' }}
+                  className="mnav-plan"
                 >
-                  <span className="flex items-center gap-2.5">
+                  <span className="flex items-center gap-2.5 min-w-0">
                     <span className="plan-badge" data-plan={plan}>
                       <span className="plan-badge-dot" aria-hidden />
                       {planName}
                     </span>
-                    <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                    <span className="text-sm truncate" style={{ color: 'var(--t3)' }}>
                       {plan === 'free' ? 'Your plan' : expiresAt ? `Until ${fmtDate(expiresAt)}` : 'Active'}
                     </span>
                   </span>
-                  <span className="text-xs font-bold" style={{ color: plan === 'free' ? 'var(--accent)' : 'var(--text-muted)' }}>
+                  <span className="text-xs font-bold flex-shrink-0"
+                        style={{ color: plan === 'free' ? 'var(--accent)' : 'var(--t3)' }}>
                     {plan === 'free' ? 'Upgrade →' : 'Extend →'}
                   </span>
                 </Link>
 
                 {!inSessionFlow && (
-                  <Link
-                    href="/session"
-                    onClick={() => setNavOpen(false)}
-                    className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold"
-                    style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.85)', color: '#ffffff' }}
-                  >
+                  <Link href="/session" onClick={() => setNavOpen(false)} className="mnav-cta">
                     <svg width="9" height="10" viewBox="0 0 9 10" fill="currentColor" aria-hidden style={{ flexShrink: 0 }}>
                       <polygon points="0,0 9,5 0,10" />
                     </svg>
@@ -514,12 +513,7 @@ export default function Header() {
                 )}
 
                 {!user && (
-                  <Link
-                    href="/auth/login"
-                    onClick={() => setNavOpen(false)}
-                    className="px-3 py-3 rounded-xl text-sm text-center"
-                    style={{ color: 'var(--text-muted)' }}
-                  >
+                  <Link href="/auth/login" onClick={() => setNavOpen(false)} className="mnav-signin">
                     Sign in
                   </Link>
                 )}
