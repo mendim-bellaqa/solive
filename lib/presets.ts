@@ -1,9 +1,9 @@
 'use client'
 
-// Saved session setups ("templates"). Signed-in users get them on their
-// account so they follow them between devices; signed-out users still get to
-// save — the app works without an account and this shouldn't be the thing that
-// breaks that — they just live in this browser.
+// Saved session setups ("templates"). They live on the account: a saved setup
+// that only exists in one browser is a promise the app can't keep, and being
+// told "saved" while signed out is worse than being asked to sign in. Anything
+// already saved on a device is migrated up the first time its owner signs in.
 
 import { useCallback, useEffect, useState } from 'react'
 import { getSupabase } from './supabase/client'
@@ -25,14 +25,13 @@ export interface SessionPreset {
 
 export type PresetInput = Omit<SessionPreset, 'id' | 'createdAt'>
 
-/** Where the current user's presets live — surfaced in the UI so nobody is
- *  surprised when device-local saves don't appear on their phone. */
-export type PresetScope = 'account' | 'device'
-
 const LOCAL_KEY = 'hzaura_presets'
 const MAX_PRESETS = 40
+const COLUMNS = 'id, name, hz, band, viz, minutes, created_at'
 
-// ─── Device storage ───────────────────────────────────────────────────────────
+// ─── Device leftovers ─────────────────────────────────────────────────────────
+// Saving to the browser is gone, but setups saved before that are not: they are
+// lifted onto the account the first time their owner signs in.
 
 interface StoredPreset extends Omit<SessionPreset, 'createdAt'> { createdAt: string }
 
@@ -49,10 +48,8 @@ function readLocal(): SessionPreset[] {
   }
 }
 
-function writeLocal(list: SessionPreset[]) {
-  try {
-    window.localStorage.setItem(LOCAL_KEY, JSON.stringify(list.slice(0, MAX_PRESETS)))
-  } catch { /* private browsing / quota — the session itself still works */ }
+function clearLocal() {
+  try { window.localStorage.removeItem(LOCAL_KEY) } catch { /* private browsing */ }
 }
 
 // ─── Account storage ──────────────────────────────────────────────────────────
@@ -83,87 +80,88 @@ function toPreset(row: PresetRow): SessionPreset {
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 /**
- * The saved setups for whoever is here, plus save/remove. `presets` is null
- * while loading so the UI can hold its shape instead of flashing an empty
- * state at every signed-in user on first paint.
+ * The signed-in user's saved setups, plus save/remove. `presets` is null while
+ * loading so the UI can hold its shape instead of flashing an empty state at
+ * every signed-in user on first paint. `signedIn` is false for a visitor, and
+ * callers send them to sign in rather than calling `save`.
  */
 export function useSessionPresets() {
   const user = useAuthUser()
-  const scope: PresetScope = user ? 'account' : 'device'
   const [presets, setPresets] = useState<SessionPreset[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (user === undefined) return   // auth still resolving
-    let cancelled = false
-
-    if (!user) { setPresets(readLocal()); return }
+    if (!user) { setPresets([]); return }
 
     const supabase = getSupabase()
-    if (!supabase) { setPresets(readLocal()); return }
+    if (!supabase) { setPresets([]); return }
 
-    supabase
-      .from('session_presets')
-      .select('id, name, hz, band, viz, minutes, created_at')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(MAX_PRESETS)
-      .then(({ data, error: err }) => {
-        if (cancelled) return
-        if (err) { setPresets([]); setError('Could not load your saved sessions.'); return }
-        setPresets((data as PresetRow[]).map(toPreset))
-      })
+    let cancelled = false
+
+    ;(async () => {
+      // Anything saved on this device before setups moved to the account.
+      const leftovers = readLocal()
+      if (leftovers.length) {
+        const { error: err } = await supabase.from('session_presets').insert(
+          leftovers.map(p => ({
+            user_id: user.id, name: p.name, hz: p.hz, band: p.band, viz: p.viz, minutes: p.minutes,
+          })),
+        )
+        if (!err) clearLocal()
+      }
+
+      const { data, error: err } = await supabase
+        .from('session_presets')
+        .select(COLUMNS)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(MAX_PRESETS)
+
+      if (cancelled) return
+      if (err) { setPresets([]); setError('Could not load your saved sessions.'); return }
+      setPresets((data as PresetRow[]).map(toPreset))
+    })()
 
     return () => { cancelled = true }
   }, [user])
 
   const save = useCallback(async (input: PresetInput): Promise<boolean> => {
     setError(null)
-    const name = input.name.trim().slice(0, 60) || `${input.hz} Hz session`
     const supabase = user ? getSupabase() : null
+    if (!user || !supabase) { setError('Sign in to save a session.'); return false }
 
-    if (user && supabase) {
-      const { data, error: err } = await supabase
-        .from('session_presets')
-        .insert({
-          user_id: user.id,
-          name,
-          hz: input.hz,
-          band: input.band,
-          viz: input.viz,
-          minutes: input.minutes,
-        })
-        .select('id, name, hz, band, viz, minutes, created_at')
-        .single()
-      if (err) { setError('Could not save that setup. Please try again.'); return false }
-      setPresets(list => [toPreset(data as PresetRow), ...(list ?? [])])
-      return true
-    }
+    const name = input.name.trim().slice(0, 60) || `${input.hz} Hz session`
+    const { data, error: err } = await supabase
+      .from('session_presets')
+      .insert({
+        user_id: user.id,
+        name,
+        hz: input.hz,
+        band: input.band,
+        viz: input.viz,
+        minutes: input.minutes,
+      })
+      .select(COLUMNS)
+      .single()
 
-    const preset: SessionPreset = {
-      ...input,
-      name,
-      id: (globalThis.crypto?.randomUUID?.() ?? String(Date.now())),
-      createdAt: new Date(),
-    }
-    setPresets(list => {
-      const next = [preset, ...(list ?? [])].slice(0, MAX_PRESETS)
-      writeLocal(next)
-      return next
-    })
+    if (err) { setError('Could not save that setup. Please try again.'); return false }
+    setPresets(list => [toPreset(data as PresetRow), ...(list ?? [])])
     return true
   }, [user])
 
   const remove = useCallback(async (id: string) => {
-    setPresets(list => {
-      const next = (list ?? []).filter(p => p.id !== id)
-      if (!user) writeLocal(next)
-      return next
-    })
-    if (!user) return
+    setPresets(list => (list ?? []).filter(p => p.id !== id))
     const supabase = getSupabase()
     await supabase?.from('session_presets').delete().eq('id', id)
-  }, [user])
+  }, [])
 
-  return { presets, scope, error, save, remove, ready: user !== undefined }
+  return {
+    presets,
+    error,
+    save,
+    remove,
+    signedIn: Boolean(user),
+    ready: user !== undefined,
+  }
 }

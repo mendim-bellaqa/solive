@@ -34,7 +34,7 @@ export default function SettingsPage() {
   const router = useRouter()
   const user = useAuthUser()
   const { plan, expiresAt } = usePlan()
-  const { presets, scope, remove } = useSessionPresets()
+  const { presets, remove } = useSessionPresets()
   const { prefs, update } = useSessionDefaults()
 
   const [signingOut, setSigningOut] = useState(false)
@@ -296,7 +296,7 @@ export default function SettingsPage() {
 
               {/* ── Saved sessions ───────────────────────────────────────── */}
               <Section label="SAVED SESSIONS"
-                       hint={scope === 'account' ? 'Stored on your account.' : 'Stored in this browser.'}>
+                       hint="Stored on your account, so they follow you to any device.">
                 {!presets || presets.length === 0 ? (
                   <p className="text-sm" style={{ color: 'var(--t3)' }}>
                     None yet. Build a session you like and tap the bookmark next to Begin —{' '}

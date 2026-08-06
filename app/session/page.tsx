@@ -94,7 +94,7 @@ function VizGlyph({ mode, active, color }: { mode: VizMode; active: boolean; col
 export default function SessionPage() {
   const router = useRouter()
   const { limits, plan } = usePlan()
-  const { presets, scope, save, remove } = useSessionPresets()
+  const { presets, signedIn, ready: authReady, save, remove } = useSessionPresets()
 
   const [viz, setViz]         = useState<VizMode>('brain')
   const [hz, setHz]           = useState<number>(528)
@@ -155,6 +155,14 @@ export default function SessionPage() {
     router.push(`/studio?${params.toString()}`)
   }
 
+  /** A saved setup lives on the account — a visitor gets the sign-in page
+   *  rather than a "Saved ✓" that survives nothing. */
+  function openSave() {
+    if (!signedIn) { router.push('/auth/login?next=/session'); return }
+    setSaveName(`${fmtHz(hz)} Hz · ${title}`)
+    setSaveOpen(true)
+  }
+
   async function doSave() {
     const ok = await save({ name: saveName, hz, band, viz, minutes })
     if (!ok) return
@@ -198,7 +206,7 @@ export default function SessionPage() {
                 YOUR SAVED SESSIONS
               </p>
               <p style={{ fontSize: '0.62rem', color: 'var(--t4)' }}>
-                {scope === 'account' ? 'On your account' : 'On this device'}
+                On your account
               </p>
             </div>
             <div className="scroll-row" style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
@@ -445,9 +453,11 @@ export default function SessionPage() {
         background: 'linear-gradient(0deg, rgba(7,7,15,0.98) 60%, transparent)',
       }}>
         <div style={{ maxWidth: 580, margin: '0 auto', display: 'flex', gap: 8 }}>
-          <button onClick={() => { setSaveName(`${fmtHz(hz)} Hz · ${title}`); setSaveOpen(true) }}
-            className="btn-ghost" style={{ padding: '15px 16px', flexShrink: 0 }}
-            aria-label="Save this setup">
+          {/* Inert until auth has resolved, so an early tap can't send a
+              signed-in user to the sign-in page. */}
+          <button onClick={openSave} disabled={!authReady}
+            className="btn-ghost" style={{ padding: '15px 16px', flexShrink: 0, opacity: authReady ? 1 : 0.5 }}
+            aria-label={signedIn ? 'Save this setup' : 'Sign in to save this setup'}>
             {saved ? (
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.4">
                 <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
@@ -492,9 +502,7 @@ export default function SessionPage() {
               <p style={{ fontSize: '0.78rem', color: 'var(--t3)', lineHeight: 1.55, marginBottom: 14 }}>
                 {fmtHz(hz)} Hz · {BINAURAL_PRESETS[band].label} · {VIZ_OPTIONS.find(v => v.id === viz)?.label} · {lengthLabel(minutes)}
                 <br />
-                {scope === 'account'
-                  ? 'Saved to your account, so it follows you to any device.'
-                  : 'Saved in this browser. Sign in and it follows you everywhere instead.'}
+                Saved to your account, so it follows you to any device.
               </p>
               <input
                 value={saveName}

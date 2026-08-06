@@ -90,7 +90,7 @@ export default function HistoryPage() {
   const router = useRouter()
   const user = useAuthUser()
   const { limits } = usePlan()
-  const { presets, scope, remove } = useSessionPresets()
+  const { presets, remove } = useSessionPresets()
   const [sessions, setSessions] = useState<SessionRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -175,7 +175,7 @@ export default function HistoryPage() {
             <div className="flex items-baseline justify-between mb-2.5">
               <p className="hist-eyebrow">Saved sessions</p>
               <p className="text-[0.62rem]" style={{ color: 'var(--t4)' }}>
-                {scope === 'account' ? 'On your account' : 'On this device'}
+                On your account
               </p>
             </div>
             <div className="flex flex-col gap-1.5">
