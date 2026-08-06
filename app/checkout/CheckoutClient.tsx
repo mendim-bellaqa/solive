@@ -104,6 +104,10 @@ export default function CheckoutClient() {
           setStep('success')
         } else if (['failed', 'refunded', 'expired'].includes(s.status)) {
           window.localStorage.removeItem(PENDING_KEY)
+        } else if (info.expiresAt && new Date(info.expiresAt).getTime() < Date.now()) {
+          // Its deposit window closed while the tab was away. The server
+          // expires these too; this just means the banner never flashes.
+          window.localStorage.removeItem(PENDING_KEY)
         } else {
           // Offer it. Jumping straight to the pay screen used to yank people
           // out of the coin picker a second after they opened it, and left

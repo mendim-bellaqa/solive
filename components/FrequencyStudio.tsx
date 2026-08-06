@@ -136,6 +136,7 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
   const sessionIdRef = useRef<string | null>(sessionId ?? null)
   const [favorite, setFavorite] = useState(false)
   const favoriteRef = useRef(false)          // readable from ensureSessionDoc
+  const [favHint, setFavHint] = useState(false)   // "that's a paid feature"
   const elapsedRef   = useRef(resumeFrom)   // readable from cleanup without re-subscribing
   const playerStateRef = useRef<PlayerState>('idle')
 
@@ -458,7 +459,9 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
    * has to press play first to say they liked something.
    */
   async function toggleFavorite() {
-    if (!limits.favorites) { router.push('/pricing'); return }
+    // Navigating to pricing mid-session would stop the audio the user is
+    // listening to. Say it in place and let them choose to leave.
+    if (!limits.favorites) { setFavHint(true); return }
     // A favourite lives on a session row, and a signed-out visit never gets
     // one — better to say so than to fill the star and quietly drop it.
     if (authUser === null) { router.push('/auth/login?next=/history'); return }
@@ -915,6 +918,33 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
       {!isFullscreen && (
         <div className="flex-shrink-0 px-4 pt-3 pb-4 safe-bottom relative"
              style={{ background:'rgba(5,5,12,0.96)', backdropFilter:'blur(24px)', borderTop:'1px solid var(--border)' }}>
+
+          {/* Favourites are a paid feature — said here rather than by
+              redirecting away from a session that is playing. */}
+          <AnimatePresence>
+            {favHint && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }} style={{ overflow: 'hidden' }}>
+                <div className="mb-2 flex items-center gap-2 rounded-xl"
+                     style={{ padding: '8px 12px', background: 'var(--accent-dim)', border: '1px solid var(--accent-mid)' }}>
+                  <p className="text-[0.72rem] flex-1" style={{ color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                    Favourites come with any paid plan — keep a session and it waits for you in My Sessions.
+                  </p>
+                  <button onClick={() => router.push('/pricing')}
+                          className="text-[0.7rem] font-bold flex-shrink-0" style={{ color: 'var(--accent)' }}>
+                    See plans →
+                  </button>
+                  <button onClick={() => setFavHint(false)} aria-label="Dismiss"
+                          className="flex-shrink-0" style={{ color: 'var(--text-muted)' }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6">
+                      <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Free-plan cap notice */}
           {durationCapped && (

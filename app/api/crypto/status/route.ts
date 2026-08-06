@@ -6,6 +6,17 @@ import { applyPaymentUpdate, TERMINAL_STATUSES, type PaymentRow } from '@/lib/pa
 
 export const dynamic = 'force-dynamic'
 
+/** NOWPayments quotes a deposit window (~20 minutes). Rows that never got one
+ *  are given an hour before we call them dead. */
+const FALLBACK_WINDOW_MS = 60 * 60 * 1000
+
+function isPastWindow(row: PaymentRow): boolean {
+  const ends = row.np_expires_at
+    ? new Date(row.np_expires_at).getTime()
+    : new Date(row.created_at).getTime() + FALLBACK_WINDOW_MS
+  return Number.isFinite(ends) && ends < Date.now()
+}
+
 /**
  * Checkout polls this while a payment is open. For non-terminal payments it
  * also asks NOWPayments directly and folds the answer in — the same idempotent
@@ -46,6 +57,21 @@ export async function GET(request: Request) {
       // NOWPayments unreachable — report what the DB knows and let the
       // client keep polling.
     }
+  }
+
+  // A deposit window that has run out is over, whatever NOWPayments still says
+  // about it — theirs can sit on "waiting" long after the address stopped
+  // being useful, and the checkout would keep offering it as resumable. Late
+  // funds are still honoured: the IPN's `finished` outranks `expired`.
+  if (!TERMINAL_STATUSES.includes(row.status) && isPastWindow(row)) {
+    const { data: expired } = await admin
+      .from('payments')
+      .update({ status: 'expired', updated_at: new Date().toISOString() })
+      .eq('id', row.id)
+      .neq('status', 'finished')
+      .select('*')
+      .maybeSingle()
+    if (expired) row = expired as PaymentRow
   }
 
   const { data: ent } = await admin
