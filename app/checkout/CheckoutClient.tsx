@@ -58,6 +58,7 @@ export default function CheckoutClient() {
   const [payment, setPayment] = useState<PaymentInfo | null>(null)
   /** An unfinished payment from an earlier visit — offered, never forced. */
   const [resumable, setResumable] = useState<PaymentInfo | null>(null)
+  const [cancelState, setCancelState] = useState<'idle' | 'confirm' | 'busy'>('idle')
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState<'address' | 'amount' | null>(null)
   const [now, setNow] = useState(() => Date.now())
@@ -211,7 +212,42 @@ export default function CheckoutClient() {
     window.localStorage.removeItem(PENDING_KEY)
     setPayment(null)
     setResumable(null)
+    setCancelState('idle')
     setStep('coins')
+  }
+
+  /** Cancel for real: the row is marked expired, so it stops following the
+   *  user to their other devices as an open payment. */
+  async function cancelPayment() {
+    const id = payment?.id
+    if (!id) return
+    setCancelState('busy')
+    try {
+      const res = await fetch('/api/crypto/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+      const body = await res.json().catch(() => ({}))
+      // It completed while they were deciding — that outcome wins.
+      if (res.ok && body.status === 'finished') {
+        window.localStorage.removeItem(PENDING_KEY)
+        choosePlan((body.planId as PlanId) ?? planId)
+        setCancelState('idle')
+        setStep('success')
+        return
+      }
+      if (!res.ok) setError(body.message ?? 'Could not cancel that payment. Please try again.')
+    } catch {
+      setError('Could not reach the server to cancel. Please try again.')
+    }
+    // Local state clears either way: a failed call leaves the row alone, and
+    // the user can still start a new payment.
+    window.localStorage.removeItem(PENDING_KEY)
+    setPayment(null)
+    setResumable(null)
+    setCancelState('idle')
+    setStep('summary')
   }
 
   function resumePayment() {
@@ -222,6 +258,16 @@ export default function CheckoutClient() {
   }
 
   function discardResumable() {
+    // Close the old one out server-side too, so it doesn't resurface as an
+    // open payment on the user's other devices. Funds sent to it would still
+    // be honoured by the webhook.
+    if (resumable) {
+      fetch('/api/crypto/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: resumable.id }),
+      }).catch(() => { /* best effort */ })
+    }
     window.localStorage.removeItem(PENDING_KEY)
     setResumable(null)
   }
@@ -473,11 +519,35 @@ export default function CheckoutClient() {
             network can lose funds — double-check both in your wallet.
           </p>
 
-          <button onClick={abandonPayment}
-                  className="text-[0.72rem] mt-4 underline transition-opacity hover:opacity-80"
-                  style={{ color: 'var(--text-muted)' }}>
-            Cancel and choose a different coin
-          </button>
+          {cancelState === 'confirm' ? (
+            <div className="mt-5 rounded-2xl p-4"
+                 style={{ background: 'rgba(224,80,80,0.07)', border: '1px solid rgba(224,80,80,0.28)' }}>
+              <p className="text-[0.8rem] mb-3" style={{ color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                Cancel this payment? We stop watching the address and it drops off your account.
+                {' '}<strong style={{ color: 'var(--t1)' }}>If you have already sent the coins, don’t cancel</strong> —
+                they still activate your plan on their own.
+              </p>
+              <div className="flex gap-2">
+                <button onClick={() => setCancelState('idle')} className="btn-ghost text-xs flex-1 justify-center">
+                  Keep it open
+                </button>
+                <button onClick={cancelPayment} disabled={cancelState !== 'confirm'}
+                        className="btn-danger text-xs flex-1 justify-center">
+                  Yes, cancel it
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex gap-2 mt-5">
+              <button onClick={abandonPayment} className="btn-ghost text-xs flex-1 justify-center">
+                Change coin
+              </button>
+              <button onClick={() => setCancelState('confirm')} disabled={cancelState === 'busy'}
+                      className="btn-danger text-xs flex-1 justify-center">
+                {cancelState === 'busy' ? 'Cancelling…' : 'Cancel payment'}
+              </button>
+            </div>
+          )}
         </>
       )
     } else {

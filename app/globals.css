@@ -302,6 +302,28 @@ button { font-family: inherit; cursor: pointer; }
 .btn-ghost:hover  { background: var(--glass-2); border-color: var(--border-hi); color: var(--t1); }
 .btn-ghost:active { transform: scale(0.97); }
 
+/* Destructive twin of btn-ghost — reads as an exit, not as a primary action. */
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 24px;
+  border-radius: 14px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  border: 1px solid rgba(224,80,80,0.32);
+  background: rgba(224,80,80,0.08);
+  color: #f0a0a0;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.btn-danger:hover  { background: #e05050; border-color: #e05050; color: #fff; }
+.btn-danger:active { transform: scale(0.97); }
+.btn-danger:disabled { opacity: 0.55; cursor: default; transform: none; }
+
 /* ══════════════════════════════════════════════════════════════════════════ */
 /*  HZ INPUT                                                                  */
 /* ══════════════════════════════════════════════════════════════════════════ */
