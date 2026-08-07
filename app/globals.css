@@ -2333,9 +2333,12 @@ button { font-family: inherit; cursor: pointer; }
 
 /* ─── Scroll progress ────────────────────────────────────────────────────── */
 
+/* Sits on the header's bottom edge. The header is a 64px bar pushed down by
+   the iOS safe-area inset, so a bare 60px put this line above the logo on any
+   notched phone rather than under the bar. Track the real height. */
 .scroll-progress {
   position: fixed;
-  top: 60px;
+  top: calc(64px + env(safe-area-inset-top));
   left: 0;
   right: 0;
   height: 2px;
