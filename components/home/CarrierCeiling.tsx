@@ -23,11 +23,14 @@ const yOf = (f: number) => PLOT.y1 - f * (PLOT.y1 - PLOT.y0)
 
 const TICKS = [100, 200, 500, 1000, 2000, 4000]
 
+/* The label states the outcome in words, so a green-to-red scale on top of it
+   was decoration carrying no extra information. Brightness does the same job
+   in one colour: a strong lock reads lit, a dead one reads dim. */
 function verdictFor(f: number) {
-  if (f >= 0.85) return { label: 'Locked · beat is strong', tone: 'var(--alpha)' }
-  if (f >= 0.55) return { label: 'Slipping · beat is thinning', tone: '#9fd67a' }
-  if (f >= 0.25) return { label: 'Weak · barely perceptible', tone: '#e8c05a' }
-  return { label: 'Gone · two separate tones', tone: '#e07a6a' }
+  if (f >= 0.85) return { label: 'Locked · beat is strong',    tone: 'rgba(255,255,255,0.95)' }
+  if (f >= 0.55) return { label: 'Slipping · beat is thinning', tone: 'rgba(255,255,255,0.72)' }
+  if (f >= 0.25) return { label: 'Weak · barely perceptible',   tone: 'rgba(255,255,255,0.52)' }
+  return { label: 'Gone · two separate tones',                  tone: 'rgba(255,255,255,0.36)' }
 }
 
 export default function CarrierCeiling() {
@@ -76,7 +79,7 @@ export default function CarrierCeiling() {
             <span className="readout-label">Carrier</span>
           </div>
           <div className="readout">
-            <span className="readout-value" style={{ color: verdict.tone }}>{Math.round(f * 100)}%</span>
+            <span className="readout-value">{Math.round(f * 100)}%</span>
             <span className="readout-label">Phase locking</span>
           </div>
         </div>
