@@ -65,6 +65,17 @@ function fmtHz(hz: number) {
   return hz >= 1000 ? hz.toLocaleString('en-US') : String(hz)
 }
 
+/** "Aug 6 · 9:55 PM" — the year only once it stops being obvious. Shared so a
+ *  paused session and a finished one date themselves the same way. */
+function fmtWhen(d: Date): string {
+  const date = d.toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric',
+    year: d.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined,
+  })
+  const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  return `${date} · ${time}`
+}
+
 function toneName(hz: number) {
   return primaryCatalogEntry(hz)?.name ?? (FREQUENCIES[hz] ?? getOrCreateFrequency(hz)).name
 }
@@ -286,7 +297,8 @@ export default function HistoryPage() {
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold truncate">{toneName(s.hz)}</p>
                             <p className="text-[0.7rem]" style={{ color: 'var(--t4)' }}>
-                              {fmtDuration(s.elapsedSeconds)} listened
+                              {fmtWhen(s.createdAt)}
+                              {' · '}{fmtDuration(s.elapsedSeconds)} listened
                               {s.plannedSeconds > 0 && ` of ${fmtDuration(s.plannedSeconds)}`}
                               {s.band && ` · ${s.band}`}
                             </p>
@@ -382,11 +394,6 @@ export default function HistoryPage() {
                 {sessions.slice(0, 60).map((s, i) => {
                   const isRating = ratingFor === s.id
                   const rating = s.afterScore !== null ? RATING_OPTIONS.find(r => r.score === s.afterScore) : null
-                  const dateLabel = s.createdAt.toLocaleDateString('en-US', {
-                    month: 'short', day: 'numeric',
-                    year: s.createdAt.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined,
-                  })
-                  const timeLabel = s.createdAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
 
                   return (
                     <motion.div key={s.id}
@@ -400,7 +407,7 @@ export default function HistoryPage() {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold truncate">{toneName(s.hz)}</p>
                           <p className="text-[0.7rem]" style={{ color: 'var(--t4)' }}>
-                            {dateLabel} · {timeLabel} · {fmtDuration(s.elapsedSeconds)}
+                            {fmtWhen(s.createdAt)} · {fmtDuration(s.elapsedSeconds)}
                             {s.band && ` · ${s.band}`}
                             {s.status === 'in_progress' && ' · paused'}
                           </p>
