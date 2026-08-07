@@ -15,8 +15,12 @@ export default function HeroOrb() {
     const root = rootRef.current
     const w = root.clientWidth || 480
     const h = root.clientHeight || 480
-    const dpr = Math.min(window.devicePixelRatio || 1, 2)
-    const N = Math.min(w, h) < 380 ? 2000 : 3200
+    // Phones pay twice for this: a high DPR and a fill-rate-bound additive
+    // blend. Capping both there is invisible at arm's length and is most of
+    // the difference between a smooth hero and a stuttering one.
+    const mobile = window.matchMedia('(max-width: 768px)').matches
+    const dpr = Math.min(window.devicePixelRatio || 1, mobile ? 1.5 : 2)
+    const N = mobile || Math.min(w, h) < 380 ? 1800 : 3200
 
     const scene = new THREE.Scene()
     const camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 100)
@@ -79,10 +83,21 @@ export default function HeroOrb() {
     const palette = ['#5CE8DC', '#4a90e8', '#8b5cf6', '#e0607a', '#e8a020', '#10b981'].map(c => new THREE.Color(c))
     const col = new THREE.Color()
 
+    // Scrolled past the hero, this kept displacing 3200 vertices and issuing a
+    // draw call every frame for something nobody could see — the page felt
+    // heavy all the way down because of it. The loop stays armed but idles.
+    let onScreen = true
+    const io = new IntersectionObserver(
+      ([e]) => { onScreen = e.isIntersecting },
+      { rootMargin: '100px' },
+    )
+    io.observe(root)
+
     let last = performance.now()
     let t = 0
     function animate() {
       rafRef.current = requestAnimationFrame(animate)
+      if (!onScreen || document.hidden) { last = performance.now(); return }
       const now = performance.now(); const dt = Math.min(0.05, (now - last) / 1000); last = now
       t += dt
 
@@ -130,6 +145,7 @@ export default function HeroOrb() {
 
     return () => {
       window.removeEventListener('resize', onResize)
+      io.disconnect()
       cancelAnimationFrame(rafRef.current)
       geo.dispose(); coreMat.dispose(); haloMat.dispose()
       glowGeo.dispose(); glowMat.dispose(); tex.dispose(); renderer.dispose()

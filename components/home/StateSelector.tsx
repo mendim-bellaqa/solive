@@ -127,7 +127,7 @@ export default function StateSelector() {
           <div className="viewport-ticks" />
           <div className="viewport-label">
             <span className="eyebrow" style={{ fontSize: '0.6rem' }}>Resonant field</span>
-            <p style={{ fontSize: '1.5rem', fontWeight: 900, color: s.color, letterSpacing: '-0.03em', lineHeight: 1.1 }}>
+            <p style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--t1)', letterSpacing: '-0.03em', lineHeight: 1.1 }}>
               {s.hz}<span style={{ fontSize: '0.45em', color: 'var(--t3)', marginLeft: 4, fontWeight: 700 }}>Hz</span>
             </p>
           </div>

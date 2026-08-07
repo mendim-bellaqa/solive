@@ -72,10 +72,18 @@ export default function BeatCanvas({
       ctx.stroke(path)
     }
 
+    let onScreen = true
+    const io = new IntersectionObserver(
+      ([e]) => { onScreen = e.isIntersecting },
+      { rootMargin: '100px' },
+    )
+    io.observe(canvas)
+
     const draw = () => {
       raf.current = requestAnimationFrame(draw)
       const c = ref.current
       if (!c) return
+      if (!onScreen || document.hidden) { last = performance.now(); return }
 
       const now = performance.now()
       const dt = Math.min(0.05, (now - last) / 1000)
@@ -146,7 +154,7 @@ export default function BeatCanvas({
     }
 
     draw()
-    return () => cancelAnimationFrame(raf.current)
+    return () => { io.disconnect(); cancelAnimationFrame(raf.current) }
   }, [])
 
   return <canvas ref={ref} className="absolute inset-0 w-full h-full" aria-hidden />

@@ -186,8 +186,18 @@ export default function Biofield({ colorHex, isPlaying, analyserRef, quality = '
     const flowAttr = flowGeo.getAttribute('position') as THREE.BufferAttribute
     const tp = [0, 0, 0]
 
+    // Same idling as the other two contexts: offscreen, this was still
+    // integrating 150 flow particles and redrawing the torus every frame.
+    let onScreen = true
+    const io = new IntersectionObserver(
+      ([e]) => { onScreen = e.isIntersecting },
+      { rootMargin: '100px' },
+    )
+    io.observe(root)
+
     function animate() {
       rafRef.current = requestAnimationFrame(animate)
+      if (!onScreen || document.hidden) { last = performance.now(); return }
       const now = performance.now(); const dt = Math.min(0.05, (now - last) / 1000); last = now; t += dt
       const playing = playingRef.current
 
@@ -244,6 +254,7 @@ export default function Biofield({ colorHex, isPlaying, analyserRef, quality = '
 
     return () => {
       window.removeEventListener('resize', onResize)
+      io.disconnect()
       if (interactive) root.removeEventListener('wheel', onWheel)
       detachPinch()
       cancelAnimationFrame(rafRef.current)

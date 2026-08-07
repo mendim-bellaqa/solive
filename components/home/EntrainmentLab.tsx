@@ -111,7 +111,7 @@ export default function EntrainmentLab() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
                 transition={{ duration: 0.22 }}
-                style={{ fontSize: '1.05rem', fontWeight: 800, color: band.color, letterSpacing: '-0.02em' }}
+                style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--t1)', letterSpacing: '-0.02em' }}
               >
                 {band.name} · {band.beat} Hz
               </motion.p>

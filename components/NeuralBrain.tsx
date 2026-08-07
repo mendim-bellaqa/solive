@@ -204,8 +204,18 @@ export default function NeuralBrain({ isPlaying, mode = 'session', progress = 0,
     const nColAttr = nGeo.getAttribute('color') as THREE.BufferAttribute
     const tmp = new Float32Array(3)
 
+    // Mounted once and never unmounted, this kept a full particle pass and a
+    // draw call running after it left the screen. Idle it instead.
+    let onScreen = true
+    const io = new IntersectionObserver(
+      ([e]) => { onScreen = e.isIntersecting },
+      { rootMargin: '100px' },
+    )
+    io.observe(root)
+
     function animate() {
       frameRef.current = requestAnimationFrame(animate)
+      if (!onScreen || document.hidden) { last = performance.now(); return }
       const now = performance.now(); const dt = Math.min(0.05, (now - last) / 1000); last = now
       elapsed += dt
       const playing = playingRef.current
@@ -293,6 +303,7 @@ export default function NeuralBrain({ isPlaying, mode = 'session', progress = 0,
 
     return () => {
       window.removeEventListener('resize', onResize)
+      io.disconnect()
       if (mode === 'session') root.removeEventListener('wheel', onWheel)
       detachPinch()
       cancelAnimationFrame(frameRef.current)
