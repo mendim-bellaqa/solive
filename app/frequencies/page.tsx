@@ -396,9 +396,9 @@ export default function FrequenciesPage() {
             Play any frequency.{' '}<span style={{ color: 'var(--t2)' }}>One tap.</span>
           </h1>
           <p style={{ color: 'var(--t2)', fontSize: '1rem', lineHeight: 1.6, maxWidth: '36rem' }}>
-            {FREQ_CATALOG.length} curated tones across {FREQ_CATEGORIES.length} families — Solfeggio, brainwave
-            entrainment, the planetary scale, chakra tuning and more. Tap any card for what it does and where it
-            comes from, or type any Hz from 1 to 20,000.
+            Every frequency from 1 to 20,000 Hz is playable — type a number and it plays. The {FREQ_CATALOG.length} presets
+            below are the shortcuts: Solfeggio, brainwave entrainment, the planetary scale, chakra tuning and more,
+            across {FREQ_CATEGORIES.length} families. Tap any card for what it does and where it comes from.
           </p>
         </motion.div>
 
@@ -406,9 +406,9 @@ export default function FrequenciesPage() {
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.06, duration: 0.45 }}
           className="grid grid-cols-3 gap-2.5 mb-7">
           {[
-            { n: String(FREQ_CATALOG.length), l: 'Curated tones' },
+            { n: '20,000', l: 'Playable frequencies' },
+            { n: String(FREQ_CATALOG.length), l: 'Curated presets' },
             { n: String(FREQ_CATEGORIES.length), l: 'Families' },
-            { n: `${HZ_MIN}–${(HZ_MAX / 1000)}k`, l: 'Hz range' },
           ].map(s => (
             <div key={s.l} style={{ padding: '13px 14px', borderRadius: 16, background: 'rgba(255,255,255,0.035)', border: '1px solid var(--border)' }}>
               <p className="tabular" style={{ fontSize: 'clamp(1.1rem, 4vw, 1.5rem)', fontWeight: 900, letterSpacing: '-0.03em', color: 'var(--t1)', lineHeight: 1 }}>{s.n}</p>
