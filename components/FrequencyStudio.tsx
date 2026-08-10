@@ -9,7 +9,8 @@ import {
   startSession, updateSessionProgress, rateSession,
   setSessionFavorite, getSessionFavorite, useAuthUser,
 } from '@/lib/supabase/sessions'
-import { usePlan, PLANS } from '@/lib/plan'
+import { usePlan, PLANS, previewSecondsFor } from '@/lib/plan'
+import { isPreviewAvailable, markPreviewSpent, hoursUntilReset, PREVIEW_EVENT } from '@/lib/preview'
 import type { QuestionnaireAnswers } from '@/lib/recommendation'
 import dynamic from 'next/dynamic'
 
@@ -25,6 +26,14 @@ const NeuralBrain = dynamic(() => import('./NeuralBrain'), { ssr: false })
 const Z_STAGE           = 80
 const Z_SHEET_BACKDROP  = 90
 const Z_SHEET           = 95
+/** "30 seconds" / "1 minute" — the preview length, said the way a person would. */
+function previewLabel(seconds: number) {
+  if (!Number.isFinite(seconds)) return 'full-length'
+  if (seconds % 60 !== 0) return `${seconds} seconds`
+  const m = seconds / 60
+  return m === 1 ? '1 minute' : `${m} minutes`
+}
+
 const Z_PAYWALL         = 100
 
 export type SceneMode = 'brain' | 'aura' | 'frequency'
@@ -118,8 +127,12 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
   const [pseudoFs, setPseudoFs]           = useState(false)   // CSS fullscreen fallback (iOS Safari)
   const [vizMode, setVizMode]             = useState<'lissajous' | 'waveform'>('lissajous')
   const [sceneMode, setSceneMode]         = useState<SceneMode>(initialScene)
-  const [showPaywall, setShowPaywall]     = useState(false)  // free 30s teaser gate
+  const [showPaywall, setShowPaywall]     = useState(false)  // free preview gate
   const [openingPlan, setOpeningPlan]     = useState<string | null>(null)
+  // True when today's preview is already spent, so this visit gets no audio at
+  // all. Resolved in an effect because localStorage cannot be read during the
+  // server render without desyncing hydration.
+  const [previewSpent, setPreviewSpent]   = useState(false)
   const gatedRef                          = useRef(false)
   const containerRef                      = useRef<HTMLDivElement>(null)
 
@@ -151,7 +164,14 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
   const durationCapped = requestedMinutes > limits.maxMinutes
   const totalSeconds = cappedMinutes === Infinity ? Infinity : cappedMinutes * 60
   const vizLocked = !limits.allViz && sceneMode !== 'frequency'
-  const previewSeconds = limits.previewSeconds   // Infinity for paid plans
+  // authUser is undefined while the session is still resolving. Treating that
+  // as signed-out would flash "30 seconds" at a member on every load, so hold
+  // the generous number until we actually know.
+  const signedIn = authUser !== null
+  const previewSeconds = previewSecondsFor(plan, signedIn)   // Infinity when paid
+  const isGuest = plan === 'free' && authUser === null
+  // The Schumann layer is a Pro feature, on every frequency.
+  const schumannAllowed = plan === 'pro'
 
   // A session resumed from history may already be starred — show that.
   useEffect(() => {
@@ -173,6 +193,30 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
     router.prefetch('/checkout')
     router.prefetch('/pricing')
   }, [previewSeconds, router])
+
+  // A plan that lapses mid-session must not leave the layer playing.
+  useEffect(() => {
+    if (!schumannAllowed && schumannOn) setSchumannOn(false)
+  }, [schumannAllowed, schumannOn])
+
+  // Carry the spent preview across navigation. A ref alone reset on every
+  // mount, so returning to the studio refilled the free minute forever.
+  useEffect(() => {
+    if (previewSeconds === Infinity) { setPreviewSpent(false); gatedRef.current = false; return }
+    // Keyed on hz: this tone is spent, the rest of the library is not.
+    const sync = () => {
+      const s = !isPreviewAvailable(hz)
+      setPreviewSpent(s)
+      gatedRef.current = s
+    }
+    sync()
+    window.addEventListener(PREVIEW_EVENT, sync)
+    window.addEventListener('storage', sync)
+    return () => {
+      window.removeEventListener(PREVIEW_EVENT, sync)
+      window.removeEventListener('storage', sync)
+    }
+  }, [previewSeconds, hz])
 
   const binaural = BINAURAL_PRESETS[activeBand]
   const band     = BAND_META[activeBand]
@@ -336,6 +380,10 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
         // Free-plan teaser: cut the sound at the preview limit and show the paywall.
         if (secs >= previewSeconds && !gatedRef.current) {
           gatedRef.current = true
+          // Spend it here rather than at play() — a session abandoned after
+          // five seconds should not cost the visitor this tone.
+          markPreviewSpent(hz)
+          setPreviewSpent(true)
           muteAudio()
           setPlayerState('paused')
           setShowPaywall(true)
@@ -388,12 +436,12 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
       if (e.code === 'Space') {
         e.preventDefault()
-        if (playerState === 'playing') { muteAudio(); setPlayerState('paused') }
-        else if (playerState === 'paused') {
-          if (gatedRef.current) { setShowPaywall(true) }
-          else { unmuteAudio(volume); setPlayerState('playing') }
-        }
-        else if (playerState === 'idle') { initAudio(); setPlayerState('playing') }
+        // Routed through the same three functions the buttons use. Starting
+        // from idle used to call initAudio() directly with no gate check, so
+        // the spacebar handed out audio the play button would have refused.
+        if (playerState === 'playing') pause()
+        else if (playerState === 'paused') resume()
+        else if (playerState === 'idle') play()
       }
       if (e.code === 'ArrowUp') {
         e.preventDefault()
@@ -481,16 +529,25 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
   }
 
   function play()   {
-    // Same guard as resume(): once the free preview is spent, starting over
-    // must re-open the paywall rather than grant another free minute.
-    if (gatedRef.current) { setShowPaywall(true); return }
+    // Once the day's preview is spent the audio stays locked, but the visuals
+    // were never the paid part — so run the session silently instead of
+    // leaving a dead button behind a dismissed paywall. Skipping initAudio is
+    // what keeps it silent: that call is what ramps the gain up.
+    if (gatedRef.current) {
+      setShowPaywall(true)
+      setPlayerState('playing')
+      ensureSessionDoc()
+      return
+    }
     try { initAudio() } catch { /* unsupported */ }
     setPlayerState('playing')
     ensureSessionDoc()
   }
   function pause()  { muteAudio(); setPlayerState('paused'); saveProgress('in_progress') }
   function resume() {
-    if (gatedRef.current) { setShowPaywall(true); return }  // free teaser used up
+    // Same rule after the cut-off: picture continues, sound does not. Not
+    // calling unmuteAudio is what holds the gain at zero.
+    if (gatedRef.current) { setShowPaywall(true); setPlayerState('playing'); return }
     unmuteAudio(volume); setPlayerState('playing')
   }
 
@@ -855,7 +912,9 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
                       <a href="/session" className="btn-primary text-center w-full"
                          style={{ background:frequency.colorHex, color:'#000' }}>New Session</a>
                       <a href="/history" className="btn-ghost text-center w-full text-sm">View History</a>
-                      <button onClick={() => { setSessionEnded(false); setPlayerState('idle'); setElapsed(0); setRated(false); setAfterScore(null); gatedRef.current = false; setShowPaywall(false) }}
+                      {/* Clearing gatedRef here used to refill the free minute
+                          on every close. Only an unlimited plan may reset it. */}
+                      <button onClick={() => { setSessionEnded(false); setPlayerState('idle'); setElapsed(0); setRated(false); setAfterScore(null); if (previewSeconds === Infinity) gatedRef.current = false; setShowPaywall(false) }}
                               className="text-xs py-1 hover:opacity-80 transition-opacity" style={{ color:'var(--text-muted)' }}>
                         Close
                       </button>
@@ -946,13 +1005,16 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
             )}
           </AnimatePresence>
 
-          {/* Free-plan cap notice */}
-          {durationCapped && (
+          {/* Plan cap notice. On free the binding limit is the audio preview,
+              not the session length — quoting "15-min sessions" to someone
+              whose sound stops at sixty seconds described the wrong ceiling. */}
+          {(durationCapped || previewSeconds !== Infinity) && !previewSpent && (
             <button onClick={() => router.push('/pricing')} className="mb-2 w-full flex items-center justify-center gap-2 rounded-xl"
                     style={{ padding: '7px 12px', background: 'var(--accent-dim)', border: '1px solid var(--accent-mid)', color: 'var(--accent)', fontSize: '0.72rem', fontWeight: 600 }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
-              {planName} plan · {limits.maxMinutes}-min sessions —{' '}
-              {plan === 'free' ? 'upgrade for full length' : 'Pro runs open-ended'} →
+              {previewSeconds !== Infinity
+                ? `${isGuest ? 'Guest' : 'Free'} · ${previewLabel(previewSeconds)} of audio per frequency — ${isGuest ? 'sign in to double it' : 'upgrade for full length'}`
+                : `${planName} plan · ${limits.maxMinutes}-min sessions — Pro runs open-ended`} →
             </button>
           )}
 
@@ -1003,21 +1065,94 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
                   }}
                 />
               </div>
-              <p style={{ fontSize:'0.66rem', color:'var(--t3)', marginTop:2 }}>
-                Drag to move through the session
-              </p>
             </div>
           )}
 
-          {/* Effect tags */}
-          <div className="scroll-row mb-3">
+          {/* Schumann layer. Lives out here on the player rather than buried in
+              the Adjust sheet — it is something you reach for mid-session, not
+              a setting you configure once. Pro only, on any frequency. */}
+          <button
+            onClick={() => { if (schumannAllowed) setSchumannOn(v => !v); else router.push('/pricing?from=schumann') }}
+            aria-pressed={schumannAllowed ? schumannOn : undefined}
+            className="w-full flex items-center gap-3 mb-3 px-3 py-2.5 rounded-xl text-left transition-all"
+            style={{
+              background: schumannOn && schumannAllowed ? 'rgba(0,200,150,0.08)' : 'rgba(255,255,255,0.035)',
+              border: `1px solid ${schumannOn && schumannAllowed ? 'rgba(0,200,150,0.30)' : 'var(--border)'}`,
+              opacity: schumannAllowed ? 1 : 0.72,
+            }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                 stroke={schumannOn && schumannAllowed ? '#00c896' : 'var(--t4)'} strokeWidth="1.7"
+                 style={{ flexShrink:0 }}>
+              <circle cx="12" cy="12" r="9" />
+              <path d="M3 12h18M12 3a13 13 0 0 1 0 18M12 3a13 13 0 0 0 0 18" strokeLinecap="round" />
+            </svg>
+            <span className="flex-1 min-w-0">
+              <span className="flex items-center gap-1.5">
+                <span className="text-[0.78rem] font-semibold" style={{ color:'var(--t1)' }}>Schumann layer</span>
+                <span className="text-[0.6rem] px-1.5 py-0.5 rounded-full"
+                      style={{ background:'rgba(0,200,150,0.12)', color:'#00c896' }}>7.83 Hz</span>
+                {!schumannAllowed && (
+                  <span className="text-[0.55rem] font-bold px-1.5 py-0.5 rounded-full"
+                        style={{ background:'var(--accent-dim)', border:'1px solid var(--accent-mid)', color:'var(--accent)' }}>PRO</span>
+                )}
+              </span>
+              <span className="block text-[0.66rem] mt-0.5" style={{ color:'var(--t4)' }}>
+                {schumannAllowed
+                  ? "Earth's pulse underneath the tone — grounding, on any frequency"
+                  : 'Layer the planet’s 7.83 Hz under any tone — on Pro'}
+              </span>
+            </span>
+            {schumannAllowed ? (
+              <span className="flex-shrink-0 w-10 h-5 rounded-full relative transition-all"
+                    style={{ background: schumannOn ? '#00c896' : 'rgba(255,255,255,0.14)' }}>
+                <motion.span animate={{ x: schumannOn ? 21 : 2 }}
+                  transition={{ type:'spring', stiffness:400, damping:25 }}
+                  className="absolute top-1 w-3 h-3 rounded-full block" style={{ background:'#fff' }} />
+              </span>
+            ) : (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--accent)"
+                   strokeWidth="1.8" style={{ flexShrink:0 }}>
+                <rect x="4" y="10" width="16" height="11" rx="2.5" />
+                <path d="M8 10V7a4 4 0 0 1 8 0v3" strokeLinecap="round" />
+              </svg>
+            )}
+          </button>
+
+          {/* Effect tags — centred and wrapping. As a scroll-row they bunched
+              against the left edge with dead space beside them on anything
+              wider than a phone. */}
+          <div className="flex flex-wrap justify-center gap-1.5 mb-3">
             {frequency.effects.map(e => (
-              <span key={e} className="text-xs px-2.5 py-1 rounded-full flex-shrink-0"
+              <span key={e} className="text-xs px-2.5 py-1 rounded-full"
                     style={{ background:`${frequency.colorHex}12`, color:frequency.colorHex, border:`1px solid ${frequency.colorHex}28` }}>
                 {e}
               </span>
             ))}
           </div>
+
+          {/* Audio locked for the rest of today. Said here, next to the volume
+              slider that will not do anything, rather than only inside a
+              paywall the user has to trigger before they learn it. */}
+          {previewSpent && (
+            <div className="mb-3 px-3 py-2.5 rounded-xl"
+                 style={{ background:'var(--accent-dim)', border:'1px solid var(--accent-mid)' }}>
+              <p className="text-[0.7rem] mb-2" style={{ color:'var(--t3)', lineHeight:1.45 }}>
+                You have heard {hz.toLocaleString('en-US')} Hz today — the picture keeps running, and it
+                opens again in {hoursUntilReset()}h. Every other frequency is still yours to try.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Link href="/session" className="text-[0.7rem] font-bold px-3 py-1.5 rounded-lg"
+                      style={{ background:'rgba(255,255,255,0.08)', border:'1px solid var(--border-mid)', color:'var(--t1)' }}>
+                  Try another frequency →
+                </Link>
+                <button onClick={() => setShowPaywall(true)}
+                        className="text-[0.7rem] font-bold px-3 py-1.5 rounded-lg"
+                        style={{ background:'var(--accent)', color:'#04140f' }}>
+                  {isGuest ? 'Get the full minute' : 'Replay this tone'}
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Volume */}
           <div className="flex items-center gap-3 mb-3">
@@ -1217,28 +1352,6 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
                 <p className="text-xs mt-0.5">{band.hz} binaural beat offset</p>
               </motion.div>
 
-              {/* Schumann toggle */}
-              <div className="flex items-start gap-4 px-4 py-4 rounded-xl"
-                   style={{ background: schumannOn ? 'rgba(0,200,150,0.07)' : 'rgba(255,255,255,0.04)',
-                            border:`1.5px solid ${schumannOn ? 'rgba(0,200,150,0.3)' : 'rgba(255,255,255,0.08)'}` }}>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-sm font-medium">Schumann Resonance</span>
-                    <span className="text-xs px-2 py-0.5 rounded-full"
-                          style={{ background:'rgba(0,200,150,0.12)', color:'#00c896' }}>7.83 Hz</span>
-                  </div>
-                  <p className="text-xs leading-relaxed" style={{ color:'var(--text-muted)' }}>
-                    Earth&apos;s natural electromagnetic pulse. Adds a grounding &ldquo;breathing&rdquo; layer to your session.
-                  </p>
-                </div>
-                <button onClick={() => setSchumannOn(v => !v)}
-                        className="flex-shrink-0 w-12 h-6 rounded-full transition-all relative mt-0.5"
-                        style={{ background: schumannOn ? '#00c896' : 'rgba(255,255,255,0.14)' }}>
-                  <motion.div animate={{ x: schumannOn ? 24 : 2 }}
-                    transition={{ type:'spring', stiffness:400, damping:25 }}
-                    className="absolute top-1 w-4 h-4 rounded-full" style={{ background:'#fff' }} />
-                </button>
-              </div>
             </motion.div>
           </>
         )}
@@ -1306,13 +1419,17 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
                 </div>
 
                 <p className="text-[0.62rem] font-bold tracking-[0.14em] mb-2" style={{ color:'var(--accent)' }}>
-                  YOUR 30-SECOND PREVIEW IS UP
+                  {elapsed >= previewSeconds ? 'YOUR MINUTE IS UP' : "TODAY'S PREVIEW IS SPENT"}
                 </p>
                 <h2 className="text-xl font-black mb-1.5" style={{ letterSpacing:'-0.02em' }}>
                   Keep the sound going
                 </h2>
                 <p className="text-sm mb-6" style={{ color:'var(--text-secondary)', lineHeight:1.55 }}>
-                  Free sessions stop after a minute. Upgrade to play any frequency for as long as you like — uninterrupted.
+                  {elapsed >= previewSeconds
+                    ? 'Free plays one minute of audio a day. '
+                    : 'You have already used your minute today. '}
+                  The next one unlocks in {hoursUntilReset()}h — or upgrade and play any frequency
+                  for as long as you like, starting now.
                 </p>
 
                 {/* Plan choices.
