@@ -303,6 +303,19 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
     gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.8)
   }, [])
 
+  /** The paywall cut. A 0.8s fade is right for a pause the user asked for;
+   *  here it is eight tenths of a second of audio they were not entitled to,
+   *  and it read as the limit simply not working. Short enough to be instant,
+   *  long enough not to click. */
+  const cutAudio = useCallback(() => {
+    const ctx = audioCtxRef.current, gain = masterGainRef.current
+    if (!ctx || !gain) return
+    const now = ctx.currentTime
+    gain.gain.cancelScheduledValues(now)
+    gain.gain.setValueAtTime(gain.gain.value, now)
+    gain.gain.linearRampToValueAtTime(0, now + 0.06)
+  }, [])
+
   const unmuteAudio = useCallback((toVol: number) => {
     const ctx = audioCtxRef.current, gain = masterGainRef.current
     if (!ctx || !gain) return
@@ -334,15 +347,22 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
     } else { destroy() }
   }, [])
 
-  // Volume live change — cancel any in-flight ramp first to prevent glitching
+  // Volume live change — cancel any in-flight ramp first to prevent glitching.
+  //
+  // The gate outranks the slider. This effect fires on every transition into
+  // 'playing', and a spent preview still enters that state so the visuals can
+  // run — which meant this line quietly ramped the sound back to full volume
+  // the moment the paywall was dismissed. It is the reason audio survived the
+  // cut-off. While gated the gain is pinned at zero instead.
   useEffect(() => {
     const ctx = audioCtxRef.current, gain = masterGainRef.current
     if (!ctx || !gain || playerState !== 'playing') return
     const now = ctx.currentTime
     gain.gain.cancelScheduledValues(now)
+    if (gatedRef.current) { gain.gain.setValueAtTime(0, now); return }
     gain.gain.setValueAtTime(gain.gain.value, now)
     gain.gain.linearRampToValueAtTime(volume, now + 0.08)
-  }, [volume, playerState])
+  }, [volume, playerState, previewSpent])
 
   // Live binaural band switch
   useEffect(() => {
@@ -384,7 +404,7 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
           // five seconds should not cost the visitor this tone.
           markPreviewSpent(hz)
           setPreviewSpent(true)
-          muteAudio()
+          cutAudio()
           setPlayerState('paused')
           setShowPaywall(true)
           saveProgress('in_progress')
@@ -696,6 +716,7 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
             isPlaying={playerState === 'playing'}
             analyserRef={analyserRef}
             mode="session"
+            band={activeBand}
             progress={
               sessionEnded ? 1
               : totalSeconds === Infinity ? Math.min(1, elapsed / 1800)

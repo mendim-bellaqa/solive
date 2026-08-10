@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { AnimatePresence, motion, useInView } from 'framer-motion'
 import { useBinaural } from '@/lib/useBinaural'
+import type { BinauralBand } from '@/lib/frequencies'
 import BeatCanvas from './BeatCanvas'
 
 const NeuralBrain = dynamic(() => import('@/components/NeuralBrain'), { ssr: false })
@@ -12,7 +13,8 @@ const NeuralBrain = dynamic(() => import('@/components/NeuralBrain'), { ssr: fal
 const CARRIER = 200
 
 interface Band {
-  id: string
+  /** Also names the EEG band, so the brain can light the right region. */
+  id: BinauralBand
   sym: string
   name: string
   range: string
@@ -89,6 +91,7 @@ export default function EntrainmentLab() {
             <NeuralBrain
               isPlaying={playing}
               mode="session"
+              band={band.id}
               progress={band.activation}
               analyserRef={analyserRef}
             />
