@@ -21,7 +21,7 @@ export const PLANS: Plan[] = [
     price: 0,
     tagline: 'Get a taste of every experience.',
     features: [
-      '1-minute audio preview of any session',
+      '1-minute audio preview, once a day',
       'Sessions up to 15 minutes',
       'All 3 visual experiences to try',
       'Any frequency, 1–20,000 Hz',
@@ -35,7 +35,7 @@ export const PLANS: Plan[] = [
     tagline: 'The full sound-healing studio.',
     highlight: true,
     features: [
-      'Full-length audio — no 1-minute cut-off',
+      'Full-length audio, any time — no daily preview limit',
       'Sessions up to 60 minutes',
       'Star your favourite sessions',
       'All 3D experiences — Brain, Aura & Cymatics',

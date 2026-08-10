@@ -12,6 +12,7 @@ import {
 import Header from '@/components/Header'
 import BackLink from '@/components/BackLink'
 import { usePlan, planForMinutes, PLAN_LIMITS, type PlanId } from '@/lib/plan'
+import { isPreviewAvailable, hoursUntilReset, PREVIEW_EVENT } from '@/lib/preview'
 import { useSessionPresets, type SessionPreset } from '@/lib/presets'
 import { useSessionDefaults } from '@/lib/prefs'
 import FrequencyPicker from './FrequencyPicker'
@@ -103,6 +104,20 @@ export default function SessionPage() {
   const router = useRouter()
   const { limits, plan } = usePlan()
   const { presets, signedIn, ready: authReady, save, remove } = useSessionPresets()
+
+  // Whether the free daily preview is already used. Read in an effect so the
+  // server render and the first client render agree.
+  const [previewSpent, setPreviewSpent] = useState(false)
+  useEffect(() => {
+    const sync = () => setPreviewSpent(!isPreviewAvailable())
+    sync()
+    window.addEventListener(PREVIEW_EVENT, sync)
+    window.addEventListener('storage', sync)
+    return () => {
+      window.removeEventListener(PREVIEW_EVENT, sync)
+      window.removeEventListener('storage', sync)
+    }
+  }, [])
 
   const [viz, setViz]         = useState<VizMode>('brain')
   const [hz, setHz]           = useState<number>(528)
@@ -441,8 +456,11 @@ export default function SessionPage() {
             {plan === 'free' ? (
               <>
                 Free plays a <strong style={{ color: 'var(--t1)' }}>{previewLabel(limits.previewSeconds)}</strong> audio
-                preview and caps sessions at {limits.maxMinutes} minutes — the visuals keep running either way.
-                Plus plays full sessions up to 60 minutes; Pro runs open-ended. <span style={{ color: 'var(--accent)' }}>See plans →</span>
+                preview <strong style={{ color: 'var(--t1)' }}>once a day</strong>
+                {previewSpent
+                  ? ` — today's is spent, the next unlocks in ${hoursUntilReset()}h. The visuals keep running either way.`
+                  : ' — the visuals keep running either way.'}
+                {' '}Plus plays full sessions up to 60 minutes, as often as you like; Pro runs open-ended. <span style={{ color: 'var(--accent)' }}>See plans →</span>
               </>
             ) : (
               <>

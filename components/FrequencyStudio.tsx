@@ -10,6 +10,7 @@ import {
   setSessionFavorite, getSessionFavorite, useAuthUser,
 } from '@/lib/supabase/sessions'
 import { usePlan, PLANS } from '@/lib/plan'
+import { isPreviewAvailable, markPreviewSpent, hoursUntilReset, PREVIEW_EVENT } from '@/lib/preview'
 import type { QuestionnaireAnswers } from '@/lib/recommendation'
 import dynamic from 'next/dynamic'
 
@@ -118,8 +119,12 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
   const [pseudoFs, setPseudoFs]           = useState(false)   // CSS fullscreen fallback (iOS Safari)
   const [vizMode, setVizMode]             = useState<'lissajous' | 'waveform'>('lissajous')
   const [sceneMode, setSceneMode]         = useState<SceneMode>(initialScene)
-  const [showPaywall, setShowPaywall]     = useState(false)  // free 30s teaser gate
+  const [showPaywall, setShowPaywall]     = useState(false)  // free preview gate
   const [openingPlan, setOpeningPlan]     = useState<string | null>(null)
+  // True when today's preview is already spent, so this visit gets no audio at
+  // all. Resolved in an effect because localStorage cannot be read during the
+  // server render without desyncing hydration.
+  const [previewSpent, setPreviewSpent]   = useState(false)
   const gatedRef                          = useRef(false)
   const containerRef                      = useRef<HTMLDivElement>(null)
 
@@ -173,6 +178,26 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
     router.prefetch('/checkout')
     router.prefetch('/pricing')
   }, [previewSeconds, router])
+
+  // Carry the spent preview across navigation. A ref alone reset on every
+  // mount, so returning to the studio refilled the free minute forever.
+  useEffect(() => {
+    if (previewSeconds === Infinity) { setPreviewSpent(false); gatedRef.current = false; return }
+    const spent = !isPreviewAvailable()
+    setPreviewSpent(spent)
+    if (spent) gatedRef.current = true
+    const sync = () => {
+      const s = !isPreviewAvailable()
+      setPreviewSpent(s)
+      if (s) gatedRef.current = true
+    }
+    window.addEventListener(PREVIEW_EVENT, sync)
+    window.addEventListener('storage', sync)
+    return () => {
+      window.removeEventListener(PREVIEW_EVENT, sync)
+      window.removeEventListener('storage', sync)
+    }
+  }, [previewSeconds])
 
   const binaural = BINAURAL_PRESETS[activeBand]
   const band     = BAND_META[activeBand]
@@ -336,6 +361,10 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
         // Free-plan teaser: cut the sound at the preview limit and show the paywall.
         if (secs >= previewSeconds && !gatedRef.current) {
           gatedRef.current = true
+          // Spend it here rather than at play() — a session abandoned after
+          // ten seconds should not cost the visitor their day.
+          markPreviewSpent()
+          setPreviewSpent(true)
           muteAudio()
           setPlayerState('paused')
           setShowPaywall(true)
@@ -388,12 +417,12 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
       if (e.code === 'Space') {
         e.preventDefault()
-        if (playerState === 'playing') { muteAudio(); setPlayerState('paused') }
-        else if (playerState === 'paused') {
-          if (gatedRef.current) { setShowPaywall(true) }
-          else { unmuteAudio(volume); setPlayerState('playing') }
-        }
-        else if (playerState === 'idle') { initAudio(); setPlayerState('playing') }
+        // Routed through the same three functions the buttons use. Starting
+        // from idle used to call initAudio() directly with no gate check, so
+        // the spacebar handed out audio the play button would have refused.
+        if (playerState === 'playing') pause()
+        else if (playerState === 'paused') resume()
+        else if (playerState === 'idle') play()
       }
       if (e.code === 'ArrowUp') {
         e.preventDefault()
@@ -481,16 +510,25 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
   }
 
   function play()   {
-    // Same guard as resume(): once the free preview is spent, starting over
-    // must re-open the paywall rather than grant another free minute.
-    if (gatedRef.current) { setShowPaywall(true); return }
+    // Once the day's preview is spent the audio stays locked, but the visuals
+    // were never the paid part — so run the session silently instead of
+    // leaving a dead button behind a dismissed paywall. Skipping initAudio is
+    // what keeps it silent: that call is what ramps the gain up.
+    if (gatedRef.current) {
+      setShowPaywall(true)
+      setPlayerState('playing')
+      ensureSessionDoc()
+      return
+    }
     try { initAudio() } catch { /* unsupported */ }
     setPlayerState('playing')
     ensureSessionDoc()
   }
   function pause()  { muteAudio(); setPlayerState('paused'); saveProgress('in_progress') }
   function resume() {
-    if (gatedRef.current) { setShowPaywall(true); return }  // free teaser used up
+    // Same rule after the cut-off: picture continues, sound does not. Not
+    // calling unmuteAudio is what holds the gain at zero.
+    if (gatedRef.current) { setShowPaywall(true); setPlayerState('playing'); return }
     unmuteAudio(volume); setPlayerState('playing')
   }
 
@@ -855,7 +893,9 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
                       <a href="/session" className="btn-primary text-center w-full"
                          style={{ background:frequency.colorHex, color:'#000' }}>New Session</a>
                       <a href="/history" className="btn-ghost text-center w-full text-sm">View History</a>
-                      <button onClick={() => { setSessionEnded(false); setPlayerState('idle'); setElapsed(0); setRated(false); setAfterScore(null); gatedRef.current = false; setShowPaywall(false) }}
+                      {/* Clearing gatedRef here used to refill the free minute
+                          on every close. Only an unlimited plan may reset it. */}
+                      <button onClick={() => { setSessionEnded(false); setPlayerState('idle'); setElapsed(0); setRated(false); setAfterScore(null); if (previewSeconds === Infinity) gatedRef.current = false; setShowPaywall(false) }}
                               className="text-xs py-1 hover:opacity-80 transition-opacity" style={{ color:'var(--text-muted)' }}>
                         Close
                       </button>
@@ -1018,6 +1058,25 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
               </span>
             ))}
           </div>
+
+          {/* Audio locked for the rest of today. Said here, next to the volume
+              slider that will not do anything, rather than only inside a
+              paywall the user has to trigger before they learn it. */}
+          {previewSpent && (
+            <button onClick={() => setShowPaywall(true)}
+                    className="w-full flex items-center gap-2 mb-3 px-3 py-2 rounded-xl text-left"
+                    style={{ background:'var(--accent-dim)', border:'1px solid var(--accent-mid)' }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--accent)"
+                   strokeWidth="1.8" style={{ flexShrink:0 }}>
+                <rect x="4" y="10" width="16" height="11" rx="2.5" />
+                <path d="M8 10V7a4 4 0 0 1 8 0v3" strokeLinecap="round" />
+              </svg>
+              <span className="text-[0.7rem]" style={{ color:'var(--t3)', lineHeight:1.45 }}>
+                Today&apos;s free minute is used — the visuals still run, sound returns in{' '}
+                {hoursUntilReset()}h. <span style={{ color:'var(--accent)' }}>Unlock now →</span>
+              </span>
+            </button>
+          )}
 
           {/* Volume */}
           <div className="flex items-center gap-3 mb-3">
@@ -1306,13 +1365,17 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
                 </div>
 
                 <p className="text-[0.62rem] font-bold tracking-[0.14em] mb-2" style={{ color:'var(--accent)' }}>
-                  YOUR 30-SECOND PREVIEW IS UP
+                  {elapsed >= previewSeconds ? 'YOUR MINUTE IS UP' : "TODAY'S PREVIEW IS SPENT"}
                 </p>
                 <h2 className="text-xl font-black mb-1.5" style={{ letterSpacing:'-0.02em' }}>
                   Keep the sound going
                 </h2>
                 <p className="text-sm mb-6" style={{ color:'var(--text-secondary)', lineHeight:1.55 }}>
-                  Free sessions stop after a minute. Upgrade to play any frequency for as long as you like — uninterrupted.
+                  {elapsed >= previewSeconds
+                    ? 'Free plays one minute of audio a day. '
+                    : 'You have already used your minute today. '}
+                  The next one unlocks in {hoursUntilReset()}h — or upgrade and play any frequency
+                  for as long as you like, starting now.
                 </p>
 
                 {/* Plan choices.
