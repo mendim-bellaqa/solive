@@ -11,8 +11,8 @@ import {
 } from '@/lib/frequencies'
 import Header from '@/components/Header'
 import BackLink from '@/components/BackLink'
-import { usePlan, planForMinutes, PLAN_LIMITS, type PlanId } from '@/lib/plan'
-import { isPreviewAvailable, hoursUntilReset, PREVIEW_EVENT } from '@/lib/preview'
+import { usePlan, planForMinutes, previewSecondsFor, PLAN_LIMITS, type PlanId } from '@/lib/plan'
+import { isPreviewAvailable, previewsSpentToday, hoursUntilReset, PREVIEW_EVENT } from '@/lib/preview'
 import { useSessionPresets, type SessionPreset } from '@/lib/presets'
 import { useSessionDefaults } from '@/lib/prefs'
 import FrequencyPicker from './FrequencyPicker'
@@ -49,12 +49,13 @@ function lengthLabel(minutes: number) {
   return LENGTHS.find(l => l.minutes === minutes)?.label ?? `${minutes} min`
 }
 
-/** "1-minute" reads better than "60-second" once the teaser reaches a minute. */
+/** "1 minute" / "30 seconds" — a quantity, not an adjective, because it reads
+ *  in noun position: "you get 1 minute of audio". */
 function previewLabel(seconds: number) {
-  if (!Number.isFinite(seconds)) return 'full-length'
-  return seconds >= 60 && seconds % 60 === 0
-    ? `${seconds / 60}-minute`
-    : `${seconds}-second`
+  if (!Number.isFinite(seconds)) return 'full-length audio'
+  if (seconds % 60 !== 0) return `${seconds} seconds`
+  const m = seconds / 60
+  return m === 1 ? '1 minute' : `${m} minutes`
 }
 
 /** Open-ended (9999) needs an unlimited plan; everything else needs the cap. */
@@ -105,19 +106,11 @@ export default function SessionPage() {
   const { limits, plan } = usePlan()
   const { presets, signedIn, ready: authReady, save, remove } = useSessionPresets()
 
-  // Whether the free daily preview is already used. Read in an effect so the
-  // server render and the first client render agree.
-  const [previewSpent, setPreviewSpent] = useState(false)
-  useEffect(() => {
-    const sync = () => setPreviewSpent(!isPreviewAvailable())
-    sync()
-    window.addEventListener(PREVIEW_EVENT, sync)
-    window.addEventListener('storage', sync)
-    return () => {
-      window.removeEventListener(PREVIEW_EVENT, sync)
-      window.removeEventListener('storage', sync)
-    }
-  }, [])
+  // How many tones have been sampled today, and whether the one currently
+  // selected is among them. Read in an effect so the server render and the
+  // first client render agree.
+  const [spentToday, setSpentToday] = useState(0)
+  const [thisOneSpent, setThisOneSpent] = useState(false)
 
   const [viz, setViz]         = useState<VizMode>('brain')
   const [hz, setHz]           = useState<number>(528)
@@ -128,6 +121,20 @@ export default function SessionPage() {
   const [saveOpen, setSaveOpen]       = useState(false)
   const [saveName, setSaveName]       = useState('')
   const [saved, setSaved]             = useState(false)
+
+  useEffect(() => {
+    const sync = () => {
+      setSpentToday(previewsSpentToday())
+      setThisOneSpent(!isPreviewAvailable(hz))
+    }
+    sync()
+    window.addEventListener(PREVIEW_EVENT, sync)
+    window.addEventListener('storage', sync)
+    return () => {
+      window.removeEventListener(PREVIEW_EVENT, sync)
+      window.removeEventListener('storage', sync)
+    }
+  }, [hz])
 
   const freq  = useMemo(() => getOrCreateFrequency(hz), [hz])
   const entry = useMemo(() => primaryCatalogEntry(hz), [hz])
@@ -455,12 +462,17 @@ export default function SessionPage() {
                      background: 'var(--accent-dim)', border: '1px solid var(--accent-mid)' }}>
             {plan === 'free' ? (
               <>
-                Free plays a <strong style={{ color: 'var(--t1)' }}>{previewLabel(limits.previewSeconds)}</strong> audio
-                preview <strong style={{ color: 'var(--t1)' }}>once a day</strong>
-                {previewSpent
-                  ? ` — today's is spent, the next unlocks in ${hoursUntilReset()}h. The visuals keep running either way.`
-                  : ' — the visuals keep running either way.'}
-                {' '}Plus plays full sessions up to 60 minutes, as often as you like; Pro runs open-ended. <span style={{ color: 'var(--accent)' }}>See plans →</span>
+                {signedIn ? 'Free' : 'Without an account'} you get{' '}
+                <strong style={{ color: 'var(--t1)' }}>{previewLabel(previewSecondsFor('free', signedIn))}</strong>{' '}
+                of audio on <strong style={{ color: 'var(--t1)' }}>every frequency</strong>, once each per day —
+                the visuals keep running either way.
+                {!signedIn && ' Signing in doubles it to a full minute.'}
+                {thisOneSpent
+                  ? ` You have already heard ${hz.toLocaleString('en-US')} Hz today; it opens again in ${hoursUntilReset()}h, and every other tone is still free to try.`
+                  : spentToday > 0
+                    ? ` ${spentToday} tone${spentToday === 1 ? '' : 's'} sampled today.`
+                    : ''}
+                {' '}Plus replays anything, any time, up to 60 minutes; Pro runs open-ended. <span style={{ color: 'var(--accent)' }}>See plans →</span>
               </>
             ) : (
               <>

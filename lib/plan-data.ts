@@ -21,8 +21,8 @@ export const PLANS: Plan[] = [
     price: 0,
     tagline: 'Get a taste of every experience.',
     features: [
-      '1-minute audio preview, once a day',
-      'Sessions up to 15 minutes',
+      '1-minute preview of every frequency, daily',
+      '30 seconds without an account',
       'All 3 visual experiences to try',
       'Any frequency, 1–20,000 Hz',
     ],
@@ -35,7 +35,7 @@ export const PLANS: Plan[] = [
     tagline: 'The full sound-healing studio.',
     highlight: true,
     features: [
-      'Full-length audio, any time — no daily preview limit',
+      'Full-length audio — replay any tone, any time',
       'Sessions up to 60 minutes',
       'Star your favourite sessions',
       'All 3D experiences — Brain, Aura & Cymatics',
@@ -78,6 +78,25 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
   free: { previewSeconds: 60, maxMinutes: 15, allViz: true, history: true, favorites: false },
   plus: { previewSeconds: Infinity, maxMinutes: 60, allViz: true, history: true, favorites: true },
   pro:  { previewSeconds: Infinity, maxMinutes: Infinity, allViz: true, history: true, favorites: true },
+}
+
+/**
+ * Signing in doubles the preview, so an account is worth something before any
+ * money changes hands. PLAN_LIMITS.free.previewSeconds is the signed-in rate;
+ * a visitor who has not signed in gets this instead.
+ */
+export const GUEST_PREVIEW_SECONDS = 30
+
+/**
+ * How long the audio runs before the paywall, for this plan and this auth
+ * state. Paid plans ignore signedIn — they are unlimited either way. Kept here
+ * rather than in the studio so the session page, the pricing table and the
+ * player all quote the same number.
+ */
+export function previewSecondsFor(plan: PlanId, signedIn: boolean): number {
+  const limit = PLAN_LIMITS[plan].previewSeconds
+  if (plan !== 'free') return limit
+  return signedIn ? limit : GUEST_PREVIEW_SECONDS
 }
 
 /** The cheapest plan that allows a session of this many minutes (9999 = open). */

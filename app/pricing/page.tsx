@@ -28,20 +28,20 @@ const BENEFITS = [
   { icon: 'M9 18V5l12-2v13M9 13l12-2', title: 'Any frequency', body: 'Play any tone from 1 to 20,000 Hz, plus a curated library of 50+ presets.' },
   { icon: 'M12 2a7 7 0 0 0-4 12.7V17a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-2.3A7 7 0 0 0 12 2z', title: '3D experiences', body: 'Watch sound become shape — Brain, Aura and Cymatics, rendered in real time.' },
   { icon: 'M4 12a8 8 0 0 1 16 0M8 12a4 4 0 0 1 8 0M2 12h2M20 12h2', title: 'Binaural beats', body: 'Entrain delta → gamma brainwave states with precision stereo tones.' },
-  { icon: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18', title: 'Schumann grounding', body: "Layer in the Earth's 7.83 Hz resonance for a deeper, grounded session." },
+  { icon: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18', title: 'Schumann grounding', body: "Layer the Earth's 7.83 Hz resonance under any frequency you like — a Pro feature." },
   { icon: 'M3 3v18h18M7 14l3-4 4 3 5-7', title: 'Track your progress', body: 'Before/after mood, streaks and history keep your practice on course.' },
   { icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z', title: 'Private & ad-free', body: 'No ads, no noise. Your sessions and data stay yours.' },
 ]
 
 const COMPARE: { label: string; free: string | boolean; plus: string | boolean; pro: string | boolean }[] = [
-  { label: 'Session length',              free: '1 min preview', plus: 'Up to 60 min', pro: 'Unlimited & open-ended' },
+  { label: 'Audio per frequency',         free: '30s · 1 min signed in', plus: 'Unlimited', pro: 'Unlimited' },
   { label: 'Any frequency (1–20,000 Hz)', free: true,     plus: true,        pro: true },
   { label: 'Curated frequency library',   free: true,     plus: true,        pro: true },
   { label: 'Binaural beats',              free: true,     plus: true,        pro: true },
   { label: 'All 3D experiences',          free: 'Preview', plus: true,       pro: true },
   { label: 'Uninterrupted playback',      free: false,    plus: true,        pro: true },
   { label: 'Fullscreen immersive mode',   free: false,    plus: true,        pro: true },
-  { label: 'Schumann & undertone layers', free: false,    plus: true,        pro: true },
+  { label: 'Schumann layer, any frequency', free: false,  plus: false,       pro: true },
   { label: 'Session history & tracking',  free: false,    plus: true,        pro: true },
   { label: 'Favourite sessions',          free: false,    plus: true,        pro: true },
   { label: 'Before/after insights',       free: false,    plus: false,       pro: true },
@@ -51,7 +51,7 @@ const COMPARE: { label: string; free: string | boolean; plus: string | boolean; 
 const FAQ = [
   { q: 'Is hzaura a medical treatment?', a: 'No. hzaura is built for relaxation, focus and curiosity. Brainwave entrainment and binaural beats are real, studied phenomena, but this is not a substitute for professional medical care.' },
   { q: 'Do I need headphones?', a: 'For binaural beats, yes — the effect relies on a slightly different tone in each ear. Everything else (pure tones, cymatics) works on any speaker.' },
-  { q: 'What frequencies can I play?', a: 'Any frequency from 1 to 20,000 Hz on every plan — type a number and press play. Free gives you a 1-minute preview of any session; Plus and Pro remove the limit so you can listen for as long as you like.' },
+  { q: 'What frequencies can I play?', a: 'Any frequency from 1 to 20,000 Hz on every plan — type a number and press play. Without an account you get 30 seconds of each tone; signing in makes it a full minute, and every frequency in the library is yours to sample once a day. Plus and Pro remove the limit, so you can replay anything for as long as you like.' },
   { q: 'Can I cancel anytime?', a: 'There’s nothing to cancel. Plans are prepaid passes — a monthly purchase unlocks 30 days, an annual one 365 days. Nothing renews on its own; when your time is up you simply drop back to Free, and you can extend whenever you like.' },
   { q: 'Is my data private?', a: 'Always. There are no ads, and your sessions and history stay yours. You can use most of the app with no account at all.' },
   { q: 'How does billing work?', a: 'You pay with cryptocurrency — Bitcoin, Ethereum, USDT and more — processed by NOWPayments. Pick a plan, choose your coin, and send the exact amount shown; your plan activates automatically once the network confirms. No card required, and nothing auto-renews.' },

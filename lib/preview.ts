@@ -1,52 +1,76 @@
 'use client'
 
 /**
- * The free audio preview is one minute, once a day.
+ * The free audio preview, and what it costs to spend one.
  *
- * The cut-off itself lives in PLAN_LIMITS.previewSeconds; this module owns the
- * other half — whether the visitor still has today's preview to spend. Without
- * it the gate lived in a ref that died on navigation, so leaving the studio and
- * coming back handed out another minute indefinitely.
+ * The rule is per frequency, per day: every tone in the library can be
+ * sampled, but none of them twice in the same day. That keeps exploring open —
+ * a visitor who lands on 174 Hz can still find out what 528 Hz sounds like —
+ * while the tone they just heard is the one thing they cannot loop for free.
+ *
+ * How long a preview runs is not stored here; that is previewSecondsFor() in
+ * plan-data, which pays out 30s to a guest and 60s to a signed-in free account.
  *
  * Guests have no account, so this is localStorage and therefore clearable: a
  * determined visitor can wipe it or open a private window. That is an accepted
  * limit, not an oversight — the alternative is forcing an account before anyone
- * can hear a single tone. It stops the accidental refill, which is what was
- * actually leaking.
+ * can hear a single tone. What it stops is the accidental refill, which is what
+ * was actually leaking: the gate used to live in a ref that died on unmount, so
+ * simply navigating away handed out another minute of the same tone.
  */
 
-const KEY = 'hzaura_preview_spent_at'
+const KEY = 'hzaura_preview_spent'
 const EVT = 'hzaura-preview-change'
 
-/** A calendar day, not a rolling 24h: "come back tomorrow" is what we tell the
- *  user, and a clock that expires at 3pm because that is when they listened
- *  yesterday would make a liar of that copy. */
+/** A calendar day, not a rolling 24h: "come back tomorrow" is what the copy
+ *  says, and a clock that expired at 3pm because that is when they listened
+ *  yesterday would make a liar of it. */
 function dayStamp(d = new Date()): string {
   return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
 }
 
-/** The day the visitor last used up a preview, or null if never. */
-export function getPreviewSpentDay(): string | null {
-  if (typeof window === 'undefined') return null
-  return window.localStorage.getItem(KEY)
+interface Spent { day: string; hz: number[] }
+
+function read(): Spent {
+  const empty: Spent = { day: dayStamp(), hz: [] }
+  if (typeof window === 'undefined') return empty
+  try {
+    const raw = window.localStorage.getItem(KEY)
+    if (!raw) return empty
+    const parsed = JSON.parse(raw) as Partial<Spent>
+    // A stamp from an earlier day is not merely stale, it is the reset.
+    if (parsed.day !== dayStamp() || !Array.isArray(parsed.hz)) return empty
+    return { day: parsed.day, hz: parsed.hz.filter(n => typeof n === 'number') }
+  } catch {
+    return empty   // corrupt or unreadable storage should not lock anyone out
+  }
 }
 
-/** True when today's preview is still unspent. */
-export function isPreviewAvailable(): boolean {
+/** True when this exact tone has not been previewed yet today. */
+export function isPreviewAvailable(hz: number): boolean {
   if (typeof window === 'undefined') return true
-  return getPreviewSpentDay() !== dayStamp()
+  return !read().hz.includes(hz)
 }
 
-/** Called the moment the preview is cut off, not when it starts — a session
- *  abandoned after ten seconds should not cost the visitor their day. */
-export function markPreviewSpent() {
+/** Called the moment a preview is cut off, not when it starts — a session
+ *  abandoned after five seconds should not cost the visitor that tone. */
+export function markPreviewSpent(hz: number) {
   if (typeof window === 'undefined') return
-  window.localStorage.setItem(KEY, dayStamp())
+  const cur = read()
+  if (cur.hz.includes(hz)) return
+  const next: Spent = { day: cur.day, hz: [...cur.hz, hz] }
+  try { window.localStorage.setItem(KEY, JSON.stringify(next)) } catch { /* quota */ }
   window.dispatchEvent(new Event(EVT))
 }
 
-/** Whole hours until midnight, floored to at least 1 so the copy never reads
- *  "in 0 hours". */
+/** How many distinct tones have been sampled today — the line that tells a
+ *  visitor the library is still open to them. */
+export function previewsSpentToday(): number {
+  if (typeof window === 'undefined') return 0
+  return read().hz.length
+}
+
+/** Whole hours until midnight, floored to 1 so the copy never reads "0h". */
 export function hoursUntilReset(now = new Date()): number {
   const midnight = new Date(now)
   midnight.setHours(24, 0, 0, 0)
