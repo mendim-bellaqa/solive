@@ -4,13 +4,10 @@ import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion, useInView } from 'framer-motion'
 import { useBinaural } from '@/lib/useBinaural'
 import { useDemoLimit, DEMO_SECONDS } from '@/lib/useDemoLimit'
+import HeadAnatomy from './HeadAnatomy'
 
 const CARRIER = 200
 const BEAT = 9
-
-const L_COLOR = '#7db4ff'
-const R_COLOR = '#b98cff'
-const MIX = '#9aa4c8'
 
 type Mode = 'headphones' | 'speakers'
 
@@ -27,18 +24,6 @@ const COPY: Record<Mode, { title: string; body: string; verdict: string; tone: s
     verdict: 'Monaural beat · an event in the room',
     tone: '#e0a060',
   },
-}
-
-function Ear({ x, flip }: { x: number; flip?: boolean }) {
-  return (
-    <path
-      d={`M ${x} 176 c ${flip ? -12 : 12} -4 ${flip ? -19 : 19} 6 ${flip ? -17 : 17} 20 c ${flip ? -2 : 2} 13 ${flip ? -11 : 11} 16 ${flip ? -18 : 18} 12`}
-      fill="none"
-      stroke="var(--t3)"
-      strokeWidth="2"
-      strokeLinecap="round"
-    />
-  )
 }
 
 export default function PathwayDiagram() {
@@ -101,102 +86,7 @@ export default function PathwayDiagram() {
           className="viewport"
           style={{ background: 'radial-gradient(circle at 50% 42%, #0b1020 0%, #05050c 72%)', padding: 4 }}
         >
-          <svg viewBox="0 0 760 420" style={{ width: '100%', display: 'block' }} role="img"
-               aria-label={`Diagram: ${copy.title}`}>
-            <defs>
-              <radialGradient id="cortexGlow">
-                <stop offset="0%"   stopColor={copy.tone} stopOpacity="0.5" />
-                <stop offset="100%" stopColor={copy.tone} stopOpacity="0" />
-              </radialGradient>
-              <radialGradient id="mixGlow">
-                <stop offset="0%"   stopColor="#e0a060" stopOpacity="0.45" />
-                <stop offset="100%" stopColor="#e0a060" stopOpacity="0" />
-              </radialGradient>
-            </defs>
-
-            {/* Sources */}
-            {[{ x: 78, c: L_COLOR, hz: CARRIER, label: 'LEFT' },
-              { x: 682, c: R_COLOR, hz: CARRIER + BEAT, label: 'RIGHT' }].map(s => (
-              <g key={s.label}>
-                <rect x={s.x - 26} y={166} width={52} height={62} rx={speakers ? 8 : 22}
-                      fill="rgba(255,255,255,0.05)" stroke={s.c} strokeOpacity="0.55" strokeWidth="1.5"
-                      style={{ transition: 'all 0.4s' }} />
-                <circle cx={s.x} cy={197} r={speakers ? 13 : 9} fill={s.c} fillOpacity="0.28"
-                        style={{ transition: 'all 0.4s' }} />
-                <circle cx={s.x} cy={197} r={speakers ? 5 : 4} fill={s.c} />
-                <text x={s.x} y={252} textAnchor="middle" fill="var(--t4)"
-                      fontSize="11" fontWeight="700" letterSpacing="1.4">{s.label}</text>
-                <text x={s.x} y={270} textAnchor="middle" fill={s.c} fontSize="13" fontWeight="800">
-                  {s.hz} Hz
-                </text>
-              </g>
-            ))}
-
-            {/* Head */}
-            <ellipse cx="380" cy="196" rx="98" ry="112" fill="rgba(255,255,255,0.022)"
-                     stroke="var(--border-mid)" strokeWidth="1.5" />
-            <Ear x={288} flip />
-            <Ear x={472} />
-
-            {/* Cortex glow — lit only when a neural beat is actually formed */}
-            <circle cx="380" cy="150" r="72" fill="url(#cortexGlow)"
-                    opacity={speakers ? 0 : 1} style={{ transition: 'opacity 0.5s' }} />
-
-            {/* Direct paths: source → same-side ear */}
-            <path d="M 106 197 L 284 197" fill="none" stroke={speakers ? MIX : L_COLOR}
-                  strokeWidth="2.5" className="flow-line" style={{ transition: 'stroke 0.4s' }} />
-            <path d="M 654 197 L 476 197" fill="none" stroke={speakers ? MIX : R_COLOR}
-                  strokeWidth="2.5" className="flow-line flow-rev" style={{ transition: 'stroke 0.4s' }} />
-
-            {/* Cross paths — only speakers reach the far ear */}
-            <g opacity={speakers ? 1 : 0} style={{ transition: 'opacity 0.45s' }}>
-              <path d="M 106 176 Q 380 42 654 176" fill="none" stroke={MIX} strokeWidth="1.8"
-                    strokeOpacity="0.6" strokeDasharray="4 9" />
-              <circle cx="380" cy="92" r="34" fill="url(#mixGlow)" />
-              <text x="380" y="80" textAnchor="middle" fill="#e0a060" fontSize="11.5" fontWeight="800"
-                    letterSpacing="0.6">SUMMED IN AIR</text>
-              <text x="380" y="98" textAnchor="middle" fill="var(--t4)" fontSize="10.5">
-                both tones reach both ears
-              </text>
-            </g>
-
-            {/* Ear → brainstem */}
-            <path d="M 292 214 Q 318 300 362 322" fill="none" stroke={speakers ? MIX : L_COLOR}
-                  strokeWidth="2" strokeOpacity="0.8" className="flow-line"
-                  style={{ transition: 'stroke 0.4s' }} />
-            <path d="M 468 214 Q 442 300 398 322" fill="none" stroke={speakers ? MIX : R_COLOR}
-                  strokeWidth="2" strokeOpacity="0.8" className="flow-line"
-                  style={{ transition: 'stroke 0.4s' }} />
-
-            {/* Superior olivary complex */}
-            <g>
-              {!speakers && [0, 1, 2].map(i => (
-                <circle key={i} cx="380" cy="330" r="19" fill="none" stroke={copy.tone}
-                        strokeWidth="1.5" className="soc-ring" style={{ animationDelay: `${i * 0.55}s` }} />
-              ))}
-              <circle cx="380" cy="330" r="19"
-                      fill={speakers ? 'rgba(255,255,255,0.05)' : `color-mix(in srgb, ${copy.tone} 28%, transparent)`}
-                      stroke={speakers ? 'var(--border-mid)' : copy.tone} strokeWidth="2"
-                      style={{ transition: 'all 0.45s' }} />
-              <circle cx="380" cy="330" r="6" fill={speakers ? 'var(--t-decor)' : copy.tone}
-                      style={{ transition: 'fill 0.45s' }} />
-            </g>
-
-            {/* Ascending signal — the beat travelling up to cortex */}
-            <g opacity={speakers ? 0 : 1} style={{ transition: 'opacity 0.5s' }}>
-              <path d="M 380 308 L 380 250" fill="none" stroke={copy.tone} strokeWidth="2.5"
-                    className="flow-line flow-rev" />
-              <path d="M 373 258 L 380 246 L 387 258" fill="none" stroke={copy.tone}
-                    strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-            </g>
-
-            <text x="380" y="374" textAnchor="middle" fill="var(--t3)" fontSize="12" fontWeight="700">
-              Superior olivary complex
-            </text>
-            <text x="380" y="392" textAnchor="middle" fill="var(--t4)" fontSize="10.5">
-              {speakers ? 'nothing left to compare — ears are identical' : 'compares the two ears · resolves ~10 µs'}
-            </text>
-          </svg>
+          <HeadAnatomy speakers={speakers} tone={copy.tone} carrier={CARRIER} beat={BEAT} />
         </div>
 
         {/* ── Copy ────────────────────────────────────────────────────── */}
