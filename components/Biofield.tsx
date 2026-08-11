@@ -2,8 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
-import { attachPinchZoom } from '@/lib/attachZoom'
-import { createRestingZoom } from '@/lib/restingZoom'
+import { createOrbit } from '@/lib/orbitControl'
 
 interface Props {
   colorHex: string
@@ -116,8 +115,7 @@ export default function Biofield({ colorHex, isPlaying, analyserRef, quality = '
 
     const renderer = new THREE.WebGLRenderer({ antialias: !mobile, alpha: false })
     renderer.setSize(w, h); renderer.setPixelRatio(dpr)
-    renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = 1.45
+    renderer.toneMapping = THREE.NoToneMapping
     renderer.domElement.style.position = 'absolute'
     renderer.domElement.style.inset = '0'
     root.appendChild(renderer.domElement)
@@ -160,7 +158,7 @@ export default function Biofield({ colorHex, isPlaying, analyserRef, quality = '
     const humanGeo = reg(new THREE.BufferGeometry())
     humanGeo.setAttribute('position', new THREE.BufferAttribute(hp, 3))
     const human = new THREE.Points(humanGeo, reg(new THREE.PointsMaterial({
-      color, size: preview ? 0.030 : 0.026, map: tex, transparent: true, opacity: 0.85,
+      color, size: preview ? 0.030 : 0.026, map: tex, transparent: true, opacity: 0.5,
       blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true,
     })))
     // Two extra passes build the body up as a lit volume rather than a dot
@@ -254,15 +252,15 @@ export default function Biofield({ colorHex, isPlaying, analyserRef, quality = '
 
     // ── Camera ─────────────────────────────────────────────────────────────
     const baseZ = camera.position.z
-    const zoom = createRestingZoom({
-      base: preview ? baseZ * 1.16 : baseZ * 1.26,
-      min: baseZ * 0.5,
-      max: baseZ * 2.2,
+    const orbit = createOrbit(root, {
+      baseDist: preview ? baseZ * 1.16 : baseZ * 1.26,
+      minDist: baseZ * 0.45,
+      maxDist: baseZ * 2.2,
+      idleSpin: 0.12,
+      // Three-quarters: face-on, a symmetrical figure reads as a flat cut-out.
+      initialYaw: -0.55, initialPitch: 0.05,
     })
-    camera.position.z = zoom.z
-    const onWheel = (e: WheelEvent) => { e.preventDefault(); zoom.apply(Math.exp(e.deltaY * 0.0015)) }
-    if (interactive) root.addEventListener('wheel', onWheel, { passive: false })
-    const detachPinch = attachPinchZoom(root, f => zoom.apply(f))
+    renderer.domElement.style.cursor = 'grab'
 
     let onScreen = true
     const io = new IntersectionObserver(([e]) => { onScreen = e.isIntersecting }, { rootMargin: '100px' })
@@ -310,7 +308,7 @@ export default function Biofield({ colorHex, isPlaying, analyserRef, quality = '
       ;(flow.material as THREE.PointsMaterial).opacity = 0.45 + A * 0.4 + rms * 0.35
 
       const hMat = human.material as THREE.PointsMaterial
-      hMat.opacity = 0.62 + A * 0.28 + rms * 0.18
+      hMat.opacity = 0.38 + A * 0.24 + rms * 0.16
       ;(humanHalo.material as THREE.PointsMaterial).opacity = 0.06 + A * 0.05 + rms * 0.06
       ;(humanBloom.material as THREE.PointsMaterial).opacity = 0.025 + A * 0.03 + rms * 0.05
       // The body breathes on its own axis, slightly out of step with the field,
@@ -325,9 +323,11 @@ export default function Biofield({ colorHex, isPlaying, analyserRef, quality = '
       ;(column.material as THREE.MeshBasicMaterial).opacity = 0.22 + A * 0.22 + rms * 0.26
       light.intensity = 2.5 + A * 2 + rms * 3
 
-      camera.position.z = zoom.tick(dt)
-      camera.position.x = Math.sin(t * 0.17) * 0.17
-      camera.lookAt(0, 0.08, 0)
+      orbit.tick(dt)
+      scene.rotation.y = orbit.yaw
+      scene.rotation.x = orbit.pitch
+      camera.position.set(0, 0.05, orbit.dist)
+      camera.lookAt(0, 0.05, 0)
       renderer.render(scene, camera)
     }
     animate()
@@ -342,8 +342,7 @@ export default function Biofield({ colorHex, isPlaying, analyserRef, quality = '
     return () => {
       window.removeEventListener('resize', onResize)
       io.disconnect()
-      if (interactive) root.removeEventListener('wheel', onWheel)
-      detachPinch()
+      orbit.detach()
       cancelAnimationFrame(rafRef.current)
       tex.dispose()
       disposables.forEach(d => { try { d.dispose() } catch { /* noop */ } })

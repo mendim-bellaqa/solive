@@ -265,7 +265,7 @@ export default function SessionPage() {
           {viz === 'frequency'
             ? <ThreeVisualizer hz={hz} isPlaying={false} analyserRef={{ current: null }} colorHex={color} vizMode="lissajous" />
             : viz === 'brain'
-            ? <NeuralBrain isPlaying={false} mode="preview" band={band} />
+            ? <NeuralBrain isPlaying={false} mode="preview" band={band} hz={hz} />
             : <Biofield colorHex={color} isPlaying={false} quality="preview" />
           }
           <div style={{ position: 'absolute', top: 12, left: 14, zIndex: 5, pointerEvents: 'none' }}>
