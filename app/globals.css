@@ -2367,3 +2367,61 @@ button { font-family: inherit; cursor: pointer; }
   /* The node still needs to read as "active", just without the pulse. */
   .soc-ring { opacity: 0.25; }
 }
+
+/* ─── Head scene labels ──────────────────────────────────────────────────── */
+/* Text over the WebGL head. Kept in the DOM rather than drawn into the canvas:
+   canvas text is blurry at any DPR, cannot be selected, and a screen reader
+   cannot see it at all. */
+
+.hs-label {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.hs-eyebrow {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--t4);
+}
+
+.hs-hz {
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.hs-caption {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: min(94%, 30rem);
+  text-align: center;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.hs-caption .hs-eyebrow { letter-spacing: 0.08em; color: var(--t3); }
+
+.hs-sub {
+  font-size: 0.66rem;
+  line-height: 1.4;
+  color: var(--t4);
+  text-wrap: pretty;
+}
+
+@media (max-width: 520px) {
+  .hs-hz { font-size: 0.8rem; }
+  .hs-label { gap: 0; }
+}
