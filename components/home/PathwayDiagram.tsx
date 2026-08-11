@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion, useInView } from 'framer-motion'
 import { useBinaural } from '@/lib/useBinaural'
+import { useDemoLimit, DEMO_SECONDS } from '@/lib/useDemoLimit'
 
 const CARRIER = 200
 const BEAT = 9
@@ -43,6 +44,7 @@ function Ear({ x, flip }: { x: number; flip?: boolean }) {
 export default function PathwayDiagram() {
   const [mode, setMode] = useState<Mode>('headphones')
   const { playing, start, stop, setMode: setAudioMode } = useBinaural()
+  const { limited, spent, arm, clear } = useDemoLimit(stop)
   const ref = useRef<HTMLDivElement>(null)
   const onScreen = useInView(ref, { margin: '-30%' })
 
@@ -54,8 +56,8 @@ export default function PathwayDiagram() {
   }, [speakers, playing, setAudioMode])
 
   useEffect(() => {
-    if (!onScreen && playing) stop()
-  }, [onScreen, playing, stop])
+    if (!onScreen && playing) { stop(); clear() }
+  }, [onScreen, playing, stop, clear])
 
   return (
     <div ref={ref} style={{ ['--tone' as string]: copy.tone }}>
@@ -226,7 +228,10 @@ export default function PathwayDiagram() {
             <button
               className="listen-btn"
               data-on={playing || undefined}
-              onClick={() => (playing ? stop() : start(CARRIER, BEAT, speakers ? 'monaural' : 'binaural'))}
+              onClick={() => {
+                if (playing) { stop(); clear(); return }
+                if (arm()) start(CARRIER, BEAT, speakers ? 'monaural' : 'binaural')
+              }}
             >
               {playing ? (
                 <>
@@ -243,7 +248,14 @@ export default function PathwayDiagram() {
               )}
             </button>
             <span style={{ fontSize: '0.74rem', color: 'var(--t4)', maxWidth: '15rem', lineHeight: 1.5 }}>
-              Keep it playing and flip the switch — same two tones, audibly different result.
+              Flip the switch while it plays — same two tones, audibly different result.
+              {limited && (
+                <span style={{ display: 'block', marginTop: 2 }}>
+                  {spent
+                    ? 'Today\u2019s demo is used \u2014 see the plans for unlimited audio'
+                    : `${DEMO_SECONDS} seconds, once a day`}
+                </span>
+              )}
             </span>
           </div>
         </div>
