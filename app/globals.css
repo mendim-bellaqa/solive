@@ -2042,6 +2042,9 @@ button { font-family: inherit; cursor: pointer; }
 .viewport-label {
   position: absolute;
   left: 20px;
+  /* Bounded on the right so a long region name wraps inside the viewport
+     instead of running under whatever sits in the opposite corner. */
+  right: 20px;
   bottom: 18px;
   z-index: 5;
   pointer-events: none;

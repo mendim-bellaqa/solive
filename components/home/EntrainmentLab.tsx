@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { AnimatePresence, motion, useInView } from 'framer-motion'
 import { useBinaural } from '@/lib/useBinaural'
-import type { BinauralBand } from '@/lib/frequencies'
+import { BAND_REGION, type BinauralBand } from '@/lib/frequencies'
 import BeatCanvas from './BeatCanvas'
 
 const NeuralBrain = dynamic(() => import('@/components/NeuralBrain'), { ssr: false })
@@ -92,6 +92,7 @@ export default function EntrainmentLab() {
               isPlaying={playing}
               mode="session"
               band={band.id}
+              caption={false}
               progress={band.activation}
               analyserRef={analyserRef}
             />
@@ -117,6 +118,9 @@ export default function EntrainmentLab() {
                 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--t1)', letterSpacing: '-0.02em' }}
               >
                 {band.name} · {band.beat} Hz
+                <span style={{ display: 'block', fontSize: '0.68rem', fontWeight: 600, color: 'var(--t4)', letterSpacing: 0, marginTop: 2 }}>
+                  {BAND_REGION[band.id]}
+                </span>
               </motion.p>
             </AnimatePresence>
           </div>

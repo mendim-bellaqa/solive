@@ -222,6 +222,19 @@ export const BINAURAL_PRESETS: Record<BinauralBand, BinauralPreset> = {
  * what a session does more than the carrier tone does, and it used to be
  * selected silently on the user's behalf.
  */
+/**
+ * The structure each rhythm is generated in or most strongly expressed by —
+ * what the 3D brain lights up when that band plays. Shared so the viewport and
+ * whatever labels it stay in agreement instead of each carrying their own copy.
+ */
+export const BAND_REGION: Record<BinauralBand, string> = {
+  delta: 'Thalamus · deep structures',
+  theta: 'Medial temporal · hippocampal',
+  alpha: 'Occipital cortex',
+  beta:  'Frontal · sensorimotor',
+  gamma: 'Distributed cortex',
+}
+
 export const BAND_DETAIL: Record<BinauralBand, {
   range: string
   what: string
