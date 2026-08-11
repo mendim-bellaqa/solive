@@ -4,7 +4,11 @@ import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion, useInView } from 'framer-motion'
 import { useBinaural } from '@/lib/useBinaural'
 import { useDemoLimit, DEMO_SECONDS } from '@/lib/useDemoLimit'
-import HeadAnatomy from './HeadAnatomy'
+import dynamic from 'next/dynamic'
+
+// Third WebGL context on the page, so it stays out of the initial bundle and
+// idles whenever it is off screen.
+const HeadScene = dynamic(() => import('./HeadScene'), { ssr: false })
 
 const CARRIER = 200
 const BEAT = 9
@@ -86,7 +90,28 @@ export default function PathwayDiagram() {
           className="viewport"
           style={{ background: 'radial-gradient(circle at 50% 42%, #0b1020 0%, #05050c 72%)', padding: 4 }}
         >
-          <HeadAnatomy speakers={speakers} tone={copy.tone} carrier={CARRIER} beat={BEAT} />
+          <div style={{ position: 'relative', aspectRatio: '16 / 11', width: '100%' }}>
+            <HeadScene speakers={speakers} tone={copy.tone} beat={BEAT} />
+
+            {/* Labels stay as HTML: text baked into a WebGL canvas is blurry,
+                unselectable and invisible to a screen reader. */}
+            <div className="hs-label" style={{ left: 14, top: '46%' }}>
+              <span className="hs-eyebrow">LEFT</span>
+              <span className="hs-hz" style={{ color: '#7db4ff' }}>{CARRIER} Hz</span>
+            </div>
+            <div className="hs-label" style={{ right: 14, top: '46%', textAlign: 'right' }}>
+              <span className="hs-eyebrow">RIGHT</span>
+              <span className="hs-hz" style={{ color: '#b98cff' }}>{CARRIER + BEAT} Hz</span>
+            </div>
+            <div className="hs-caption">
+              <span className="hs-eyebrow">Superior olivary complex</span>
+              <span className="hs-sub">
+                {speakers
+                  ? 'nothing left to compare — both ears carry the same wave'
+                  : `compares the two ears · resolves ~10 µs · ${BEAT} Hz beat ascends`}
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* ── Copy ────────────────────────────────────────────────────── */}
