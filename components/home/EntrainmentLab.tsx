@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { AnimatePresence, motion, useInView } from 'framer-motion'
 import { useBinaural } from '@/lib/useBinaural'
+import { useDemoLimit, DEMO_SECONDS } from '@/lib/useDemoLimit'
 import { BAND_REGION, type BinauralBand } from '@/lib/frequencies'
 import BeatCanvas from './BeatCanvas'
 
@@ -64,6 +65,7 @@ export default function EntrainmentLab() {
   const [idx, setIdx] = useState(2)   // open on alpha — the most legible state
   const band = BANDS[idx]
   const { playing, analyserRef, start, stop, setTones } = useBinaural()
+  const { limited, spent, arm, clear } = useDemoLimit(stop)
 
   const wrapRef = useRef<HTMLDivElement>(null)
   // The brain is a second WebGL context; keep it unmounted until it's nearly
@@ -78,8 +80,8 @@ export default function EntrainmentLab() {
   // Never leave a tone running once the module scrolls away.
   const onScreen = useInView(wrapRef, { margin: '-30%' })
   useEffect(() => {
-    if (!onScreen && playing) stop()
-  }, [onScreen, playing, stop])
+    if (!onScreen && playing) { stop(); clear() }
+  }, [onScreen, playing, stop, clear])
 
   return (
     <div ref={wrapRef} className="grid lg:grid-cols-[1.05fr_1fr] gap-8 lg:gap-12 items-start">
@@ -222,7 +224,10 @@ export default function EntrainmentLab() {
           <button
             className="listen-btn"
             data-on={playing || undefined}
-            onClick={() => (playing ? stop() : start(CARRIER, band.beat))}
+            onClick={() => {
+              if (playing) { stop(); clear(); return }
+              if (arm()) start(CARRIER, band.beat)
+            }}
           >
             {playing ? (
               <>
@@ -240,6 +245,13 @@ export default function EntrainmentLab() {
           </button>
           <span style={{ fontSize: '0.74rem', color: 'var(--t4)', lineHeight: 1.5 }}>
             Live audio · headphones required
+            {limited && (
+              <span style={{ display: 'block' }}>
+                {spent
+                  ? 'Today\u2019s demo is used \u2014 see the plans for unlimited audio'
+                  : `${DEMO_SECONDS}-second demo, once a day`}
+              </span>
+            )}
           </span>
         </div>
       </div>

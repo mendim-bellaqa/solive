@@ -70,6 +70,25 @@ export function previewsSpentToday(): number {
   return read().hz.length
 }
 
+/* ── Homepage demos ────────────────────────────────────────────────────────
+   The two interactive demos on the landing page are a taste, not a session:
+   a few seconds, once a day, then the pitch. Tracked separately from the
+   studio's per-tone quota so hearing the homepage demo never costs a visitor
+   one of the frequencies they came to try. */
+
+const DEMO_KEY = 'hzaura_demo_spent'
+
+export function isHomeDemoAvailable(): boolean {
+  if (typeof window === 'undefined') return true
+  try { return window.localStorage.getItem(DEMO_KEY) !== dayStamp() } catch { return true }
+}
+
+export function markHomeDemoSpent() {
+  if (typeof window === 'undefined') return
+  try { window.localStorage.setItem(DEMO_KEY, dayStamp()) } catch { /* quota */ }
+  window.dispatchEvent(new Event(EVT))
+}
+
 /** Whole hours until midnight, floored to 1 so the copy never reads "0h". */
 export function hoursUntilReset(now = new Date()): number {
   const midnight = new Date(now)
