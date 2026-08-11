@@ -143,6 +143,10 @@ export default function HeadScene({ speakers, tone, beat }: Props) {
     scene.add(group)
 
     const COOL = new THREE.Color('#5f8fd8')
+    // The skull reads on a phone in daylight, which the muted blue at 5% did
+    // not. WebGL ignores linewidth on lines, so presence has to come from
+    // value and from the vertices rather than from stroke weight.
+    const BONE = new THREE.Color('#cfe0f5')
     const accent = new THREE.Color(tone)
     const WARM = new THREE.Color('#e0a060')
 
@@ -162,13 +166,13 @@ export default function HeadScene({ speakers, tone, beat }: Props) {
 
     const wire = reg(new THREE.WireframeGeometry(headGeo))
     const wireMat = reg(new THREE.LineBasicMaterial({
-      color: COOL, transparent: true, opacity: 0.055,
+      color: BONE, transparent: true, opacity: 0.13,
       blending: THREE.AdditiveBlending, depthWrite: false,
     }))
     group.add(new THREE.LineSegments(wire, wireMat))
 
     const vertMat = reg(new THREE.PointsMaterial({
-      color: COOL, size: 0.013, map: tex, transparent: true, opacity: 0.28,
+      color: BONE, size: 0.017, map: tex, transparent: true, opacity: 0.46,
       blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true,
     }))
     group.add(new THREE.Points(headGeo, vertMat))
@@ -365,12 +369,12 @@ export default function HeadScene({ speakers, tone, beat }: Props) {
       const env = 0.5 + 0.5 * Math.sin(t * Math.min(beat, 12) * 1.1)
 
       brainMat.color.copy(COOL).lerp(accent, neural * (0.55 + 0.45 * env))
-      brainMat.opacity = 0.42 + neural * 0.42 * (0.6 + 0.4 * env)
+      brainMat.opacity = 0.55 + neural * 0.40 * (0.6 + 0.4 * env)
       ;(brainHalo.material as THREE.PointsMaterial).color.copy(brainMat.color)
       ;(brainHalo.material as THREE.PointsMaterial).opacity = 0.03 + neural * 0.07
-      wireMat.opacity = 0.045 + neural * 0.03
+      wireMat.opacity = 0.12 + neural * 0.05
       filMat.color.copy(brainMat.color)
-      filMat.opacity = 0.07 + neural * 0.13 * (0.5 + 0.5 * env)
+      filMat.opacity = 0.10 + neural * 0.15 * (0.5 + 0.5 * env)
       stemMat.color.copy(brainMat.color)
       stemMat.opacity = 0.35 + neural * 0.35
 
