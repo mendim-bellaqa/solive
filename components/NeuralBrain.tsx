@@ -2,72 +2,61 @@
 
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
-import { attachPinchZoom } from '@/lib/attachZoom'
-import { createRestingZoom } from '@/lib/restingZoom'
-import { BAND_REGION, type BinauralBand } from '@/lib/frequencies'
+import { createOrbit } from '@/lib/orbitControl'
+import type { BinauralBand } from '@/lib/frequencies'
+import {
+  BAND_SEAT, REGION_LABEL, regionWeights, stageFor, tonotopicPosition,
+  type Region,
+} from '@/lib/brainMap'
 
 interface Props {
   isPlaying: boolean
-  /** 'session' = activation tied to session progress; 'preview' = gentle looping pulse. */
+  /** 'session' = tied to real elapsed time; 'preview' = a gentle looping demo. */
   mode?: 'session' | 'preview'
-  /** Session progress 0→1 (elapsed / total) — resting at 0, fully activated at 1. */
+  /** Session progress 0→1, used for the overall heat. */
   progress?: number
-  /** Which rhythm is playing. Decides *where* the brain lights up, not just how much. */
+  /** Seconds elapsed — decides how far entrainment has spread. */
+  elapsedSeconds?: number
+  /** The beat band: decides which regions are recruited. */
   band?: BinauralBand
-  /** The floating state pill. Off where the host already labels the viewport —
-   *  two captions in one corner collide on a phone. */
+  /** The carrier tone: decides where on the tonotopic map it lands. */
+  hz?: number
   caption?: boolean
   analyserRef?: React.MutableRefObject<AnalyserNode | null>
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   ANATOMY
+   A glass brain with the session drawn inside it.
 
-   The old model was a single blurred ellipsoid of random points: it read as a
-   glowing potato, and every frequency lit it identically. This one is built
-   from the structures that actually carry the rhythms, so a delta session and
-   a gamma session are visibly different events rather than the same animation
-   in two colours.
+   Three separate things are being shown, and they move independently:
+
+     · the tone lands at its own spot in auditory cortex, because auditory
+       cortex is tonotopically mapped and that spot is a physical fact
+     · the beat band recruits the regions that rhythm belongs to
+     · elapsed time decides how far past auditory cortex any of it has spread,
+       so a two-minute session and a twenty-minute one do not look the same
+
+   Dendritic trees grow out of whichever regions are active, which is what
+   makes it read as tissue doing something rather than a cloud being tinted.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-type Region =
-  | 'frontal' | 'parietal' | 'temporal' | 'occipital'
-  | 'cerebellum' | 'brainstem' | 'deep'
-
-/**
- * Where each band is generated or most strongly expressed. These are the
- * textbook associations, not decoration:
- *
- *  delta  — slow-wave sleep: thalamocortical, strongest deep and frontal.
- *  theta  — hippocampal, in the medial temporal lobe.
- *  alpha  — Berger's rhythm: occipital, and it is why closing your eyes
- *           doubles it. Posterior dominant by definition.
- *  beta   — sensorimotor and frontal, the rhythm of engaged attention.
- *  gamma  — binding: distributed across cortex rather than local to one lobe.
- *
- * Weight 1 = the focus of that rhythm, 0.15 = quiet background activity.
- */
-const BAND_FOCUS: Record<BinauralBand, Record<Region, number>> = {
-  delta: { deep: 1.0, brainstem: 0.9, frontal: 0.7, parietal: 0.3, temporal: 0.3, occipital: 0.25, cerebellum: 0.35 },
-  theta: { temporal: 1.0, deep: 0.8, frontal: 0.45, parietal: 0.3, occipital: 0.25, cerebellum: 0.2, brainstem: 0.3 },
-  alpha: { occipital: 1.0, parietal: 0.75, temporal: 0.35, frontal: 0.25, deep: 0.3, cerebellum: 0.2, brainstem: 0.15 },
-  beta:  { frontal: 1.0, parietal: 0.85, temporal: 0.45, occipital: 0.3, deep: 0.3, cerebellum: 0.4, brainstem: 0.2 },
-  gamma: { frontal: 0.95, parietal: 0.95, temporal: 0.9, occipital: 0.85, deep: 0.6, cerebellum: 0.5, brainstem: 0.3 },
+function smoothstep(a: number, b: number, x: number) {
+  const t = Math.max(0, Math.min(1, (x - a) / (b - a || 1)))
+  return t * t * (3 - 2 * t)
 }
 
-// ─── Cool → hot activation gradient ───────────────────────────────────────────
 const HEAT: [number, [number, number, number]][] = [
-  [0.00, [18, 30, 96]],    // near-black indigo (resting)
-  [0.18, [22, 96, 168]],   // blue
-  [0.36, [16, 170, 158]],  // teal
-  [0.52, [40, 196, 112]],  // green
-  [0.66, [168, 220, 66]],  // lime
-  [0.78, [250, 208, 70]],  // yellow
-  [0.88, [248, 138, 44]],  // orange
-  [0.95, [234, 62, 52]],   // red
-  [1.00, [255, 244, 232]], // white-hot
+  [0.00, [16, 28, 90]],
+  [0.18, [22, 96, 168]],
+  [0.36, [16, 172, 160]],
+  [0.52, [40, 198, 112]],
+  [0.66, [170, 222, 66]],
+  [0.78, [250, 208, 70]],
+  [0.88, [248, 138, 44]],
+  [0.95, [236, 62, 52]],
+  [1.00, [255, 246, 236]],
 ]
-function heat(t: number, out: Float32Array, o: number) {
+function heat(t: number, out: Float32Array | number[], o: number) {
   const v = t < 0 ? 0 : t > 1 ? 1 : t
   for (let i = 0; i < HEAT.length - 1; i++) {
     const [t0, c0] = HEAT[i], [t1, c1] = HEAT[i + 1]
@@ -82,12 +71,7 @@ function heat(t: number, out: Float32Array, o: number) {
   const l = HEAT[HEAT.length - 1][1]
   out[o] = l[0]/255; out[o+1] = l[1]/255; out[o+2] = l[2]/255
 }
-function smoothstep(a: number, b: number, x: number) {
-  const t = Math.max(0, Math.min(1, (x - a) / (b - a || 1)))
-  return t * t * (3 - 2 * t)
-}
 
-/** Cheap value noise — enough to fold a smooth surface into gyri. */
 function fbm(x: number, y: number, z: number) {
   let v = 0, amp = 0.5, fx = x, fy = y, fz = z
   for (let i = 0; i < 3; i++) {
@@ -110,271 +94,290 @@ function glowSprite(): THREE.CanvasTexture {
   return new THREE.CanvasTexture(c)
 }
 
-/**
- * A cerebrum point, in a shape that reads as a brain from any angle: longer
- * front-to-back than wide, tallest over the parietal ridge, tapering to the
- * frontal pole, undercut beneath the temporal lobes, and split by a
- * longitudinal fissure that stays visible while the model turns.
- */
-function cerebrumPoint(out: Float32Array, o: number): Region {
-  const hemi = Math.random() < 0.5 ? -1 : 1
-  const u = Math.random() * Math.PI * 2
-  const v = Math.acos(2 * Math.random() - 1)
-
+/** The cerebral surface: longer than wide, tapering forward, undercut beneath
+ *  the temporal lobes, flat below, split by a fissure that stays visible. */
+function cerebrum(u: number, v: number, hemi: number, out: Float32Array, o: number) {
   const sv = Math.sin(v)
   let x = sv * Math.cos(u)
   const y = Math.cos(v)
   const z = sv * Math.sin(u)
 
-  // Egg taper: the frontal pole is narrower than the occipital mass.
-  const taper = 1 - 0.16 * z
-  x *= taper
-
-  // Radii — deeper than wide, which is what stops it reading as a ball.
+  x *= 1 - 0.16 * z
   let px = x * 0.50, py = y * 0.60, pz = z * 0.84
 
-  // Cortical folding, strongest on the crown where gyri actually show.
-  const fold = fbm(px * 3.4, py * 3.4, pz * 3.4) * 0.055 * (0.55 + 0.45 * smoothstep(-0.2, 0.7, py))
+  const fold = fbm(px * 3.6, py * 3.6, pz * 3.6) * 0.055 * (0.55 + 0.45 * smoothstep(-0.2, 0.7, py))
   const len = Math.hypot(px, py, pz) || 1
   px += (px / len) * fold; py += (py / len) * fold; pz += (pz / len) * fold
 
-  // Flatten the underside — a brain sits on a base, it is not a sphere.
   if (py < -0.26) py = -0.26 + (py + 0.26) * 0.48
-  // Temporal undercut: pull the lower lateral mass outward and forward.
   if (py < -0.05 && Math.abs(px) > 0.18) { px *= 1.16; pz = pz * 0.92 + 0.06 }
 
-  // Split into hemispheres, with a fissure that widens toward the crown.
   const fissure = 0.055 + 0.045 * smoothstep(0.0, 0.8, py)
   px = hemi * (Math.abs(px) * 0.86 + fissure)
-
   out[o] = px; out[o+1] = py; out[o+2] = pz
+}
 
-  // Region by anatomical position rather than by index, so the boundaries sit
-  // where the shape actually changes.
+function regionOf(px: number, py: number, pz: number): Region {
+  // Auditory cortex: superior temporal, just above and behind the ear.
+  if (py > -0.16 && py < 0.06 && Math.abs(px) > 0.30 && pz > -0.30 && pz < 0.22) return 'auditory'
   if (pz > 0.30) return 'frontal'
   if (pz < -0.34) return 'occipital'
   if (py < -0.06 && Math.abs(px) > 0.24) return 'temporal'
   if (py > 0.16) return 'parietal'
-  return Math.random() < 0.5 ? 'parietal' : 'temporal'
+  return 'temporal'
 }
 
 export default function NeuralBrain({
-  isPlaying, mode = 'session', progress = 0, band = 'alpha', caption = true, analyserRef,
+  isPlaying, mode = 'session', progress = 0, elapsedSeconds = 0,
+  band = 'alpha', hz = 528, caption = true, analyserRef,
 }: Props) {
   const rootRef    = useRef<HTMLDivElement>(null)
   const captionRef = useRef<HTMLSpanElement>(null)
   const playingRef = useRef(isPlaying)
   const progRef    = useRef(progress)
+  const elapsedRef = useRef(elapsedSeconds)
   const bandRef    = useRef(band)
+  const hzRef      = useRef(hz)
   const frameRef   = useRef(0)
 
   useEffect(() => { playingRef.current = isPlaying }, [isPlaying])
   useEffect(() => { progRef.current = progress }, [progress])
+  useEffect(() => { elapsedRef.current = elapsedSeconds }, [elapsedSeconds])
   useEffect(() => { bandRef.current = band }, [band])
+  useEffect(() => { hzRef.current = hz }, [hz])
 
   useEffect(() => {
     if (!rootRef.current) return
     const root = rootRef.current
-    const w = root.clientWidth || 320
-    const h = root.clientHeight || 320
+    const w = root.clientWidth || 320, h = root.clientHeight || 320
     const mobile = window.matchMedia('(max-width: 768px)').matches
     const dpr = Math.min(window.devicePixelRatio || 1, mobile ? 1.5 : 2)
 
     const scene = new THREE.Scene()
     scene.background = new THREE.Color('#05050c')
-    scene.fog = new THREE.FogExp2('#05050c', 0.10)
-
+    scene.fog = new THREE.FogExp2('#05050c', 0.09)
     const camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 100)
-    camera.position.set(0, 0, 4.4)
 
     const renderer = new THREE.WebGLRenderer({ antialias: !mobile, alpha: false })
-    renderer.setSize(w, h)
-    renderer.setPixelRatio(dpr)
-    renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = 1.45
+    renderer.setSize(w, h); renderer.setPixelRatio(dpr)
+    // Hue is the reading here, so no filmic curve to wash it out.
+    renderer.toneMapping = THREE.NoToneMapping
     renderer.domElement.style.position = 'absolute'
     renderer.domElement.style.inset = '0'
+    renderer.domElement.style.cursor = 'grab'
     root.appendChild(renderer.domElement)
 
     const tex = glowSprite()
-    const group = new THREE.Group()
-    scene.add(group)
+    const disposables: { dispose(): void }[] = []
+    const reg = <T extends { dispose(): void }>(x: T): T => { disposables.push(x); return x }
+    const group = new THREE.Group(); scene.add(group)
 
-    // ── Build the cell population ──────────────────────────────────────────
-    // Denser than before because the detail is the point, but still trimmed on
-    // phones where the fill rate, not the maths, is the limit.
-    const N = mode === 'preview' ? (mobile ? 1500 : 2200) : (mobile ? 2000 : 3200)
-    const pos    = new Float32Array(N * 3)
-    const nCol   = new Float32Array(N * 3)
-    const nSize  = new Float32Array(N)
-    const region: Region[] = new Array(N)
-    const th     = new Float32Array(N)   // per-cell firing threshold
-    const jitter = new Float32Array(N)   // per-cell phase, so they never fire in unison
-
-    const tmp3 = new Float32Array(3)
-    for (let i = 0; i < N; i++) {
-      const r = Math.random()
-      let reg: Region
-      if (r < 0.80) {
-        reg = cerebrumPoint(pos, i * 3)
-      } else if (r < 0.90) {
-        // Cerebellum — a distinct smaller mass tucked under the occipital pole,
-        // with its own tighter foliation.
-        const u = Math.random() * Math.PI * 2, v = Math.acos(2 * Math.random() - 1)
-        const sv = Math.sin(v)
-        const cx = sv * Math.cos(u) * 0.40
-        const cy = Math.cos(v) * 0.20 - 0.42
-        const cz = sv * Math.sin(u) * 0.26 - 0.52
-        const f = fbm(cx * 9, cy * 9, cz * 9) * 0.02
-        pos[i*3] = cx + f; pos[i*3+1] = cy; pos[i*3+2] = cz + f
-        reg = 'cerebellum'
-      } else if (r < 0.945) {
-        // Brainstem — a tapering column, the route everything ascends through.
-        const t = Math.random()
-        const rad = 0.085 * (1 - t * 0.35)
-        const a = Math.random() * Math.PI * 2
-        pos[i*3]   = Math.cos(a) * rad
-        pos[i*3+1] = -0.30 - t * 0.55
-        pos[i*3+2] = Math.sin(a) * rad - 0.16
-        reg = 'brainstem'
-      } else {
-        // Deep structures — thalamus and around it, where delta is generated.
-        const u = Math.random() * Math.PI * 2, v = Math.acos(2 * Math.random() - 1)
-        const sv = Math.sin(v), rr = Math.cbrt(Math.random())
-        pos[i*3]   = sv * Math.cos(u) * 0.20 * rr
-        pos[i*3+1] = Math.cos(v) * 0.15 * rr - 0.04
-        pos[i*3+2] = sv * Math.sin(u) * 0.24 * rr - 0.02
-        reg = 'deep'
+    // ── Glass shell ────────────────────────────────────────────────────────
+    // A translucent surface over the cells, so the model has a silhouette to
+    // read against instead of dissolving at its edges.
+    const SU = mobile ? 44 : 64, SV = mobile ? 26 : 36
+    const shellPos: number[] = [], shellIdx: number[] = []
+    const tmpArr = new Float32Array(3)
+    for (const hemi of [-1, 1]) {
+      const base = shellPos.length / 3
+      for (let iv = 0; iv <= SV; iv++) {
+        for (let iu = 0; iu <= SU; iu++) {
+          cerebrum((iu / SU) * Math.PI * 2, (iv / SV) * Math.PI, hemi, tmpArr, 0)
+          shellPos.push(tmpArr[0], tmpArr[1], tmpArr[2])
+        }
       }
-      region[i] = reg
-      th[i]     = Math.random() * 0.55            // spread so a region lights progressively
-      jitter[i] = Math.random() * Math.PI * 2
-      nSize[i]  = 0.028 + Math.random() * 0.026
-    }
-
-    // ── Synapses: prefer near neighbours, and connect across the midline ────
-    const maxSyn = mode === 'preview' ? (mobile ? 900 : 1500) : (mobile ? 1200 : 2100)
-    const sa: number[] = [], sb: number[] = []
-    const D2 = 0.26 * 0.26
-    outer: for (let i = 0; i < N; i++) {
-      for (let k = 0; k < 5; k++) {
-        const j = (Math.random() * N) | 0
-        if (j === i) continue
-        const dx = pos[i*3]-pos[j*3], dy = pos[i*3+1]-pos[j*3+1], dz = pos[i*3+2]-pos[j*3+2]
-        if (dx*dx + dy*dy + dz*dz < D2) {
-          sa.push(i); sb.push(j)
-          if (sa.length >= maxSyn) break outer
+      for (let iv = 0; iv < SV; iv++) {
+        for (let iu = 0; iu < SU; iu++) {
+          const a = base + iv * (SU + 1) + iu, b = a + 1, c = a + SU + 1, d = c + 1
+          shellIdx.push(a, c, b, b, c, d)
         }
       }
     }
-    const S = sa.length
-    const segPos = new Float32Array(S * 6)
-    const segCol = new Float32Array(S * 6)
-    for (let s = 0; s < S; s++) {
-      const a = sa[s], b = sb[s]
-      segPos[s*6]   = pos[a*3];   segPos[s*6+1] = pos[a*3+1]; segPos[s*6+2] = pos[a*3+2]
-      segPos[s*6+3] = pos[b*3];   segPos[s*6+4] = pos[b*3+1]; segPos[s*6+5] = pos[b*3+2]
+    const shellGeo = reg(new THREE.BufferGeometry())
+    shellGeo.setAttribute('position', new THREE.Float32BufferAttribute(shellPos, 3))
+    shellGeo.setIndex(shellIdx)
+    shellGeo.computeVertexNormals()
+    const shellMat = reg(new THREE.MeshBasicMaterial({
+      color: 0x8fb6e8, transparent: true, opacity: 0.055,
+      side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending,
+    }))
+    group.add(new THREE.Mesh(shellGeo, shellMat))
+
+    // ── Cells ──────────────────────────────────────────────────────────────
+    const N = mode === 'preview' ? (mobile ? 900 : 1300) : (mobile ? 1100 : 1800)
+    const pos = new Float32Array(N * 3)
+    const col = new Float32Array(N * 3)
+    const cellRegion: Region[] = new Array(N)
+    const th = new Float32Array(N)
+    const jitter = new Float32Array(N)
+    const tono = new Float32Array(N)      // 0…1 along the auditory axis
+
+    for (let i = 0; i < N; i++) {
+      const r = Math.random()
+      if (r < 0.86) {
+        cerebrum(Math.random() * Math.PI * 2, Math.acos(2 * Math.random() - 1),
+                 Math.random() < 0.5 ? -1 : 1, pos, i * 3)
+        cellRegion[i] = regionOf(pos[i*3], pos[i*3+1], pos[i*3+2])
+      } else if (r < 0.93) {
+        const u = Math.random() * Math.PI * 2, v = Math.acos(2 * Math.random() - 1), sv = Math.sin(v)
+        pos[i*3] = sv * Math.cos(u) * 0.40
+        pos[i*3+1] = Math.cos(v) * 0.20 - 0.42
+        pos[i*3+2] = sv * Math.sin(u) * 0.26 - 0.52
+        cellRegion[i] = 'cerebellum'
+      } else if (r < 0.965) {
+        const q = Math.random(), rad = 0.085 * (1 - q * 0.35), a = Math.random() * Math.PI * 2
+        pos[i*3] = Math.cos(a) * rad
+        pos[i*3+1] = -0.30 - q * 0.55
+        pos[i*3+2] = Math.sin(a) * rad - 0.16
+        cellRegion[i] = 'brainstem'
+      } else {
+        const u = Math.random() * Math.PI * 2, v = Math.acos(2 * Math.random() - 1)
+        const sv = Math.sin(v), rr = Math.cbrt(Math.random())
+        pos[i*3] = sv * Math.cos(u) * 0.20 * rr
+        pos[i*3+1] = Math.cos(v) * 0.15 * rr - 0.04
+        pos[i*3+2] = sv * Math.sin(u) * 0.24 * rr - 0.02
+        cellRegion[i] = 'thalamus'
+      }
+      // Along the auditory strip, front is low and back is high — the axis a
+      // pitch actually travels as it rises.
+      tono[i] = Math.max(0, Math.min(1, (0.24 - pos[i*3+2]) / 0.5))
+      th[i] = Math.random() * 0.5
+      jitter[i] = Math.random() * Math.PI * 2
     }
 
-    const nGeo = new THREE.BufferGeometry()
-    nGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
-    nGeo.setAttribute('color', new THREE.BufferAttribute(nCol, 3))
-    // Varying the point size breaks the uniform-dot look that made the old
-    // model read as static rather than tissue.
-    nGeo.setAttribute('size', new THREE.BufferAttribute(nSize, 1))
-    const nMat = new THREE.PointsMaterial({
-      size: 0.05, map: tex, vertexColors: true, transparent: true, opacity: 0.95,
+    const cellGeo = reg(new THREE.BufferGeometry())
+    cellGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+    cellGeo.setAttribute('color', new THREE.BufferAttribute(col, 3))
+    const cellMat = reg(new THREE.PointsMaterial({
+      size: 0.026, map: tex, vertexColors: true, transparent: true, opacity: 0.42,
       blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true,
-    })
-    group.add(new THREE.Points(nGeo, nMat))
-
-    // A soft second pass at large size gives the mass a body instead of a
-    // scatter of separate sparks.
-    const haloMat = new THREE.PointsMaterial({
-      size: 0.15, map: tex, vertexColors: true, transparent: true, opacity: 0.13,
+    }))
+    group.add(new THREE.Points(cellGeo, cellMat))
+    const haloMat = reg(new THREE.PointsMaterial({
+      size: 0.13, map: tex, vertexColors: true, transparent: true, opacity: 0.045,
       blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true,
-    })
-    group.add(new THREE.Points(nGeo, haloMat))
+    }))
+    group.add(new THREE.Points(cellGeo, haloMat))
 
-    const sGeo = new THREE.BufferGeometry()
-    sGeo.setAttribute('position', new THREE.BufferAttribute(segPos, 3))
-    sGeo.setAttribute('color', new THREE.BufferAttribute(segCol, 3))
-    const sMat = new THREE.LineBasicMaterial({
-      vertexColors: true, transparent: true, opacity: 0.34,
+    // ── Dendritic trees ────────────────────────────────────────────────────
+    // Recursive branches grown from seed cells. This is the difference between
+    // a dust cloud and something that looks like tissue: real neurons branch,
+    // and the branching is what the eye reads as biology.
+    const TREES = mobile ? 70 : 130
+    const treeSeg: number[] = []
+    const treeCol: number[] = []
+    const treeRegion: Region[] = []
+    const treeSegRegion: number[] = []
+    for (let t = 0; t < TREES; t++) {
+      const seed = (Math.random() * N) | 0
+      const reg0 = cellRegion[seed]
+      treeRegion.push(reg0)
+      const ti = treeRegion.length - 1
+      const grow = (x: number, y: number, z: number, dx: number, dy: number, dz: number, len: number, depth: number) => {
+        if (depth > 3 || len < 0.02) return
+        const nx = x + dx * len, ny = y + dy * len, nz = z + dz * len
+        treeSeg.push(x, y, z, nx, ny, nz)
+        treeCol.push(0, 0, 0, 0, 0, 0)
+        treeSegRegion.push(ti)
+        const branches = depth < 2 ? 2 : 1
+        for (let b = 0; b < branches; b++) {
+          const jx = dx + (Math.random() - 0.5) * 1.1
+          const jy = dy + (Math.random() - 0.5) * 1.1
+          const jz = dz + (Math.random() - 0.5) * 1.1
+          const m = Math.hypot(jx, jy, jz) || 1
+          grow(nx, ny, nz, jx / m, jy / m, jz / m, len * 0.62, depth + 1)
+        }
+      }
+      // Grow inward. Seeded in a random direction the arbors burst out through
+      // the surface and the brain stops looking like it contains them.
+      const sx0 = pos[seed*3], sy0 = pos[seed*3+1], sz0 = pos[seed*3+2]
+      const m0 = Math.hypot(sx0, sy0, sz0) || 1
+      const a = Math.random() * Math.PI * 2, e = Math.acos(2 * Math.random() - 1)
+      const rx0 = Math.sin(e) * Math.cos(a), ry0 = Math.cos(e), rz0 = Math.sin(e) * Math.sin(a)
+      // Two parts inward to one part random: still organic, still contained.
+      const dx0 = -sx0 / m0 * 0.7 + rx0 * 0.3
+      const dy0 = -sy0 / m0 * 0.7 + ry0 * 0.3
+      const dz0 = -sz0 / m0 * 0.7 + rz0 * 0.3
+      const dm = Math.hypot(dx0, dy0, dz0) || 1
+      grow(sx0, sy0, sz0, dx0 / dm, dy0 / dm, dz0 / dm, 0.085, 0)
+    }
+    const treeGeo = reg(new THREE.BufferGeometry())
+    treeGeo.setAttribute('position', new THREE.Float32BufferAttribute(treeSeg, 3))
+    treeGeo.setAttribute('color', new THREE.Float32BufferAttribute(treeCol, 3))
+    const treeMat = reg(new THREE.LineBasicMaterial({
+      vertexColors: true, transparent: true, opacity: 0.85,
       blending: THREE.AdditiveBlending, depthWrite: false,
-    })
-    const sColAttr = sGeo.getAttribute('color') as THREE.BufferAttribute
-    group.add(new THREE.LineSegments(sGeo, sMat))
+    }))
+    group.add(new THREE.LineSegments(treeGeo, treeMat))
+    const treeColAttr = treeGeo.getAttribute('color') as THREE.BufferAttribute
+    const treeColArr = treeColAttr.array as Float32Array
 
     // ── Travelling signals ─────────────────────────────────────────────────
-    const P = mode === 'preview' ? (mobile ? 30 : 52) : (mobile ? 44 : 84)
-    const pPos = new Float32Array(P * 3)
-    const pCol = new Float32Array(P * 3)
-    const pSyn = new Int32Array(P)
-    const pT   = new Float32Array(P)
-    const pSpd = new Float32Array(P)
-    for (let i = 0; i < P; i++) { pSyn[i] = (Math.random()*S)|0; pT[i] = Math.random(); pSpd[i] = 0.5 + Math.random()*0.9 }
-    const pGeo = new THREE.BufferGeometry()
-    pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3))
-    pGeo.setAttribute('color', new THREE.BufferAttribute(pCol, 3))
-    const pMat = new THREE.PointsMaterial({
-      size: 0.10, map: tex, vertexColors: true, transparent: true, opacity: 0.95,
+    const P = mode === 'preview' ? (mobile ? 26 : 44) : (mobile ? 40 : 72)
+    const pPos = new Float32Array(P * 3), pCol = new Float32Array(P * 3)
+    const pA = new Int32Array(P), pB = new Int32Array(P)
+    const pT = new Float32Array(P), pSpd = new Float32Array(P)
+    for (let i = 0; i < P; i++) {
+      pA[i] = (Math.random() * N) | 0; pB[i] = (Math.random() * N) | 0
+      pT[i] = Math.random(); pSpd[i] = 0.4 + Math.random() * 0.8
+    }
+    const sigGeo = reg(new THREE.BufferGeometry())
+    sigGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3))
+    sigGeo.setAttribute('color', new THREE.BufferAttribute(pCol, 3))
+    const sigMat = reg(new THREE.PointsMaterial({
+      size: 0.075, map: tex, vertexColors: true, transparent: true, opacity: 0.95,
       blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true,
-    })
-    group.add(new THREE.Points(pGeo, pMat))
+    }))
+    group.add(new THREE.Points(sigGeo, sigMat))
 
-    // Core glow, sitting in the deep structures rather than at the origin.
-    const coreMat = new THREE.PointsMaterial({
-      size: 1.25, map: tex, color: 0xff8a44, transparent: true, opacity: 0,
-      blending: THREE.AdditiveBlending, depthWrite: false,
-    })
-    const coreGeo = new THREE.BufferGeometry()
-    coreGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([0, -0.04, -0.02]), 3))
-    const core = new THREE.Points(coreGeo, coreMat)
-    group.add(core)
+    // ── Tonotopic marker: where this pitch lands ───────────────────────────
+    const markGeo = reg(new THREE.BufferGeometry())
+    markGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3))
+    const markMat = reg(new THREE.PointsMaterial({
+      size: 0.30, map: tex, transparent: true, opacity: 0.85,
+      blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true,
+    }))
+    group.add(new THREE.Points(markGeo, markMat))
+    const markAttr = markGeo.getAttribute('position') as THREE.BufferAttribute
 
     scene.add(new THREE.AmbientLight('#ffffff', 0.4))
 
-    // ── Camera ─────────────────────────────────────────────────────────────
-    const baseZ = camera.position.z
-    const zoom = createRestingZoom({
-      base: mode === 'preview' ? baseZ * 1.18 : baseZ * 1.28,
-      min: baseZ * 0.45,
-      max: baseZ * 2.2,
+    // ── Controls ───────────────────────────────────────────────────────────
+    const baseDist = mode === 'preview' ? 3.9 : 4.1
+    const orbit = createOrbit(root, {
+      baseDist, minDist: 1.8, maxDist: 9,
+      idleSpin: mode === 'preview' ? 0.2 : 0.13,
+      // Open on three-quarters: dead-on the frontal pole the two hemispheres
+      // foreshorten into a narrow sliver.
+      initialYaw: -0.85, initialPitch: 0.12,
     })
-    camera.position.z = zoom.z
-    const onWheel = (e: WheelEvent) => { e.preventDefault(); zoom.apply(Math.exp(e.deltaY * 0.0015)) }
-    if (mode === 'session') root.addEventListener('wheel', onWheel, { passive: false })
-    const detachPinch = attachPinchZoom(root, f => zoom.apply(f))
+    const onDown = () => { renderer.domElement.style.cursor = 'grabbing' }
+    const onUp = () => { renderer.domElement.style.cursor = 'grab' }
+    root.addEventListener('pointerdown', onDown)
+    window.addEventListener('pointerup', onUp)
 
     let onScreen = true
     const io = new IntersectionObserver(([e]) => { onScreen = e.isIntersecting }, { rootMargin: '100px' })
     io.observe(root)
 
     // ── Animation ──────────────────────────────────────────────────────────
-    let last = performance.now()
-    let elapsed = 0
-    let aSmooth = mode === 'preview' ? 0.3 : 0.08
-    // Region activation is eased rather than switched, so changing band looks
-    // like the rhythm migrating across the brain instead of a hard cut.
-    const regSmooth: Record<Region, number> = {
-      frontal: 0.2, parietal: 0.2, temporal: 0.2, occipital: 0.2,
-      cerebellum: 0.2, brainstem: 0.2, deep: 0.2,
-    }
+    let last = performance.now(), elapsed = 0
+    let aSmooth = mode === 'preview' ? 0.3 : Math.max(0.06, Math.min(1, progRef.current))
+    const regSmooth: Record<Region, number> =
+      { ...regionWeights(bandRef.current, mode === 'preview' ? 0 : elapsedRef.current) }
     let dataArray: Uint8Array<ArrayBuffer> | null = null
-    const nColAttr = nGeo.getAttribute('color') as THREE.BufferAttribute
-    const tmp = tmp3
+    const colAttr = cellGeo.getAttribute('color') as THREE.BufferAttribute
+    const tmp = new Float32Array(3)
 
     function animate() {
       frameRef.current = requestAnimationFrame(animate)
       if (!onScreen || document.hidden) { last = performance.now(); return }
       const now = performance.now(); const dt = Math.min(0.05, (now - last) / 1000); last = now
       elapsed += dt
-      const playing = playingRef.current
 
       let rms = 0
       const an = analyserRef?.current
-      if (an && playing) {
+      if (an && playingRef.current) {
         if (!dataArray || dataArray.length !== an.fftSize) dataArray = new Uint8Array(an.fftSize) as Uint8Array<ArrayBuffer>
         an.getByteTimeDomainData(dataArray)
         let sum = 0
@@ -382,81 +385,91 @@ export default function NeuralBrain({
         rms = Math.sqrt(sum / dataArray.length)
       }
 
-      // Global drive
-      let target: number
-      if (mode === 'preview') target = 0.28 + 0.72 * (0.5 - 0.5 * Math.cos(elapsed * 0.6))
-      else target = Math.max(0.06, Math.min(1, progRef.current))
+      const target = mode === 'preview'
+        ? 0.28 + 0.72 * (0.5 - 0.5 * Math.cos(elapsed * 0.6))
+        : Math.max(0.06, Math.min(1, progRef.current))
       aSmooth += (target - aSmooth) * Math.min(1, dt * 1.6)
       const A = aSmooth
 
-      // Ease each region toward the focus profile of the current band.
-      const focus = BAND_FOCUS[bandRef.current] ?? BAND_FOCUS.alpha
+      // Preview has no clock, so it walks a session's worth of time on a loop.
+      const secs = mode === 'preview' ? (elapsed * 60) % 900 : elapsedRef.current
+      const want = regionWeights(bandRef.current, secs)
       for (const k of Object.keys(regSmooth) as Region[]) {
-        regSmooth[k] += (focus[k] - regSmooth[k]) * Math.min(1, dt * 1.1)
+        regSmooth[k] += (want[k] - regSmooth[k]) * Math.min(1, dt * 1.1)
       }
 
-      // The band's own rhythm, visible as a travelling pulse through the tissue
-      // rather than a uniform brightness — 2 Hz delta genuinely looks slower
-      // than 40 Hz gamma.
       const beatHz = { delta: 2, theta: 6, alpha: 9, beta: 18, gamma: 40 }[bandRef.current] ?? 9
       const beatPhase = elapsed * Math.min(beatHz, 12) * 1.4
+      const env = 0.5 + 0.5 * Math.sin(beatPhase)
+      const tpos = tonotopicPosition(hzRef.current)
 
       for (let i = 0; i < N; i++) {
-        const rw = regSmooth[region[i]]
-        // A cell fires when the drive, weighted by how much this rhythm
-        // recruits its region, clears its own threshold.
-        const local = A * rw
+        const rw = regSmooth[cellRegion[i]]
+        let local = A * rw
+        // The tonotopic band: cells near this pitch's place run hotter than
+        // their neighbours, and the band is narrow.
+        if (cellRegion[i] === 'auditory') {
+          const near = 1 - Math.min(1, Math.abs(tono[i] - tpos) / 0.16)
+          local = Math.max(local, (0.35 + 0.65 * A) * near)
+        }
         const a = smoothstep(th[i] - 0.12, th[i] + 0.10, local)
         const ripple = 0.06 * Math.sin(beatPhase + jitter[i]) * a
-        const hv = 0.05 + a * 0.86 + rms * 0.30 + ripple
-        heat(hv, tmp, 0)
-        nCol[i*3] = tmp[0]; nCol[i*3+1] = tmp[1]; nCol[i*3+2] = tmp[2]
+        heat(0.05 + a * 0.70 + rms * 0.22 + ripple, tmp, 0)
+        col[i*3] = tmp[0]; col[i*3+1] = tmp[1]; col[i*3+2] = tmp[2]
       }
-      nColAttr.needsUpdate = true
+      colAttr.needsUpdate = true
 
-      for (let s = 0; s < S; s++) {
-        const a = sa[s], b = sb[s], m = 0.45
-        segCol[s*6]   = nCol[a*3]*m;   segCol[s*6+1] = nCol[a*3+1]*m; segCol[s*6+2] = nCol[a*3+2]*m
-        segCol[s*6+3] = nCol[b*3]*m;   segCol[s*6+4] = nCol[b*3+1]*m; segCol[s*6+5] = nCol[b*3+2]*m
+      // Trees take the colour of the region they grew from.
+      for (let s = 0; s < treeSegRegion.length; s++) {
+        const rw = regSmooth[treeRegion[treeSegRegion[s]]]
+        heat(0.15 + A * rw * 0.85 + rms * 0.2, tmp, 0)
+        const b = 0.55 + 0.45 * rw
+        for (let e2 = 0; e2 < 2; e2++) {
+          const o = s * 6 + e2 * 3
+          treeColArr[o] = tmp[0] * b; treeColArr[o+1] = tmp[1] * b; treeColArr[o+2] = tmp[2] * b
+        }
       }
-      sColAttr.needsUpdate = true
-      sMat.opacity = 0.22 + A * 0.26
+      treeColAttr.needsUpdate = true
+      treeMat.opacity = 0.55 + A * 0.35
 
-      const pPosAttr = pGeo.getAttribute('position') as THREE.BufferAttribute
-      const pColAttr = pGeo.getAttribute('color') as THREE.BufferAttribute
+      const sigPosAttr = sigGeo.getAttribute('position') as THREE.BufferAttribute
+      const sigColAttr = sigGeo.getAttribute('color') as THREE.BufferAttribute
       for (let i = 0; i < P; i++) {
-        pT[i] += pSpd[i] * dt * (0.6 + A)
-        if (pT[i] >= 1) { pT[i] = 0; pSyn[i] = (Math.random()*S)|0 }
-        const s = pSyn[i], a = sa[s], b = sb[s], t = pT[i]
-        pPos[i*3]   = pos[a*3]   + (pos[b*3]   - pos[a*3])   * t
-        pPos[i*3+1] = pos[a*3+1] + (pos[b*3+1] - pos[a*3+1]) * t
-        pPos[i*3+2] = pos[a*3+2] + (pos[b*3+2] - pos[a*3+2]) * t
-        const act = smoothstep(th[a] - 0.12, th[a] + 0.10, A * regSmooth[region[a]])
-        heat(0.62 + act * 0.38, tmp, 0)
-        const bright = 0.18 + act * 0.82
-        pCol[i*3] = tmp[0]*bright; pCol[i*3+1] = tmp[1]*bright; pCol[i*3+2] = tmp[2]*bright
+        pT[i] += pSpd[i] * dt * (0.5 + A)
+        if (pT[i] >= 1) { pT[i] = 0; pA[i] = (Math.random()*N)|0; pB[i] = (Math.random()*N)|0 }
+        const a = pA[i], b = pB[i], u = pT[i]
+        pPos[i*3]   = pos[a*3]   + (pos[b*3]   - pos[a*3])   * u
+        pPos[i*3+1] = pos[a*3+1] + (pos[b*3+1] - pos[a*3+1]) * u
+        pPos[i*3+2] = pos[a*3+2] + (pos[b*3+2] - pos[a*3+2]) * u
+        heat(0.62 + regSmooth[cellRegion[a]] * 0.38, tmp, 0)
+        pCol[i*3] = tmp[0]; pCol[i*3+1] = tmp[1]; pCol[i*3+2] = tmp[2]
       }
-      pPosAttr.needsUpdate = true; pColAttr.needsUpdate = true
+      sigPosAttr.needsUpdate = true; sigColAttr.needsUpdate = true
 
-      coreMat.opacity = (0.05 + A * 0.30 + rms * 0.18) * regSmooth.deep
-      core.scale.setScalar(0.7 + A * 0.5)
+      // Marker sits on both auditory strips at this pitch's position.
+      const mz = 0.24 - tpos * 0.5
+      markAttr.setXYZ(0, -0.46, -0.05, mz)
+      markAttr.setXYZ(1,  0.46, -0.05, mz)
+      markAttr.needsUpdate = true
+      heat(0.72 + 0.28 * env, tmp, 0)
+      markMat.color.setRGB(tmp[0], tmp[1], tmp[2])
+      markMat.opacity = 0.35 + 0.45 * env * (0.4 + 0.6 * A)
 
-      group.rotation.y = Math.sin(elapsed * 0.16) * 0.55 + elapsed * 0.035
-      group.rotation.x = Math.sin(elapsed * 0.12) * 0.07
+      shellMat.opacity = 0.045 + A * 0.03
+
+      orbit.tick(dt)
+      group.rotation.y = orbit.yaw
+      group.rotation.x = orbit.pitch
       const breathe = 1 + Math.sin(elapsed * 0.9) * 0.012 + rms * 0.04
       group.scale.setScalar(1.30 * breathe)
-
-      camera.position.z = zoom.tick(dt)
-      camera.position.x = Math.sin(elapsed * 0.2) * 0.14
+      camera.position.set(0, 0.02, orbit.dist)
       camera.lookAt(0, -0.02, 0)
       renderer.render(scene, camera)
 
       if (captionRef.current) {
-        const seat = BAND_REGION[bandRef.current] ?? BAND_REGION.alpha
-        captionRef.current.textContent =
-          A < 0.14 ? `Resting · ${seat}`
-          : A > 0.9 ? `Peak · ${seat}`
-          : `Entraining · ${seat}`
+        const seat = REGION_LABEL[BAND_SEAT[bandRef.current] ?? 'occipital']
+        const st = stageFor(secs)
+        captionRef.current.textContent = `${st.label} · ${seat}`
       }
     }
     animate()
@@ -464,32 +477,30 @@ export default function NeuralBrain({
     function onResize() {
       const nw = root.clientWidth, nh = root.clientHeight
       if (!nw || !nh) return
-      camera.aspect = nw / nh; camera.updateProjectionMatrix()
-      renderer.setSize(nw, nh)
+      camera.aspect = nw / nh; camera.updateProjectionMatrix(); renderer.setSize(nw, nh)
     }
     window.addEventListener('resize', onResize)
 
     return () => {
       window.removeEventListener('resize', onResize)
+      window.removeEventListener('pointerup', onUp)
+      root.removeEventListener('pointerdown', onDown)
       io.disconnect()
-      if (mode === 'session') root.removeEventListener('wheel', onWheel)
-      detachPinch()
+      orbit.detach()
       cancelAnimationFrame(frameRef.current)
-      nGeo.dispose(); nMat.dispose(); haloMat.dispose()
-      sGeo.dispose(); sMat.dispose()
-      pGeo.dispose(); pMat.dispose()
-      coreGeo.dispose(); coreMat.dispose()
-      tex.dispose(); renderer.dispose()
+      tex.dispose()
+      disposables.forEach(d => { try { d.dispose() } catch { /* noop */ } })
+      renderer.dispose()
       if (root.contains(renderer.domElement)) root.removeChild(renderer.domElement)
     }
   }, [mode, analyserRef])
 
   return (
-    <div ref={rootRef} style={{ position: 'absolute', inset: 0, overflow: 'hidden', touchAction: 'pan-y', background: 'radial-gradient(circle at 50% 45%, #0a1024 0%, #05050c 72%)' }}>
+    <div ref={rootRef} style={{ position: 'absolute', inset: 0, overflow: 'hidden', background: 'radial-gradient(circle at 50% 45%, #0a1024 0%, #05050c 72%)' }}>
       {mode === 'session' && caption && (
         <div style={{ position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)', zIndex: 5, pointerEvents: 'none' }}>
           <span ref={captionRef} className="glass" style={{ padding: '5px 14px', borderRadius: 999, fontSize: '0.72rem', fontWeight: 700, color: 'var(--t2)', letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
-            Resting state
+            Arrival
           </span>
         </div>
       )}

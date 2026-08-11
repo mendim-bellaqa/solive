@@ -717,6 +717,8 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
             analyserRef={analyserRef}
             mode="session"
             band={activeBand}
+            hz={hz}
+            elapsedSeconds={elapsed}
             progress={
               sessionEnded ? 1
               : totalSeconds === Infinity ? Math.min(1, elapsed / 1800)
