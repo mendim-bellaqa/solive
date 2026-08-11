@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { attachPinchZoom } from '@/lib/attachZoom'
 import { createRestingZoom } from '@/lib/restingZoom'
-import type { BinauralBand } from '@/lib/frequencies'
+import { BAND_REGION, type BinauralBand } from '@/lib/frequencies'
 
 interface Props {
   isPlaying: boolean
@@ -14,6 +14,9 @@ interface Props {
   progress?: number
   /** Which rhythm is playing. Decides *where* the brain lights up, not just how much. */
   band?: BinauralBand
+  /** The floating state pill. Off where the host already labels the viewport —
+   *  two captions in one corner collide on a phone. */
+  caption?: boolean
   analyserRef?: React.MutableRefObject<AnalyserNode | null>
 }
 
@@ -50,21 +53,6 @@ const BAND_FOCUS: Record<BinauralBand, Record<Region, number>> = {
   alpha: { occipital: 1.0, parietal: 0.75, temporal: 0.35, frontal: 0.25, deep: 0.3, cerebellum: 0.2, brainstem: 0.15 },
   beta:  { frontal: 1.0, parietal: 0.85, temporal: 0.45, occipital: 0.3, deep: 0.3, cerebellum: 0.4, brainstem: 0.2 },
   gamma: { frontal: 0.95, parietal: 0.95, temporal: 0.9, occipital: 0.85, deep: 0.6, cerebellum: 0.5, brainstem: 0.3 },
-}
-
-const REGION_LABEL: Record<Region, string> = {
-  frontal: 'Frontal cortex',
-  parietal: 'Parietal cortex',
-  temporal: 'Temporal lobe · hippocampal',
-  occipital: 'Occipital cortex',
-  cerebellum: 'Cerebellum',
-  brainstem: 'Brainstem',
-  deep: 'Thalamus · deep structures',
-}
-
-/** The structure each band is named for, for the caption. */
-const BAND_SEAT: Record<BinauralBand, Region> = {
-  delta: 'deep', theta: 'temporal', alpha: 'occipital', beta: 'frontal', gamma: 'parietal',
 }
 
 // ─── Cool → hot activation gradient ───────────────────────────────────────────
@@ -171,7 +159,7 @@ function cerebrumPoint(out: Float32Array, o: number): Region {
 }
 
 export default function NeuralBrain({
-  isPlaying, mode = 'session', progress = 0, band = 'alpha', analyserRef,
+  isPlaying, mode = 'session', progress = 0, band = 'alpha', caption = true, analyserRef,
 }: Props) {
   const rootRef    = useRef<HTMLDivElement>(null)
   const captionRef = useRef<HTMLSpanElement>(null)
@@ -463,8 +451,8 @@ export default function NeuralBrain({
       camera.lookAt(0, -0.02, 0)
       renderer.render(scene, camera)
 
-      if (captionRef.current && mode === 'session') {
-        const seat = REGION_LABEL[BAND_SEAT[bandRef.current] ?? 'occipital']
+      if (captionRef.current) {
+        const seat = BAND_REGION[bandRef.current] ?? BAND_REGION.alpha
         captionRef.current.textContent =
           A < 0.14 ? `Resting · ${seat}`
           : A > 0.9 ? `Peak · ${seat}`
@@ -498,7 +486,7 @@ export default function NeuralBrain({
 
   return (
     <div ref={rootRef} style={{ position: 'absolute', inset: 0, overflow: 'hidden', touchAction: 'pan-y', background: 'radial-gradient(circle at 50% 45%, #0a1024 0%, #05050c 72%)' }}>
-      {mode === 'session' && (
+      {mode === 'session' && caption && (
         <div style={{ position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)', zIndex: 5, pointerEvents: 'none' }}>
           <span ref={captionRef} className="glass" style={{ padding: '5px 14px', borderRadius: 999, fontSize: '0.72rem', fontWeight: 700, color: 'var(--t2)', letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
             Resting state
