@@ -36,7 +36,7 @@ export const PLANS: Plan[] = [
     highlight: true,
     features: [
       'Full-length audio — replay any tone, any time',
-      'Sessions up to 60 minutes',
+      'Sessions up to 30 minutes',
       'Star your favourite sessions',
       'All 3D experiences — Brain, Aura & Cymatics',
       'Any frequency + curated library',
@@ -51,7 +51,7 @@ export const PLANS: Plan[] = [
     tagline: 'For daily practice & tracking.',
     features: [
       'Everything in Plus',
-      'Open-ended sessions — run until you stop them',
+      'Long sessions — 45 and 60 minutes, or open-ended',
       'Save & track your session history',
       'Before/after progress insights',
       'Early access to new visualizations',
@@ -76,7 +76,7 @@ export interface PlanLimits {
  */
 export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
   free: { previewSeconds: 60, maxMinutes: 1, allViz: true, history: true, favorites: false },
-  plus: { previewSeconds: Infinity, maxMinutes: 60, allViz: true, history: true, favorites: true },
+  plus: { previewSeconds: Infinity, maxMinutes: 30, allViz: true, history: true, favorites: true },
   pro:  { previewSeconds: Infinity, maxMinutes: Infinity, allViz: true, history: true, favorites: true },
 }
 

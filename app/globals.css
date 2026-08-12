@@ -2425,3 +2425,229 @@ button { font-family: inherit; cursor: pointer; }
   .hs-hz { font-size: 0.8rem; }
   .hs-label { gap: 0; }
 }
+
+/* ─── Avatar picker ──────────────────────────────────────────────────────── */
+
+.avatar-grid {
+  display: grid;
+  /* Twelve marks: four across on a phone, six on anything wider, so the set
+     always reads as one block rather than a ragged tail. */
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+@media (min-width: 560px) {
+  .avatar-grid { grid-template-columns: repeat(6, 1fr); }
+}
+
+.avatar-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 12px 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--glass-1);
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.16s, border-color 0.16s, transform 0.12s;
+}
+
+.avatar-cell:hover { background: var(--glass-2); border-color: var(--border-mid); }
+.avatar-cell:active { transform: scale(0.96); }
+.avatar-cell[data-on] { box-shadow: inset 0 1px 0 rgba(255,255,255,0.12); }
+
+.avatar-name {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--t4);
+  white-space: nowrap;
+}
+
+.avatar-cell[data-on] .avatar-name { color: var(--t2); }
+
+.avatar-busy {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  border: 1.5px solid var(--accent-mid);
+  border-top-color: var(--accent);
+  animation: spin-cw 0.7s linear infinite;
+}
+
+/* ─── Evidence scale ─────────────────────────────────────────────────────── */
+
+.ev-axis {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--t4);
+}
+
+.ev-axis-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, #e08a6a55, #ffd16655, #8be0ff55, #5ce8b055);
+}
+
+.ev-list { display: flex; flex-direction: column; gap: 20px; }
+
+.ev-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 7px;
+}
+
+.ev-label {
+  font-size: 0.88rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--t1);
+}
+
+.ev-verdict {
+  flex-shrink: 0;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.ev-track {
+  position: relative;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.06);
+}
+
+.ev-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  transform-origin: 0 50%;
+}
+
+.ev-dot {
+  position: absolute;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  margin-left: -4.5px;
+  border-radius: 999px;
+  transform: translateY(-50%);
+}
+
+.ev-note {
+  margin-top: 8px;
+  font-size: 0.76rem;
+  line-height: 1.6;
+  color: var(--t3);
+  text-wrap: pretty;
+}
+
+/* ─── Spectrum sweep ─────────────────────────────────────────────────────── */
+
+.sweep-label { display: block; }
+
+.sweep-marks {
+  position: relative;
+  height: 26px;
+  margin-top: 6px;
+}
+
+.sweep-mark {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  padding: 3px 7px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: none;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--t4);
+  white-space: nowrap;
+  transition: color 0.16s, border-color 0.16s, background 0.16s;
+}
+
+.sweep-mark:hover { color: var(--t2); }
+.sweep-mark[data-on] {
+  color: var(--t1);
+  border-color: var(--border-mid);
+  background: var(--glass-1);
+}
+
+.tono {
+  margin-top: 18px;
+  padding: 14px 15px 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--glass-1);
+}
+
+.tono-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 11px;
+}
+
+.tono-band {
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.tono-strip {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  /* Cochlear order: the strip is a keyboard, not a gauge. */
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0.05), rgba(255,255,255,0.16) 45%, rgba(255,255,255,0.05));
+}
+
+.tono-dot {
+  position: absolute;
+  top: 50%;
+  width: 11px;
+  height: 11px;
+  margin-left: -5.5px;
+  border-radius: 999px;
+  transform: translateY(-50%);
+  transition: left 0.12s linear;
+}
+
+.tono-ends {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 7px;
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--t4);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

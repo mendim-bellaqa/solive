@@ -5,10 +5,12 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { usePlan, PLANS } from '@/lib/plan'
+import Avatar from '@/components/Avatar'
 
 interface UserInfo {
   email: string | null
   name: string | null
+  avatarId: string | null
 }
 
 function fmtDate(d: Date) {
@@ -70,7 +72,8 @@ export default function Header() {
       if (!supabase) return
       const toUser = (u: { email?: string | null; user_metadata?: Record<string, unknown> } | null) =>
         u ? { email: u.email ?? null,
-              name: (u.user_metadata?.full_name as string) ?? (u.user_metadata?.name as string) ?? null }
+              name: (u.user_metadata?.full_name as string) ?? (u.user_metadata?.name as string) ?? null,
+              avatarId: (u.user_metadata?.avatar_id as string) ?? null }
           : null
       supabase.auth.getUser().then(({ data }) => { if (active) setUser(toUser(data.user)) })
       const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
@@ -241,18 +244,22 @@ export default function Header() {
                 whileTap={{ scale: 0.97 }}
               >
                 {/* Avatar */}
-                <motion.div
-                  className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
-                  animate={{ borderColor: accentColor }}
-                  transition={{ duration: 1.2 }}
-                  style={{
-                    background: `${accentColor}22`,
-                    border: `1.5px solid ${accentColor}60`,
-                    color: accentColor,
-                  }}
-                >
-                  {initial}
-                </motion.div>
+                {user?.avatarId ? (
+                  <Avatar id={user.avatarId} size={28} />
+                ) : (
+                  <motion.div
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
+                    animate={{ borderColor: accentColor }}
+                    transition={{ duration: 1.2 }}
+                    style={{
+                      background: `${accentColor}22`,
+                      border: `1.5px solid ${accentColor}60`,
+                      color: accentColor,
+                    }}
+                  >
+                    {initial}
+                  </motion.div>
+                )}
                 <span className="hidden sm:block text-sm font-medium max-w-[100px] truncate"
                       style={{ color: 'var(--text-secondary)' }}>
                   {displayName}

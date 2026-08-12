@@ -12,6 +12,8 @@ const HeroOrb        = dynamic(() => import('@/components/HeroOrb'), { ssr: fals
 const EntrainmentLab = dynamic(() => import('@/components/home/EntrainmentLab'), { ssr: false })
 const PathwayDiagram = dynamic(() => import('@/components/home/PathwayDiagram'), { ssr: false })
 const CarrierCeiling = dynamic(() => import('@/components/home/CarrierCeiling'), { ssr: false })
+const SpectrumSweep  = dynamic(() => import('@/components/home/SpectrumSweep'), { ssr: false })
+const EvidenceScale  = dynamic(() => import('@/components/home/EvidenceScale'), { ssr: false })
 const StateSelector  = dynamic(() => import('@/components/home/StateSelector'), { ssr: false })
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
@@ -422,6 +424,15 @@ export default function HomePage() {
 
         <hr className="rule" />
 
+        {/* ═══════════════ SPECTRUM SWEEP ════════════════════════════════ */}
+        <section className="section">
+          <div className="wrap">
+            <SpectrumSweep />
+          </div>
+        </section>
+
+        <hr className="rule" />
+
         {/* ═══════════════ STATES ════════════════════════════════════════ */}
         <section className="section">
           <div className="wrap">
@@ -474,17 +485,14 @@ export default function HomePage() {
           <div className="wrap-sm">
             <Reveal>
               <div className="card" style={{ padding: 'clamp(24px, 4vw, 34px)' }}>
-                <span className="eyebrow" style={{ marginBottom: 12 }}>Where the evidence actually stands</span>
-                <p style={{ fontSize: '0.86rem', lineHeight: 1.75, color: 'var(--t2)' }}>
-                  Entrainment, binaural beats and cymatics are real, measurable phenomena, and
-                  everything explained on this page is drawn from published auditory science.
-                  The size of the <em>behavioural</em> effect is a separate question: reviews
-                  find small-to-moderate benefits for anxiety, attention and memory, with
-                  results that vary by person and by protocol. Claims attaching a specific
-                  healing property to a specific Hz value are tradition rather than evidence —
-                  we name those tones because people look for them, not because a study
-                  established them.
+                <span className="eyebrow" style={{ marginBottom: 6 }}>Where the evidence actually stands</span>
+                <p style={{ fontSize: '0.86rem', lineHeight: 1.75, color: 'var(--t2)', margin: '10px 0 22px' }}>
+                  Everything explained on this page is drawn from published auditory science —
+                  but not every claim in this field is equally well supported, and it is worth
+                  seeing which is which.
                 </p>
+                <EvidenceScale />
+                <hr className="rule" style={{ margin: '26px 0 20px' }} />
                 <p style={{ fontSize: '0.86rem', lineHeight: 1.75, color: 'var(--t2)', marginTop: 14 }}>
                   hzaura is built for calm, focus and curiosity. It is not a medical device
                   and not a treatment. If you have epilepsy or a seizure disorder, talk to a
@@ -523,7 +531,7 @@ export default function HomePage() {
               <span className="eyebrow">Start now</span>
               <h2 className="display" style={{ fontSize: 'clamp(2.2rem, 5.4vw, 3.8rem)', margin: '18px 0 18px' }}>
                 Put on headphones.<br />
-                <span className="spectral">Give it seven minutes.</span>
+                <span className="spectral">Give it a try.</span>
               </h2>
               <p className="lede" style={{ margin: '0 auto 34px' }}>
                 Pick a tone, or answer six questions and let hzaura choose the carrier,

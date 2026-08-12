@@ -260,31 +260,6 @@ export default function SessionPage() {
           </motion.div>
         )}
 
-        {/* ── Live preview ─────────────────────────────────────────────────── */}
-        <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }}
-          className="player-surface" style={{ position: 'relative', aspectRatio: '4 / 3', marginBottom: 8 }}>
-          {viz === 'frequency'
-            ? <ThreeVisualizer hz={hz} isPlaying={false} analyserRef={{ current: null }} colorHex={color} vizMode="lissajous" />
-            : viz === 'brain'
-            ? <NeuralBrain isPlaying={false} mode="preview" band={band} hz={hz} />
-            : <Biofield colorHex={color} isPlaying={false} quality="preview" />
-          }
-          <div style={{ position: 'absolute', top: 12, left: 14, zIndex: 5, pointerEvents: 'none' }}>
-            <p style={{ fontSize: '0.62rem', letterSpacing: '0.12em', color: 'var(--t3)', fontWeight: 700, marginBottom: 2 }}>
-              PREVIEW
-            </p>
-            <p style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--t1)' }}>
-              {VIZ_OPTIONS.find(v => v.id === viz)?.sub}
-            </p>
-          </div>
-          <div style={{ position: 'absolute', bottom: 12, right: 14, zIndex: 5, pointerEvents: 'none', textAlign: 'right' }}>
-            <p style={{ fontSize: '1.5rem', fontWeight: 900, lineHeight: 1, color, letterSpacing: '-0.03em' }}>
-              {fmtHz(hz)}<span style={{ fontSize: '0.7rem', fontWeight: 500, color: 'var(--t3)', marginLeft: 3 }}>Hz</span>
-            </p>
-            <p style={{ fontSize: '0.68rem', color: 'var(--t2)', fontWeight: 600 }}>{title}</p>
-          </div>
-        </motion.div>
-
         {/* ── Step 1 · Frequency ───────────────────────────────────────────── */}
         <SectionLabel n={1} text="Choose your frequency" />
 
@@ -375,6 +350,33 @@ export default function SessionPage() {
             {VIZ_OPTIONS.find(v => v.id === viz)?.desc}
           </motion.p>
         </AnimatePresence>
+
+        {/* ── Live preview ─────────────────────────────────────────────────────
+            Sits after both choices it renders: the tone and the visual. Above
+            them it was showing a session nobody had picked yet. */}
+        <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }}
+          className="player-surface" style={{ position: 'relative', aspectRatio: '4 / 3', marginTop: 4, marginBottom: 30 }}>
+          {viz === 'frequency'
+            ? <ThreeVisualizer hz={hz} isPlaying={false} analyserRef={{ current: null }} colorHex={color} vizMode="lissajous" />
+            : viz === 'brain'
+            ? <NeuralBrain isPlaying={false} mode="preview" band={band} hz={hz} />
+            : <Biofield colorHex={color} isPlaying={false} quality="preview" />
+          }
+          <div style={{ position: 'absolute', top: 12, left: 14, zIndex: 5, pointerEvents: 'none' }}>
+            <p style={{ fontSize: '0.62rem', letterSpacing: '0.12em', color: 'var(--t3)', fontWeight: 700, marginBottom: 2 }}>
+              PREVIEW
+            </p>
+            <p style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--t1)' }}>
+              {VIZ_OPTIONS.find(v => v.id === viz)?.sub}
+            </p>
+          </div>
+          <div style={{ position: 'absolute', bottom: 12, right: 14, zIndex: 5, pointerEvents: 'none', textAlign: 'right' }}>
+            <p style={{ fontSize: '1.5rem', fontWeight: 900, lineHeight: 1, color, letterSpacing: '-0.03em' }}>
+              {fmtHz(hz)}<span style={{ fontSize: '0.7rem', fontWeight: 500, color: 'var(--t3)', marginLeft: 3 }}>Hz</span>
+            </p>
+            <p style={{ fontSize: '0.68rem', color: 'var(--t2)', fontWeight: 600 }}>{title}</p>
+          </div>
+        </motion.div>
 
         {/* ── Step 3 · Brainwave band ──────────────────────────────────────── */}
         <SectionLabel n={3} text="Choose the brainwave target" />
@@ -467,13 +469,13 @@ export default function SessionPage() {
                 <strong style={{ color: 'var(--t1)' }}>{previewLabel(previewSecondsFor('free', signedIn))}</strong>{' '}
                 of audio on <strong style={{ color: 'var(--t1)' }}>every frequency</strong>, once each per day —
                 the visuals keep running either way.
-                {!signedIn && ' Signing in doubles it to a full minute.'}
+                {!signedIn && ' Sign in for a longer listen \u2014 a full minute on every tone.'}
                 {thisOneSpent
                   ? ` You have already heard ${hz.toLocaleString('en-US')} Hz today; it opens again in ${hoursUntilReset()}h, and every other tone is still free to try.`
                   : spentToday > 0
                     ? ` ${spentToday} tone${spentToday === 1 ? '' : 's'} sampled today.`
                     : ''}
-                {' '}Plus replays anything, any time, up to 60 minutes; Pro runs open-ended. <span style={{ color: 'var(--accent)' }}>See plans →</span>
+                {' '}Plus replays anything, any time, up to 30 minutes; Pro runs 45, 60 or open-ended. <span style={{ color: 'var(--accent)' }}>See plans →</span>
               </>
             ) : (
               <>
