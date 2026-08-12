@@ -28,6 +28,31 @@ export default function FrequencyPicker({ open, selectedHz, onPick, onClose }: {
 
   const q = query.trim().toLowerCase()
 
+  /** The query read as a frequency, when it is one. Every value from 1 to
+   *  20,000 Hz is playable, so a number typed here is a result in its own
+   *  right — the catalogue is a set of shortcuts into that range, not the
+   *  extent of it. Returning "nothing matches" for 536 was describing the
+   *  library's contents as though they were the product's limits. */
+  const typedHz = useMemo(() => {
+    const raw = query.trim()
+    if (!/^\d+(\.\d+)?$/.test(raw)) return null
+    const n = Number(raw)
+    if (!Number.isFinite(n) || n < 1 || n > 20000) return null
+    return Math.round(n * 10) / 10
+  }, [query])
+
+  /** True when the typed number is already a curated entry, so it is not
+   *  offered twice. */
+  const typedIsCurated = typedHz !== null && FREQ_CATALOG.some(e => e.hz === typedHz)
+
+  /** A number was typed, but outside the playable range. */
+  const typedOutOfRange = useMemo(() => {
+    const raw = query.trim()
+    if (!/^\d+(\.\d+)?$/.test(raw)) return false
+    const n = Number(raw)
+    return Number.isFinite(n) && (n < 1 || n > 20000)
+  }, [query])
+
   const matches = useMemo(() => {
     const pool = cat === 'all' ? FREQ_CATALOG : FREQ_CATALOG.filter(e => e.category === cat)
     if (!q) return pool
@@ -64,14 +89,7 @@ export default function FrequencyPicker({ open, selectedHz, onPick, onClose }: {
     }
   }, [open, onClose])
 
-  function playCustom() {
-    const n = Number(custom)
-    if (!Number.isFinite(n) || n < 1 || n > 20000) {
-      setCustomError(true)
-      setTimeout(() => setCustomError(false), 700)
-      return
-    }
-    const hz = Math.round(n * 10) / 10
+  function pickHz(hz: number) {
     onPick({
       hz,
       name: `${fmtHz(hz)} Hz`,
@@ -81,6 +99,16 @@ export default function FrequencyPicker({ open, selectedHz, onPick, onClose }: {
       band: hz < 100 ? 'delta' : hz < 500 ? 'alpha' : 'beta',
       category: 'tuning',
     })
+  }
+
+  function playCustom() {
+    const n = Number(custom)
+    if (!Number.isFinite(n) || n < 1 || n > 20000) {
+      setCustomError(true)
+      setTimeout(() => setCustomError(false), 700)
+      return
+    }
+    pickHz(Math.round(n * 10) / 10)
     setCustom('')
   }
 
@@ -158,14 +186,41 @@ export default function FrequencyPicker({ open, selectedHz, onPick, onClose }: {
 
               <p className="pick-count">
                 {q || cat !== 'all'
-                  ? `${matches.length} ${matches.length === 1 ? 'tone' : 'tones'}`
-                  : `${FREQ_CATALOG.length} tones · ${FREQ_CATEGORIES.length} traditions`}
+                  ? `${matches.length} curated ${matches.length === 1 ? 'match' : 'matches'}${typedHz !== null && !typedIsCurated ? ' · plus the exact tone below' : ''}`
+                  : `${FREQ_CATALOG.length} curated shortcuts · any tone from 1 to 20,000 Hz`}
                 {cat !== 'all' && !q && ` · ${FREQ_CATEGORIES.find(c => c.id === cat)?.blurb}`}
               </p>
 
+              {typedHz !== null && !typedIsCurated && (
+                <button
+                  type="button"
+                  onClick={() => pickHz(typedHz)}
+                  className="pick-row"
+                  style={{ borderColor: 'var(--accent-mid)', background: 'var(--accent-dim)', marginBottom: 6 }}
+                >
+                  <span className="freq-hz" style={{ color: 'var(--accent)' }}>
+                    {fmtHz(typedHz)}
+                    <span className="freq-hz-unit">Hz</span>
+                  </span>
+                  <span className="pick-text">
+                    <span className="pick-name">Play {fmtHz(typedHz)} Hz</span>
+                    <span className="pick-sub">Not in the curated set — every tone from 1 to 20,000 Hz plays</span>
+                  </span>
+                  <span className="freq-tag" style={{ color: 'var(--accent)', borderColor: 'var(--accent-mid)', background: 'var(--accent-dim)' }}>
+                    exact
+                  </span>
+                </button>
+              )}
+
               {matches.length === 0 ? (
                 <div className="pick-empty">
-                  <p>Nothing in the library matches “{query.trim()}”.</p>
+                  {typedHz !== null ? (
+                    <p>No curated tone at {fmtHz(typedHz)} Hz — play it anyway with the row above.</p>
+                  ) : typedOutOfRange ? (
+                    <p>“{query.trim()}” is outside the playable range. Anything from 1 to 20,000 Hz works.</p>
+                  ) : (
+                    <p>Nothing in the curated set matches “{query.trim()}”.</p>
+                  )}
                   <button type="button" onClick={() => { setQuery(''); setCat('all') }} className="btn-ghost text-sm">
                     Show everything
                   </button>
