@@ -18,11 +18,11 @@ export const DEMO_SECONDS = 5
  * Paid plans are not limited: they have already bought the thing this is
  * advertising, and interrupting them to sell it again would be absurd.
  *
- * Guests and free accounts share one allowance a day, tracked apart from the
- * studio's per-tone quota so a homepage demo never costs someone a frequency
- * they came to hear.
+ * The allowance is per demo, not per visitor: the entrainment rail exists to
+ * be compared across, so hearing alpha must not lock beta. What it stops is
+ * hearing the same one twice.
  */
-export function useDemoLimit(stopAudio: () => void) {
+export function useDemoLimit(stopAudio: () => void, key: string) {
   const { plan } = usePlan()
   const router = useRouter()
   // Guests resolve to 'free', so one check covers both.
@@ -36,7 +36,7 @@ export function useDemoLimit(stopAudio: () => void) {
   useEffect(() => { stopRef.current = stopAudio }, [stopAudio])
 
   useEffect(() => {
-    const sync = () => setSpent(limited && !isHomeDemoAvailable())
+    const sync = () => setSpent(limited && !isHomeDemoAvailable(key))
     sync()
     window.addEventListener(PREVIEW_EVENT, sync)
     window.addEventListener('storage', sync)
@@ -44,7 +44,7 @@ export function useDemoLimit(stopAudio: () => void) {
       window.removeEventListener(PREVIEW_EVENT, sync)
       window.removeEventListener('storage', sync)
     }
-  }, [limited])
+  }, [limited, key])
 
   const clear = useCallback(() => {
     if (timerRef.current !== undefined) {
@@ -60,7 +60,7 @@ export function useDemoLimit(stopAudio: () => void) {
    */
   const arm = useCallback((): boolean => {
     if (!limited) return true
-    if (!isHomeDemoAvailable()) {
+    if (!isHomeDemoAvailable(key)) {
       setSpent(true)
       router.push('/pricing?from=demo')
       return false
@@ -71,12 +71,12 @@ export function useDemoLimit(stopAudio: () => void) {
       stopRef.current()
       // Spend it at the cut, not at the start: a visitor who taps and
       // immediately taps again has not had their five seconds.
-      markHomeDemoSpent()
+      markHomeDemoSpent(key)
       setSpent(true)
       router.push('/pricing?from=demo')
     }, DEMO_SECONDS * 1000)
     return true
-  }, [limited, router, clear])
+  }, [limited, router, clear, key])
 
   // A timer left running after the component goes would fire a navigation at
   // someone who has scrolled away.

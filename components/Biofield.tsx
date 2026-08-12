@@ -251,10 +251,23 @@ export default function Biofield({ colorHex, isPlaying, analyserRef, quality = '
     const light = new THREE.PointLight(colorHex, 3, 12); light.position.set(0, 0.3, 2.5); scene.add(light)
 
     // ── Camera ─────────────────────────────────────────────────────────────
-    const baseZ = camera.position.z
+    // Frame from the box's real shape rather than a fixed distance. A
+    // perspective camera frames on vertical FOV, so a fixed distance that
+    // filled a wide desktop panel left the figure stranded in the middle of a
+    // narrow phone one with dead space either side. Fit the field in whichever
+    // axis is tighter and the subject fills the frame at any aspect.
+    const FIELD = 2.72                       // world units the torus spans
+    const halfFov = Math.tan((46 * Math.PI / 180) / 2)
+    const fitDist = (aw: number, ah: number) => {
+      const aspect = aw / ah
+      const byHeight = FIELD / (2 * halfFov)
+      const byWidth  = FIELD / (2 * halfFov * aspect)
+      return Math.max(byHeight, byWidth) * (preview ? 1.02 : 1.10)
+    }
+    const baseZ = fitDist(w, h)
     const orbit = createOrbit(root, {
-      baseDist: preview ? baseZ * 1.16 : baseZ * 1.26,
-      minDist: baseZ * 0.45,
+      baseDist: baseZ,
+      minDist: baseZ * 0.4,
       maxDist: baseZ * 2.2,
       idleSpin: 0.12,
       // Three-quarters: face-on, a symmetrical figure reads as a flat cut-out.

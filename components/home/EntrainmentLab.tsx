@@ -65,17 +65,26 @@ export default function EntrainmentLab() {
   const [idx, setIdx] = useState(2)   // open on alpha — the most legible state
   const band = BANDS[idx]
   const { playing, analyserRef, start, stop, setTones } = useBinaural()
-  const { limited, spent, arm, clear } = useDemoLimit(stop)
+  const { limited, spent, arm, clear } = useDemoLimit(stop, band.id)
 
   const wrapRef = useRef<HTMLDivElement>(null)
   // The brain is a second WebGL context; keep it unmounted until it's nearly
   // on screen so the hero orb owns the GPU during first paint.
   const near = useInView(wrapRef, { once: true, margin: '400px' })
 
-  // Retune rather than restart, so moving down the rail is a continuous glide.
+  // On a paid plan, moving down the rail retunes rather than restarts, so the
+  // comparison stays a continuous glide.
+  //
+  // On a limited one it has to stop. The countdown is armed against the band
+  // that was playing when it started, so gliding from alpha into beta would
+  // have played beta on alpha's allowance — and repeating that indefinitely
+  // costs one band for the whole rail. Stopping means the next band is a
+  // deliberate tap that spends its own.
   useEffect(() => {
-    if (playing) setTones(CARRIER, band.beat)
-  }, [band.beat, playing, setTones])
+    if (!playing) return
+    if (limited) { stop(); clear() }
+    else setTones(CARRIER, band.beat)
+  }, [band.beat, playing, limited, setTones, stop, clear])
 
   // Never leave a tone running once the module scrolls away.
   const onScreen = useInView(wrapRef, { margin: '-30%' })
@@ -248,8 +257,8 @@ export default function EntrainmentLab() {
             {limited && (
               <span style={{ display: 'block' }}>
                 {spent
-                  ? 'Today\u2019s demo is used \u2014 see the plans for unlimited audio'
-                  : `${DEMO_SECONDS}-second demo, once a day`}
+                  ? `You have heard ${band.name.toLowerCase()} today \u2014 pick another band, or see the plans`
+                  : `${DEMO_SECONDS} seconds of each band, once a day`}
               </span>
             )}
           </span>

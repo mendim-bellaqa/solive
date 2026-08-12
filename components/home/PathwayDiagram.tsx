@@ -33,7 +33,7 @@ const COPY: Record<Mode, { title: string; body: string; verdict: string; tone: s
 export default function PathwayDiagram() {
   const [mode, setMode] = useState<Mode>('headphones')
   const { playing, start, stop, setMode: setAudioMode } = useBinaural()
-  const { limited, spent, arm, clear } = useDemoLimit(stop)
+  const { limited, spent, arm, clear } = useDemoLimit(stop, 'pathway')
   const ref = useRef<HTMLDivElement>(null)
   const onScreen = useInView(ref, { margin: '-30%' })
 

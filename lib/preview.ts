@@ -71,21 +71,50 @@ export function previewsSpentToday(): number {
 }
 
 /* ── Homepage demos ────────────────────────────────────────────────────────
-   The two interactive demos on the landing page are a taste, not a session:
-   a few seconds, once a day, then the pitch. Tracked separately from the
-   studio's per-tone quota so hearing the homepage demo never costs a visitor
-   one of the frequencies they came to try. */
+   The landing page demos are a taste, not a session: a few seconds, once a
+   day, then the pitch.
+
+   Keyed per demo — per brainwave band on the entrainment rail — for the same
+   reason the studio is keyed per tone. Hearing alpha should not cost you beta:
+   the rail exists to be compared across, and one global allowance meant the
+   first thing you touched locked the other four. What you cannot do is hear
+   the same one twice.
+
+   Tracked apart from the studio's quota, so a homepage demo never spends one
+   of the frequencies someone came to try. */
 
 const DEMO_KEY = 'hzaura_demo_spent'
 
-export function isHomeDemoAvailable(): boolean {
-  if (typeof window === 'undefined') return true
-  try { return window.localStorage.getItem(DEMO_KEY) !== dayStamp() } catch { return true }
+interface DemoSpent { day: string; keys: string[] }
+
+function readDemo(): DemoSpent {
+  const empty: DemoSpent = { day: dayStamp(), keys: [] }
+  if (typeof window === 'undefined') return empty
+  try {
+    const raw = window.localStorage.getItem(DEMO_KEY)
+    if (!raw) return empty
+    // The old single-stamp format was just the day. Anything unparseable, or
+    // from another day, is simply a fresh allowance.
+    const parsed = JSON.parse(raw) as Partial<DemoSpent>
+    if (parsed.day !== dayStamp() || !Array.isArray(parsed.keys)) return empty
+    return { day: parsed.day, keys: parsed.keys.filter(k => typeof k === 'string') }
+  } catch {
+    return empty
+  }
 }
 
-export function markHomeDemoSpent() {
+export function isHomeDemoAvailable(key: string): boolean {
+  if (typeof window === 'undefined') return true
+  return !readDemo().keys.includes(key)
+}
+
+export function markHomeDemoSpent(key: string) {
   if (typeof window === 'undefined') return
-  try { window.localStorage.setItem(DEMO_KEY, dayStamp()) } catch { /* quota */ }
+  const cur = readDemo()
+  if (cur.keys.includes(key)) return
+  try {
+    window.localStorage.setItem(DEMO_KEY, JSON.stringify({ day: cur.day, keys: [...cur.keys, key] }))
+  } catch { /* quota */ }
   window.dispatchEvent(new Event(EVT))
 }
 
