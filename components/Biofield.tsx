@@ -262,7 +262,7 @@ export default function Biofield({ colorHex, isPlaying, analyserRef, quality = '
       const aspect = aw / ah
       const byHeight = FIELD / (2 * halfFov)
       const byWidth  = FIELD / (2 * halfFov * aspect)
-      return Math.max(byHeight, byWidth) * (preview ? 1.02 : 1.10)
+      return Math.max(byHeight, byWidth) * (preview ? 1.22 : 1.12)
     }
     const baseZ = fitDist(w, h)
     const orbit = createOrbit(root, {

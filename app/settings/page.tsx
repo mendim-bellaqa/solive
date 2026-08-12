@@ -11,6 +11,8 @@ import { useAuthUser, displayNameOf, fetchSessions, type SessionRecord } from '@
 import { usePlan, PLANS, planDurationDays } from '@/lib/plan'
 import { useSessionPresets } from '@/lib/presets'
 import { useSessionDefaults, DEFAULT_PREFS } from '@/lib/prefs'
+import { AVATARS } from '@/lib/avatars'
+import Avatar from '@/components/Avatar'
 import { BINAURAL_PRESETS, type BinauralBand } from '@/lib/frequencies'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
@@ -40,6 +42,8 @@ export default function SettingsPage() {
   const [signingOut, setSigningOut] = useState(false)
   const [name, setName] = useState('')
   const [nameStatus, setNameStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [avatar, setAvatar] = useState<string | null>(null)
+  const [avatarBusy, setAvatarBusy] = useState<string | null>(null)
   const [pw1, setPw1] = useState('')
   const [pw2, setPw2] = useState('')
   const [pwStatus, setPwStatus] = useState<{ tone: 'ok' | 'err'; msg: string } | null>(null)
@@ -50,6 +54,10 @@ export default function SettingsPage() {
   const currentPlan = PLANS.find(p => p.id === plan) ?? PLANS[0]
 
   useEffect(() => { setName(displayNameOf(user) ?? '') }, [user])
+  useEffect(() => {
+    const m = user?.user_metadata as { avatar_id?: string } | undefined
+    setAvatar(m?.avatar_id ?? null)
+  }, [user])
 
   useEffect(() => {
     if (!user) return
@@ -63,6 +71,19 @@ export default function SettingsPage() {
     const { error } = await supabase.auth.updateUser({ data: { full_name: name.trim() } })
     setNameStatus(error ? 'error' : 'saved')
     setTimeout(() => setNameStatus('idle'), 2600)
+  }
+
+  async function chooseAvatar(id: string) {
+    const supabase = getSupabase()
+    if (!supabase) return
+    const previous = avatar
+    // Optimistic: the grid should answer the tap immediately, and a failed
+    // write puts the old choice back rather than leaving a lie on screen.
+    setAvatar(id)
+    setAvatarBusy(id)
+    const { error } = await supabase.auth.updateUser({ data: { avatar_id: id } })
+    setAvatarBusy(null)
+    if (error) setAvatar(previous)
   }
 
   async function changePassword() {
@@ -155,10 +176,7 @@ export default function SettingsPage() {
               {/* ── Profile ──────────────────────────────────────────────── */}
               <Section label="PROFILE">
                 <div className="flex items-center gap-4 mb-5">
-                  <div className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold flex-shrink-0"
-                       style={{ background: 'var(--glass-2)', border: '1px solid var(--border-mid)', color: 'var(--t1)' }}>
-                    {(name || user.email || '?').charAt(0).toUpperCase()}
-                  </div>
+                  <Avatar id={avatar} fallback={name || user.email || '?'} size={48} />
                   <div className="min-w-0">
                     <p className="font-semibold text-sm truncate">{user.email}</p>
                     <p className="text-xs mt-0.5" style={{ color: 'var(--t4)' }}>
@@ -177,6 +195,32 @@ export default function SettingsPage() {
                     </button>
                   </div>
                   {nameStatus === 'error' && <Note tone="err">Could not save that name.</Note>}
+                </Field>
+
+                <Field label="Avatar">
+                  <div className="avatar-grid" role="radiogroup" aria-label="Choose an avatar">
+                    {AVATARS.map(a => {
+                      const on = avatar === a.id
+                      return (
+                        <button
+                          key={a.id}
+                          type="button"
+                          role="radio"
+                          aria-checked={on}
+                          aria-label={a.label}
+                          title={a.label}
+                          onClick={() => chooseAvatar(a.id)}
+                          className="avatar-cell"
+                          data-on={on || undefined}
+                          style={{ borderColor: on ? a.color : undefined, background: on ? `${a.color}14` : undefined }}
+                        >
+                          <Avatar id={a.id} size={38} bare />
+                          <span className="avatar-name">{a.label}</span>
+                          {avatarBusy === a.id && <span className="avatar-busy" />}
+                        </button>
+                      )
+                    })}
+                  </div>
                 </Field>
 
                 <Field label="Password">

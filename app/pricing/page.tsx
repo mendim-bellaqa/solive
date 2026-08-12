@@ -35,7 +35,7 @@ const BENEFITS = [
 
 const COMPARE: { label: string; free: string | boolean; plus: string | boolean; pro: string | boolean }[] = [
   { label: 'Audio per frequency',         free: '30s · 1 min signed in', plus: 'Unlimited', pro: 'Unlimited' },
-  { label: 'Session length',              free: '1 min',  plus: 'Up to 60 min', pro: 'Open-ended' },
+  { label: 'Session length',              free: '1 min',  plus: 'Up to 30 min', pro: '45, 60 or open-ended' },
   { label: 'Any frequency (1–20,000 Hz)', free: true,     plus: true,        pro: true },
   { label: 'Curated frequency library',   free: true,     plus: true,        pro: true },
   { label: 'Binaural beats',              free: true,     plus: true,        pro: true },
