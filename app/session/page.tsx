@@ -33,6 +33,7 @@ const VIZ_OPTIONS: { id: VizMode; label: string; sub: string; desc: string }[] =
 const BANDS: BinauralBand[] = ['delta', 'theta', 'alpha', 'beta', 'gamma']
 
 const LENGTHS: { minutes: number; label: string; note: string }[] = [
+  { minutes: 1,    label: '1 min',  note: 'The free taste' },
   { minutes: 10,   label: '10 min', note: 'A reset between things' },
   { minutes: 15,   label: '15 min', note: 'The shortest measurable shift' },
   { minutes: 30,   label: '30 min', note: 'The usual practice length' },
@@ -284,45 +285,8 @@ export default function SessionPage() {
           </div>
         </motion.div>
 
-        {/* ── Step 1 · Visualization ───────────────────────────────────────── */}
-        <SectionLabel n={1} text="Choose your 3D experience" />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 26 }}>
-          {VIZ_OPTIONS.map((o, i) => {
-            const active = viz === o.id
-            return (
-              <motion.button key={o.id} onClick={() => setViz(o.id)}
-                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-                whileTap={{ scale: 0.97 }}
-                className="freq-cell"
-                style={{
-                  padding: '16px 8px 14px', display: 'flex', flexDirection: 'column',
-                  alignItems: 'center', gap: 8, color: 'var(--t3)', position: 'relative',
-                  borderColor: active ? color : undefined,
-                  background: active ? `${color}14` : undefined,
-                }}>
-                {!limits.allViz && isPlusViz(o.id) && (
-                  <span style={{ position: 'absolute', top: 7, right: 7, fontSize: '0.52rem', fontWeight: 800, letterSpacing: '0.06em', color: 'var(--accent)', background: 'var(--accent-dim)', border: '1px solid var(--accent-mid)', padding: '2px 6px', borderRadius: 999 }}>
-                    PLUS
-                  </span>
-                )}
-                <VizGlyph mode={o.id} active={active} color={color} />
-                <div style={{ textAlign: 'center' }}>
-                  <p style={{ fontSize: '0.78rem', fontWeight: 800, color: active ? 'var(--t1)' : 'var(--t2)' }}>{o.label}</p>
-                  <p style={{ fontSize: '0.6rem', color: 'var(--t3)', marginTop: 1 }}>{o.sub}</p>
-                </div>
-              </motion.button>
-            )
-          })}
-        </div>
-        <AnimatePresence mode="wait">
-          <motion.p key={viz} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            style={{ fontSize: '0.76rem', lineHeight: 1.6, color: 'var(--t3)', textAlign: 'center', margin: '-16px 0 30px', padding: '0 8px' }}>
-            {VIZ_OPTIONS.find(v => v.id === viz)?.desc}
-          </motion.p>
-        </AnimatePresence>
-
-        {/* ── Step 2 · Frequency ───────────────────────────────────────────── */}
-        <SectionLabel n={2} text="Choose your frequency" />
+        {/* ── Step 1 · Frequency ───────────────────────────────────────────── */}
+        <SectionLabel n={1} text="Choose your frequency" />
 
         <button onClick={() => setPickerOpen(true)} className="hz-input-group"
           style={{ width: '100%', justifyContent: 'space-between', padding: '14px 18px', cursor: 'pointer', marginBottom: 14 }}>
@@ -373,6 +337,43 @@ export default function SessionPage() {
               )}
             </div>
           </motion.div>
+        </AnimatePresence>
+
+        {/* ── Step 2 · Visualization ───────────────────────────────────────── */}
+        <SectionLabel n={2} text="Choose your 3D experience" />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 26 }}>
+          {VIZ_OPTIONS.map((o, i) => {
+            const active = viz === o.id
+            return (
+              <motion.button key={o.id} onClick={() => setViz(o.id)}
+                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+                whileTap={{ scale: 0.97 }}
+                className="freq-cell"
+                style={{
+                  padding: '16px 8px 14px', display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', gap: 8, color: 'var(--t3)', position: 'relative',
+                  borderColor: active ? color : undefined,
+                  background: active ? `${color}14` : undefined,
+                }}>
+                {!limits.allViz && isPlusViz(o.id) && (
+                  <span style={{ position: 'absolute', top: 7, right: 7, fontSize: '0.52rem', fontWeight: 800, letterSpacing: '0.06em', color: 'var(--accent)', background: 'var(--accent-dim)', border: '1px solid var(--accent-mid)', padding: '2px 6px', borderRadius: 999 }}>
+                    PLUS
+                  </span>
+                )}
+                <VizGlyph mode={o.id} active={active} color={color} />
+                <div style={{ textAlign: 'center' }}>
+                  <p style={{ fontSize: '0.78rem', fontWeight: 800, color: active ? 'var(--t1)' : 'var(--t2)' }}>{o.label}</p>
+                  <p style={{ fontSize: '0.6rem', color: 'var(--t3)', marginTop: 1 }}>{o.sub}</p>
+                </div>
+              </motion.button>
+            )
+          })}
+        </div>
+        <AnimatePresence mode="wait">
+          <motion.p key={viz} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            style={{ fontSize: '0.76rem', lineHeight: 1.6, color: 'var(--t3)', textAlign: 'center', margin: '-16px 0 30px', padding: '0 8px' }}>
+            {VIZ_OPTIONS.find(v => v.id === viz)?.desc}
+          </motion.p>
         </AnimatePresence>
 
         {/* ── Step 3 · Brainwave band ──────────────────────────────────────── */}

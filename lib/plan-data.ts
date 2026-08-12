@@ -21,7 +21,7 @@ export const PLANS: Plan[] = [
     price: 0,
     tagline: 'Get a taste of every experience.',
     features: [
-      '1-minute preview of every frequency, daily',
+      '1-minute session on any frequency, daily',
       '30 seconds without an account',
       'All 3 visual experiences to try',
       'Any frequency, 1–20,000 Hz',
@@ -75,7 +75,7 @@ export interface PlanLimits {
  * open-ended sessions are allowed.
  */
 export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
-  free: { previewSeconds: 60, maxMinutes: 15, allViz: true, history: true, favorites: false },
+  free: { previewSeconds: 60, maxMinutes: 1, allViz: true, history: true, favorites: false },
   plus: { previewSeconds: Infinity, maxMinutes: 60, allViz: true, history: true, favorites: true },
   pro:  { previewSeconds: Infinity, maxMinutes: Infinity, allViz: true, history: true, favorites: true },
 }
