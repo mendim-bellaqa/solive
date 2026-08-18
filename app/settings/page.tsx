@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { getSupabase } from '@/lib/supabase/client'
 import { useAuthUser, displayNameOf, fetchSessions, type SessionRecord } from '@/lib/supabase/sessions'
 import { usePlan, PLANS, planDurationDays } from '@/lib/plan'
@@ -44,6 +44,9 @@ export default function SettingsPage() {
   const [nameStatus, setNameStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [avatar, setAvatar] = useState<string | null>(null)
   const [avatarBusy, setAvatarBusy] = useState<string | null>(null)
+  // Both of these are occasional errands, not things to read on the way past,
+  // so they stay shut until asked for.
+  const [openPanel, setOpenPanel] = useState<'avatar' | 'password' | null>(null)
   const [pw1, setPw1] = useState('')
   const [pw2, setPw2] = useState('')
   const [pwStatus, setPwStatus] = useState<{ tone: 'ok' | 'err'; msg: string } | null>(null)
@@ -197,7 +200,13 @@ export default function SettingsPage() {
                   {nameStatus === 'error' && <Note tone="err">Could not save that name.</Note>}
                 </Field>
 
-                <Field label="Avatar">
+                <Disclosure
+                  label="Avatar"
+                  summary={AVATARS.find(a => a.id === avatar)?.label ?? 'Not set'}
+                  lead={<Avatar id={avatar} fallback={name || user.email || '?'} size={26} />}
+                  open={openPanel === 'avatar'}
+                  onToggle={() => setOpenPanel(o => (o === 'avatar' ? null : 'avatar'))}
+                >
                   <div className="avatar-grid" role="radiogroup" aria-label="Choose an avatar">
                     {AVATARS.map(a => {
                       const on = avatar === a.id
@@ -221,9 +230,14 @@ export default function SettingsPage() {
                       )
                     })}
                   </div>
-                </Field>
+                </Disclosure>
 
-                <Field label="Password">
+                <Disclosure
+                  label="Password"
+                  summary="Change it"
+                  open={openPanel === 'password'}
+                  onToggle={() => setOpenPanel(o => (o === 'password' ? null : 'password'))}
+                >
                   <div className="flex flex-col gap-2 sm:flex-row">
                     <input type="password" value={pw1} onChange={e => setPw1(e.target.value)}
                            placeholder="New password" autoComplete="new-password"
@@ -236,7 +250,7 @@ export default function SettingsPage() {
                     </button>
                   </div>
                   {pwStatus && <Note tone={pwStatus.tone === 'ok' ? 'ok' : 'err'}>{pwStatus.msg}</Note>}
-                </Field>
+                </Disclosure>
               </Section>
 
               {/* ── Plan ─────────────────────────────────────────────────── */}
@@ -464,6 +478,54 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     <div className="mb-5 last:mb-0">
       <p className="text-[0.7rem] font-semibold mb-2" style={{ color: 'var(--t3)' }}>{label}</p>
       {children}
+    </div>
+  )
+}
+
+/**
+ * A settings row that opens.
+ *
+ * Twelve avatar tiles and a pair of password fields sitting permanently open
+ * made the profile card mostly things nobody had come to do — and put two
+ * empty password boxes on screen every time somebody wanted to check their
+ * plan. Closed, each row still says what it holds and what it is currently
+ * set to, so nothing is hidden, only folded.
+ */
+function Disclosure({ label, summary, lead, open, onToggle, children }: {
+  label: string
+  summary: string
+  lead?: React.ReactNode
+  open: boolean
+  onToggle: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <div className="mb-3 last:mb-0">
+      <button type="button" onClick={onToggle} aria-expanded={open} className="disc-row">
+        <span className="disc-label">{label}</span>
+        <span className="disc-right">
+          {lead}
+          <span className="disc-summary">{summary}</span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+               style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} aria-hidden>
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </span>
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.24, ease: [0.4, 0, 0.2, 1] }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div className="disc-body">{children}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
