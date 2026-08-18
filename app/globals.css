@@ -2651,3 +2651,49 @@ button { font-family: inherit; cursor: pointer; }
   white-space: nowrap;
   border: 0;
 }
+
+/* ─── Settings disclosure ────────────────────────────────────────────────── */
+
+.disc-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--glass-1);
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.16s, border-color 0.16s;
+}
+
+.disc-row:hover { background: var(--glass-2); border-color: var(--border-mid); }
+.disc-row[aria-expanded='true'] { border-color: var(--border-mid); background: var(--glass-2); }
+
+.disc-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--t1);
+}
+
+.disc-right {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  color: var(--t4);
+}
+
+.disc-summary {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--t3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.disc-body { padding: 14px 2px 4px; }
