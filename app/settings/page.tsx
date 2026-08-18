@@ -46,7 +46,7 @@ export default function SettingsPage() {
   const [avatarBusy, setAvatarBusy] = useState<string | null>(null)
   // Both of these are occasional errands, not things to read on the way past,
   // so they stay shut until asked for.
-  const [openPanel, setOpenPanel] = useState<'avatar' | 'password' | null>(null)
+  const [openPanel, setOpenPanel] = useState<'name' | 'avatar' | 'password' | null>(null)
   const [pw1, setPw1] = useState('')
   const [pw2, setPw2] = useState('')
   const [pwStatus, setPwStatus] = useState<{ tone: 'ok' | 'err'; msg: string } | null>(null)
@@ -188,7 +188,12 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                <Field label="Display name">
+                <Disclosure
+                  label="Display name"
+                  summary={name.trim() || 'Not set'}
+                  open={openPanel === 'name'}
+                  onToggle={() => setOpenPanel(o => (o === 'name' ? null : 'name'))}
+                >
                   <div className="flex gap-2">
                     <input value={name} onChange={e => setName(e.target.value)} maxLength={60}
                            placeholder="What should we call you?" className="set-input flex-1"
@@ -198,7 +203,7 @@ export default function SettingsPage() {
                     </button>
                   </div>
                   {nameStatus === 'error' && <Note tone="err">Could not save that name.</Note>}
-                </Field>
+                </Disclosure>
 
                 <Disclosure
                   label="Avatar"
