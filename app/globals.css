@@ -2697,3 +2697,212 @@ button { font-family: inherit; cursor: pointer; }
 }
 
 .disc-body { padding: 14px 2px 4px; }
+
+/* ─── History page ───────────────────────────────────────────────────────── */
+
+.hist-hero {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 26px;
+}
+
+/* ── What you reach for ── */
+
+.band-bars { display: flex; flex-direction: column; gap: 8px; }
+
+.band-bar {
+  display: grid;
+  grid-template-columns: 52px 1fr 26px;
+  align-items: center;
+  gap: 10px;
+}
+
+.band-bar-label {
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: capitalize;
+}
+
+.band-bar-track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.06);
+  overflow: hidden;
+}
+
+.band-bar-fill { display: block; height: 100%; border-radius: 999px; }
+
+.band-bar-n {
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: var(--t4);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.tone-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 7px 11px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--glass-1);
+  font-size: 0.72rem;
+  color: var(--t3);
+  transition: background 0.16s, border-color 0.16s;
+}
+
+.tone-chip:hover { background: var(--glass-2); border-color: var(--border-mid); }
+.tone-chip strong { font-weight: 800; color: var(--t1); }
+.tone-chip span { color: var(--t4); }
+.tone-chip em { font-style: normal; font-weight: 700; color: var(--t4); }
+
+/* ── Milestones ── */
+
+.ms-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+@media (min-width: 560px) {
+  .ms-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+.ms-cell {
+  position: relative;
+  padding: 14px 15px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  /* Locked entries sit back rather than disappear: the list is a path, and a
+     path you cannot see the rest of is just a wall. */
+  background: rgba(255,255,255,0.018);
+  opacity: 0.62;
+  transition: opacity 0.2s, border-color 0.2s, background 0.2s;
+}
+
+.ms-cell[data-on] {
+  opacity: 1;
+  background: var(--glass-1);
+  border-color: var(--border-mid);
+}
+
+.ms-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ms-label {
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--t1);
+}
+
+.ms-date {
+  flex-shrink: 0;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #5ce8b0;
+}
+
+.ms-note {
+  margin-top: 4px;
+  font-size: 0.7rem;
+  line-height: 1.5;
+  color: var(--t3);
+}
+
+.ms-track {
+  display: block;
+  height: 3px;
+  margin-top: 9px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.07);
+  overflow: hidden;
+}
+
+.ms-fill { display: block; height: 100%; border-radius: 999px; background: var(--t3); }
+
+.ms-detail {
+  display: block;
+  margin-top: 7px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--t4);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Timeline ── */
+
+.tl {
+  position: relative;
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 22px;
+}
+
+/* The spine. Drawn on the list rather than per row so it is continuous
+   through the gaps instead of dashed by them. */
+.tl::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 6px;
+  bottom: 6px;
+  width: 1px;
+  background: linear-gradient(180deg, var(--border-mid), var(--border), transparent);
+}
+
+.tl-row {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  padding: 11px 0;
+}
+
+.tl-row + .tl-row { border-top: 1px solid rgba(255,255,255,0.04); }
+
+.tl-dot {
+  position: absolute;
+  left: -22px;
+  top: 17px;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  box-shadow: 0 0 0 3px #07070f;
+}
+
+.tl-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+
+.tl-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tl-title {
+  font-size: 0.84rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--t1);
+}
+
+.tl-when {
+  flex-shrink: 0;
+  font-size: 0.64rem;
+  color: var(--t4);
+  white-space: nowrap;
+}
+
+.tl-detail {
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--t3);
+}

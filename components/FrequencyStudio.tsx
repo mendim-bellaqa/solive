@@ -532,7 +532,7 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
     if (!limits.favorites) { setFavHint(true); return }
     // A favourite lives on a session row, and a signed-out visit never gets
     // one — better to say so than to fill the star and quietly drop it.
-    if (authUser === null) { router.push('/auth/login?next=/history'); return }
+    if (authUser === null) { router.push('/auth/login?next=/sessions'); return }
     const next = !favorite
     setFavorite(next)
     favoriteRef.current = next
@@ -934,7 +934,7 @@ export default function FrequencyStudio({ hz, binauralBand:initialBand, duration
                     <div className="flex flex-col gap-2.5 max-w-xs mx-auto">
                       <a href="/session" className="btn-primary text-center w-full"
                          style={{ background:frequency.colorHex, color:'#000' }}>New Session</a>
-                      <a href="/history" className="btn-ghost text-center w-full text-sm">View History</a>
+                      <a href="/sessions" className="btn-ghost text-center w-full text-sm">My Sessions</a>
                       {/* Clearing gatedRef here used to refill the free minute
                           on every close. Only an unlimited plan may reset it. */}
                       <button onClick={() => { setSessionEnded(false); setPlayerState('idle'); setElapsed(0); setRated(false); setAfterScore(null); if (previewSeconds === Infinity) gatedRef.current = false; setShowPaywall(false) }}
