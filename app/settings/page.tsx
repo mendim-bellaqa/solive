@@ -301,7 +301,7 @@ export default function SettingsPage() {
                 ) : (
                   <div className="flex gap-2.5">
                     <Link href="/pricing" className="btn-ghost flex-1 text-center text-sm">Extend</Link>
-                    <Link href="/history" className="btn-ghost flex-1 text-center text-sm">History</Link>
+                    <Link href="/sessions" className="btn-ghost flex-1 text-center text-sm">Sessions</Link>
                   </div>
                 )}
                 {plan !== 'free' && (

@@ -41,6 +41,7 @@ export default function Header() {
     { label: 'Frequencies', href: '/frequencies' },
     { label: 'Science',     href: '/science' },
     { label: 'Pricing',     href: '/pricing' },
+    { label: 'Sessions',    href: '/sessions' },
     { label: 'History',     href: '/history' },
   ]
 
@@ -343,7 +344,7 @@ export default function Header() {
                     {/* Menu items */}
                     {[
                       {
-                        label: 'My Sessions', href: '/history',
+                        label: 'My Sessions', href: '/sessions',
                         icon: <><path d="M3 3v18h18" strokeLinecap="round" strokeLinejoin="round" /><path d="M7 14l3-4 3 3 4-6" strokeLinecap="round" strokeLinejoin="round" /></>,
                       },
                       {

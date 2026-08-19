@@ -125,7 +125,7 @@ export default function Footer() {
             <FLink href="/frequencies">Frequencies</FLink>
             <FLink href="/science">The science</FLink>
             <FLink href="/session">Build a session</FLink>
-            <FLink href="/history">Session history</FLink>
+            <FLink href="/history">Account history</FLink>
           </Col>
 
           <Col title="QUICK PLAY">
@@ -152,7 +152,7 @@ export default function Footer() {
             {user === null && <FLink href="/auth/login">Sign in</FLink>}
             {user && <FLink href="/settings">Settings</FLink>}
             {user && <FLink href="/pricing">Your plan</FLink>}
-            <FLink href="/history">My sessions</FLink>
+            <FLink href="/sessions">My sessions</FLink>
             <FLink href="/session">Get matched</FLink>
           </Col>
 

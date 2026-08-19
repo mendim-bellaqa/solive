@@ -74,7 +74,7 @@ export default function StudioClient() {
     )
   }
 
-  // Resuming a paused session from /history
+  // Resuming a paused session from /sessions
   const sessionId = params.get('sid') ?? undefined
   const resumeRaw = Number(params.get('resume'))
   const resumeFrom = Number.isFinite(resumeRaw) && resumeRaw > 0 ? Math.floor(resumeRaw) : 0
